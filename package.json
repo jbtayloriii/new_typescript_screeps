@@ -1,0 +1,14 @@
+{
+  "name": "screeps_ts_center",
+  "version": "1.0.0",
+  "description": "Updated Screeps typescript code.",
+  "main": "main.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Josh Taylor",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^4.9.4"
+  }
+}
