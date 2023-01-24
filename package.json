@@ -4,7 +4,8 @@
   "description": "Updated Screeps typescript code.",
   "main": "main.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "push-sim": "rollup -c --environment DEST:sim"
   },
   "repository": {
     "type": "git",
@@ -14,12 +15,14 @@
   "license": "ISC",
   "type": "module",
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^24.0.1",
+    "@rollup/plugin-node-resolve": "^15.0.1",
     "@types/lodash": "^4.14.191",
     "@types/node": "^18.11.18",
     "@types/screeps": "^3.3.0",
     "rollup": "^3.10.1",
     "rollup-plugin-typescript2": "^0.34.1",
-    "tslib": "^2.4.1",
+    "screeps-api": "^1.16.0",
     "typescript": "^4.9.4"
   },
   "dependencies": {

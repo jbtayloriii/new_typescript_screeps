@@ -15,7 +15,7 @@ export const loop = ErrorMapper.wrapLoop(() => {
   }
   
   if (!global.hq) {
-    console.log('Initializing HQ');
+    console.log('Initializing HQ!!');
     const headquarters: Headquarters = Headquarters.deserialize();
     global.hq = headquarters;
   }
