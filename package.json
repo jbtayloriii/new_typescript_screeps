@@ -9,6 +9,12 @@
   "author": "Josh Taylor",
   "license": "ISC",
   "devDependencies": {
+    "@types/lodash": "^4.14.191",
+    "@types/node": "^18.11.18",
+    "@types/screeps": "^3.3.0",
     "typescript": "^4.9.4"
+  },
+  "dependencies": {
+    "source-map": "~0.6.1"
   }
 }
