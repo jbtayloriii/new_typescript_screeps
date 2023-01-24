@@ -6,12 +6,20 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jbtayloriii/new_typescript_screeps.git"
+  },
   "author": "Josh Taylor",
   "license": "ISC",
+  "type": "module",
   "devDependencies": {
     "@types/lodash": "^4.14.191",
     "@types/node": "^18.11.18",
     "@types/screeps": "^3.3.0",
+    "rollup": "^3.10.1",
+    "rollup-plugin-typescript2": "^0.34.1",
+    "tslib": "^2.4.1",
     "typescript": "^4.9.4"
   },
   "dependencies": {
