@@ -1,4 +1,4 @@
-
+import { RhsPaneWindow } from "visuals/impl/rhs_pane_window";
 
 export class VisualWindow {
 
@@ -10,7 +10,8 @@ export class VisualWindow {
     return new VisualWindow();
   }
 
-  public reload(): void {
-    console.log("Reloading visual window");
+  public reload(room: Room): void {
+    let rhsWindow: RhsPaneWindow = new RhsPaneWindow();
+    rhsWindow.draw(room);
   }
 }
