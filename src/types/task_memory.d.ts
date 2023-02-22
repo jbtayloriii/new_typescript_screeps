@@ -1,7 +1,11 @@
+import { BasicHarvestTaskState } from "tasks/basic_harvest_task";
+import { BasicUpgradeTaskState } from "tasks/basic_upgrade_task";
+import { PromiseId } from "./resource_memory";
+
 export const enum TaskKind {
   Unknown = 0,
-  BasicHarvestTask = 1,
-  BasicUpgradeTask = 2,
+  BasicHarvestTaskKind = 1,
+  BasicUpgradeTaskKind = 2,
 }
 
 declare global {
@@ -11,10 +15,16 @@ declare global {
   }
 
   interface BasicHarvestTaskMemory extends TaskMemory {
-    kind: TaskKind.BasicHarvestTask;
+    currentState: BasicHarvestTaskState;
+    sourceId: Id<Source>;
+    spawnId: Id<StructureSpawn>;
+    promiseId: PromiseId | null;
   }
 
   interface BasicUpgradeTaskMemory extends TaskMemory {
-    kind: TaskKind.BasicUpgradeTask;
+    currentState: BasicUpgradeTaskState;
+    sourceId: Id<Source>;
+    controllerId: Id<StructureController>;
+    promiseId: PromiseId | null;
   }
 }

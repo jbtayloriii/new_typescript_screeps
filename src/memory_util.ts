@@ -1,5 +1,5 @@
 
-const CURRENT_MEMORY_VERSION = 2;
+const CURRENT_MEMORY_VERSION = "2.2";
 
 export class MemoryUtil {
   public static shouldInitializeMemory(): boolean {
@@ -16,13 +16,16 @@ export class MemoryUtil {
 		MemoryUtil.initializeOtherMemory();
 
 		Memory.currentMemoryVersion = CURRENT_MEMORY_VERSION;
-
   }
 
   private static initializeOtherMemory(): void {
     // Add other memory initializers here
     if (!Memory.bases) {
       Memory.bases = [];
+    }
+
+    if (!Memory.promises) {
+      Memory.promises = [];
     }
   }
 }

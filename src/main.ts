@@ -3,6 +3,7 @@ import { Headquarters } from "./headquarters";
 import { IGlobal } from "./global_types.d";
 import { VisualWindow } from "./visuals/visual_window";
 import { MemoryUtil } from "./memory_util";
+import { PromiseManager } from "resources/promise_manager";
 
 var global: IGlobal = {
   visualWindow: VisualWindow.getVisualWindow()
@@ -23,7 +24,7 @@ export const loop = ErrorMapper.wrapLoop(() => {
 
   if (!global.hq) {
     console.log('Initializing HQ!!');
-    global.hq = Headquarters.deserialize(Memory.bases);
+    global.hq = Headquarters.deserialize(Memory.bases, Memory.promises);
   }
 
   global.hq.checkWorld();
@@ -31,6 +32,10 @@ export const loop = ErrorMapper.wrapLoop(() => {
   global.hq.run();
 
   global.hq.serialize();
+
+  
+  console.log("------------------------------");
+  console.log("-");
 
   // Test code for visuals
   // let room: Room = Object.values(Game.rooms)[0];

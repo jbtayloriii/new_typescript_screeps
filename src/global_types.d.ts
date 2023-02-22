@@ -13,8 +13,9 @@ export const enum BaseKind {
 
 declare global {
   interface Memory {
-    currentMemoryVersion: number;
+    currentMemoryVersion: string;
     bases: Array<BaseMemory>;
+    promises: Array<PromiseMemory>;
   }
 
   interface BaseMemory {
@@ -23,8 +24,8 @@ declare global {
 
   interface StarterBaseMemory extends BaseMemory {
     kind: BaseKind.StarterBase;
-    test: string;
     tasksMemory: Array<TaskMemory>;
+    creepRequestHandlerMemory: CreepRequestHandlerMemory;
   }
 
 }

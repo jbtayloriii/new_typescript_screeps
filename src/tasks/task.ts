@@ -1,7 +1,10 @@
+import { CreepRequestHandler } from "resources/creep_request_handler";
 
 
 export interface ITask {
+  requestResources(requestHandler: CreepRequestHandler): void;
+
   execute(): boolean;
 
-  serialize(): TaskMemory;
+  getMemory(): TaskMemory;
 }

@@ -1,6 +1,10 @@
 import { ITask } from "./task";
-import { CreepWrapper } from "creeps/creep_wrapper";
+import { CreepPromise } from "resources/promises/creep_promise";
 import { TaskKind } from "types/task_memory";
+import { CreepRequestHandler } from "resources/creep_request_handler";
+
+const BASIC_HARVESTER_BODY = [WORK, MOVE, CARRY];
+const BASIC_HARVEST_TASK_PRIORITY = 100;
 
 export enum BasicHarvestTaskState {
   STATE_UNKNOWN = 0,
@@ -11,65 +15,79 @@ export enum BasicHarvestTaskState {
 }
 
 export class BasicHarvestTask implements ITask {
-  currentState: BasicHarvestTaskState;
-  creep: Creep | null;
+  memory: BasicHarvestTaskMemory;
+
   source: Source;
   spawn: StructureSpawn;
+  creepPromise: CreepPromise | null;
+
 
   static createNewTask(source: Source, spawn: StructureSpawn): BasicHarvestTask {
-    return new BasicHarvestTask(BasicHarvestTaskState.STATE_STARTING, source, spawn, null);
+    const memory = {
+      kind: TaskKind.BasicHarvestTaskKind,
+      currentState: BasicHarvestTaskState.STATE_STARTING,
+      sourceId: source.id,
+      spawnId: spawn.id,
+      promiseId: null,
+    };
+    return new BasicHarvestTask(memory, source, spawn, null);
   }
 
-  constructor(currentState: BasicHarvestTaskState, source: Source, spawn: StructureSpawn, creepName: string | null) {
-    this.currentState = currentState;
+  constructor(memory: BasicHarvestTaskMemory, source: Source, spawn: StructureSpawn, creepPromise: CreepPromise | null) {
+    this.memory = memory;
     this.source = source;
     this.spawn = spawn;
-    if (creepName) {
-      this.creep = Game.creeps[creepName];
-    } else {
-      this.creep = null;
+    this.creepPromise = creepPromise;
+  }
+
+  requestResources(requestHandler: CreepRequestHandler): void {
+    if (!this.creepPromise) {
+      this.creepPromise = requestHandler.newCreepRequest(BASIC_HARVESTER_BODY, BASIC_HARVEST_TASK_PRIORITY);
     }
   }
 
   execute(): boolean {
-    if (!this.creep) {
+    if (!this.creepPromise) {
       return false;
     }
 
-    if (this.currentState === BasicHarvestTaskState.STATE_CREEP_HARVESTING) {
+    const creep = this.creepPromise.getCreep();
+    if (!creep) {
+      return false;
+    }
+
+    if (this.memory.currentState === BasicHarvestTaskState.STATE_CREEP_HARVESTING) {
       // Full harvest
-      if (this.creep.store[RESOURCE_ENERGY] === this.creep.store.getCapacity()) {
-        this.currentState = BasicHarvestTaskState.STATE_CREEP_DEPOSITING;
+      if (creep.store[RESOURCE_ENERGY] === creep.store.getCapacity()) {
+        this.memory.currentState = BasicHarvestTaskState.STATE_CREEP_DEPOSITING;
         return true;
       }
 
-      const harvestCode = this.creep.harvest(this.source);
+      const harvestCode = creep.harvest(this.source);
 
       // TODO: Implement a cached path here
       if (harvestCode === ERR_NOT_IN_RANGE) {
-        this.creep.moveTo(this.source);
+        creep.moveTo(this.source);
       }
-    } else if (this.currentState === BasicHarvestTaskState.STATE_CREEP_DEPOSITING) {
-      if (this.creep.store[RESOURCE_ENERGY] === 0) {
-        this.currentState = BasicHarvestTaskState.STATE_CREEP_HARVESTING;
+    } else if (this.memory.currentState === BasicHarvestTaskState.STATE_CREEP_DEPOSITING) {
+      if (creep.store[RESOURCE_ENERGY] === 0) {
+        this.memory.currentState = BasicHarvestTaskState.STATE_CREEP_HARVESTING;
         return true;
       }
 
-      const transferCode = this.creep.transfer(this.spawn, RESOURCE_ENERGY);
+      const transferCode = creep.transfer(this.spawn, RESOURCE_ENERGY);
       // TODO: Implement a cached path here
       if (transferCode === ERR_NOT_IN_RANGE) {
-        this.creep.moveTo(this.source);
+        creep.moveTo(this.source);
       }
     } else {
-      this.currentState = BasicHarvestTaskState.STATE_CREEP_HARVESTING;
+      this.memory.currentState = BasicHarvestTaskState.STATE_CREEP_HARVESTING;
       return true;
     }
     return false;
   }
 
-  serialize(): BasicHarvestTaskMemory {
-    return {
-      kind: TaskKind.BasicHarvestTask,
-    }
+  public getMemory(): BasicHarvestTaskMemory {
+    return this.memory;
   }
 }
