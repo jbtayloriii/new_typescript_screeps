@@ -30,8 +30,9 @@ export const loop = ErrorMapper.wrapLoop(() => {
   global.hq.checkWorld();
   global.hq.processResourceRequests();
   global.hq.run();
+  global.hq.cleanUp();
 
-  global.hq.serialize();
+  // global.hq.serialize();
 
   
   console.log("------------------------------");

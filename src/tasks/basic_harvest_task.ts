@@ -2,6 +2,7 @@ import { ITask } from "./task";
 import { CreepPromise } from "resources/promises/creep_promise";
 import { TaskKind } from "types/task_memory";
 import { CreepRequestHandler } from "resources/creep_request_handler";
+import { PromiseManager } from "resources/promise_manager";
 
 const BASIC_HARVESTER_BODY = [WORK, MOVE, CARRY];
 const BASIC_HARVEST_TASK_PRIORITY = 100;
@@ -15,12 +16,10 @@ export enum BasicHarvestTaskState {
 }
 
 export class BasicHarvestTask implements ITask {
-  memory: BasicHarvestTaskMemory;
-
-  source: Source;
-  spawn: StructureSpawn;
-  creepPromise: CreepPromise | null;
-
+  private memory: BasicHarvestTaskMemory;
+  private source: Source;
+  private spawn: StructureSpawn;
+  private creepPromise: CreepPromise | null;
 
   static createNewTask(source: Source, spawn: StructureSpawn): BasicHarvestTask {
     const memory = {
@@ -30,7 +29,28 @@ export class BasicHarvestTask implements ITask {
       spawnId: spawn.id,
       promiseId: null,
     };
-    return new BasicHarvestTask(memory, source, spawn, null);
+    return new BasicHarvestTask(memory, source, spawn, /* creepPromise= */ null);
+  }
+
+  static deserialize(memory: BasicHarvestTaskMemory, promiseManager: PromiseManager): BasicHarvestTask {
+    const source = Game.getObjectById(memory.sourceId);
+    if (!source) {
+      throw "Cannot find source for basic harvest task";
+    }
+
+    // todo: handle if spawn is destroyed
+    const spawn = Game.getObjectById(memory.spawnId);
+    if (!spawn) {
+      throw "Cannot find spawn for basic harvest task";
+    }
+
+    let creepPromise: CreepPromise | null;
+    if (memory.promiseId) {
+      creepPromise = promiseManager.getCreepPromise(memory.promiseId);
+    } else {
+      creepPromise = null;
+    }
+    return new BasicHarvestTask(memory, source, spawn, creepPromise);
   }
 
   constructor(memory: BasicHarvestTaskMemory, source: Source, spawn: StructureSpawn, creepPromise: CreepPromise | null) {
@@ -40,9 +60,11 @@ export class BasicHarvestTask implements ITask {
     this.creepPromise = creepPromise;
   }
 
-  requestResources(requestHandler: CreepRequestHandler): void {
+  requestResources(requestHandler: CreepRequestHandler, promiseManager: PromiseManager): void {
     if (!this.creepPromise) {
+      const newPromise = promiseManager.createCreepPromise(BASIC_HARVESTER_BODY);
       this.creepPromise = requestHandler.newCreepRequest(BASIC_HARVESTER_BODY, BASIC_HARVEST_TASK_PRIORITY);
+      this.memory.promiseId = this.creepPromise.getPromiseId();
     }
   }
 
@@ -55,6 +77,8 @@ export class BasicHarvestTask implements ITask {
     if (!creep) {
       return false;
     }
+
+    if (this.memory.currentState === BasicHarvestTaskState.STATE_CREEP_HARVESTING)
 
     if (this.memory.currentState === BasicHarvestTaskState.STATE_CREEP_HARVESTING) {
       // Full harvest

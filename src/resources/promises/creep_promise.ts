@@ -1,18 +1,35 @@
+import { PromiseKind } from "types/resource_memory";
 import { ResourcePromise } from "./promise";
 
-export class CreepPromise implements ResourcePromise {
-  private promiseId: string;
-  private creep: Creep | null;
-  private body: BodyPartConstant[];
+export const enum CreepPromiseState {
+  UNKNOWN = 0,
+  REQUESTING = 1,
+  CREEP_ALIVE = 2,
+  CREEP_DELETED = 3,
+}
 
-  constructor(promiseId: string, creep: Creep | null, body: BodyPartConstant[]) {
-    this.promiseId = promiseId;
-    this.creep = creep;
-    this.body = body;
+export class CreepPromise implements ResourcePromise {
+  private memory: CreepPromiseMemory;
+  private creep: Creep | null;
+
+  constructor(memory: CreepPromiseMemory) {
+    this.memory = memory;
+    this.creep = memory.creepId in Game.creeps ? Game.creeps[memory.creepId]: null;
+  }
+
+  public static newCreepPromise(promiseId: string, body: Array<BodyPartConstant>) {
+    const memory = {
+      kind: 1,
+      body: body,
+      creepId: promiseId + '_test',
+      creepState: CreepPromiseState.REQUESTING,
+      promiseId: promiseId,
+    }
+    return new CreepPromise(memory);
   }
 
   public getPromiseId():string {
-    return this.promiseId;
+    return this.memory.promiseId;
   }
 
   public hasCreep(): boolean {
@@ -23,12 +40,19 @@ export class CreepPromise implements ResourcePromise {
     return this.creep;
   }
 
+  public getBody(): Array<BodyPartConstant> {
+    return this.memory.body;
+  }
+
+  public setState(newState: CreepPromiseState): void {
+    this.memory.creepState = newState;
+  }
+
   public setCreep(creep: Creep): void {
     this.creep = creep;
   }
 
   public static deserialize(memory: CreepPromiseMemory): CreepPromise {
-    const creep = memory.creepId in Game.creeps ? Game.creeps[memory.creepId]: null;
-    return new CreepPromise(memory.promiseId, creep, memory.body);
+    return new CreepPromise(memory);
   }
 }

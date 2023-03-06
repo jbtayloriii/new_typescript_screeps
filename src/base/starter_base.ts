@@ -9,22 +9,25 @@ import { TaskKind } from "types/task_memory";
 
 export class StarterBase implements IBase {
   private memory: StarterBaseMemory;
-	// private requester: ResourceRequester;
 	private tasks: Array<ITask>;
-  private requestHandler: CreepRequestHandler;
+  private creepRequestHandler: CreepRequestHandler;
 
-  private constructor(memory: StarterBaseMemory, tasks: Array<ITask>, requestHandler: CreepRequestHandler) {
+  private constructor(memory: StarterBaseMemory, tasks: Array<ITask>, creepRequestHandler: CreepRequestHandler) {
     this.memory = memory;
     this.tasks = tasks;
-    this.requestHandler = requestHandler;
+    this.creepRequestHandler = creepRequestHandler;
   }
 
   processResourceRequests(): void {
-    this.tasks.forEach(task => task.requestResources(this.requestHandler));
+    this.tasks.forEach(task => task.requestResources(this.creepRequestHandler));
   }
 
   run(): void {
     this.tasks.forEach(task => task.execute());
+  }
+
+  cleanUp(): void {
+    //todo
   }
 
   /**
@@ -67,18 +70,17 @@ export class StarterBase implements IBase {
   }
 
   static deserialize(memory: StarterBaseMemory, promiseManager: PromiseManager): StarterBase {
-    // TODO: deserialize tasks from memory
-    const tasks: Array<ITask> = memory.tasksMemory.map(taskMemory => deserializeTask(taskMemory, PromiseManager));
+    const tasks: Array<ITask> = memory.tasksMemory.map(taskMemory => StarterBase.deserializeTask(taskMemory, promiseManager));
     const creepRequestHandler = CreepRequestHandler.deserialize(memory.creepRequestHandlerMemory, promiseManager);
     return new StarterBase(memory, tasks, creepRequestHandler);
   }
 
-  // TODO: move out?
   private static deserializeTask(taskMemory: TaskMemory, promiseManager: PromiseManager): ITask {
     if (taskMemory.kind === TaskKind.BasicHarvestTaskKind) {
-			return BasicHarvestTask.deserialize(taskMemory as BasicHarvestTaskMemory, PromiseManager);
-		} else if (taskMemory.kind === TaskKind.BasicUpgradeTask) {
-			return BasicUpgradeTask.deserialize(taskMemory as BasicUpgradeTaskMemory, PromiseManager);
+			return BasicHarvestTask.deserialize(taskMemory as BasicHarvestTaskMemory, promiseManager);
+		} else if (taskMemory.kind === TaskKind.BasicUpgradeTaskKind) {
+			return BasicUpgradeTask.deserialize(taskMemory as BasicUpgradeTaskMemory, promiseManager);
 		}
+    throw "Cannot deserialize task in base";
   }
 }

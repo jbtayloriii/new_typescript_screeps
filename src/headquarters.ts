@@ -8,14 +8,14 @@ export class Headquarters {
   private baseMemory: BaseMemory[];
   private promiseManager: PromiseManager;
 
-  constructor(baseMemory: BaseMemory[], bases: IBase[], promiseManager: PromiseManager) {
+  private constructor(baseMemory: BaseMemory[], bases: IBase[], promiseManager: PromiseManager) {
     this.baseMemory = baseMemory;
     this.bases = bases;
     this.promiseManager = promiseManager;
   }
 
   public checkWorld(): void {
-    // TODO: wrap in a check so that this doesn't run every tick
+    // TODO: wrap in a check so that this doesn't run every tick (?)
     if (this.bases.length == 0) {
       const starterBase = StarterBase.createStarterBase(this.promiseManager);
       this.baseMemory.push(starterBase.getMemory());
@@ -31,10 +31,8 @@ export class Headquarters {
     this.bases.forEach(base => base.run());
   }
 
-  public serialize(): void {
-    console.log("serializing hq");
-    console.log(Memory.bases);
-    console.log(Memory.bases.length);
+  public cleanUp(): void {
+    this.bases.forEach(base => base.cleanUp());
   }
 
   public static deserialize(baseMemories: BaseMemory[], promisesMemory: PromiseMemory[]): Headquarters {
@@ -44,13 +42,10 @@ export class Headquarters {
       bases.push(Headquarters.deserializeBase(baseMem, promiseManager));
     }
 
-
-
-
     return new Headquarters(baseMemories, bases, promiseManager);
   }
 
-  private static deserializeBase(memory:BaseMemory, promiseManager: PromiseManager): IBase {
+  private static deserializeBase(memory: BaseMemory, promiseManager: PromiseManager): IBase {
     if (memory.kind == BaseKind.StarterBase) {
       return StarterBase.deserialize(memory as StarterBaseMemory, promiseManager);
     }

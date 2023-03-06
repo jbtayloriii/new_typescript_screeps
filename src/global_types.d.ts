@@ -28,4 +28,15 @@ declare global {
     creepRequestHandlerMemory: CreepRequestHandlerMemory;
   }
 
+  interface CreepMemory {
+    promiseId: string;
+    currentState: CreepState;
+  }
+
+  type CreepState = BasicHarvesterCreepState;
+
+  enum BasicHarvesterCreepState {
+    HARVESTING = 0,
+    DROPPING_OFF = 1,
+  }
 }
