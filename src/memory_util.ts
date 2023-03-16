@@ -20,12 +20,6 @@ export class MemoryUtil {
 
   private static initializeOtherMemory(): void {
     // Add other memory initializers here
-    if (!Memory.bases) {
-      Memory.bases = [];
-    }
-
-    if (!Memory.promises) {
-      Memory.promises = [];
-    }
+    
   }
 }

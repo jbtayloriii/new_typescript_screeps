@@ -1,3 +1,7 @@
+import { BasicHarvesterCreepState } from "creeps/types/basic_harvester_creep";
+import { CreepType } from "./creeps/creep_handler_factory";
+import { BasicBuilderCreepState } from "./creeps/types/basic_builder_creep";
+import { BasicUpgraderCreepState } from "./creeps/types/basic_upgrader_creep";
 import { Headquarters } from "./headquarters";
 import { VisualWindow } from "./visuals/visual_window";
 
@@ -6,37 +10,58 @@ interface IGlobal {
   visualWindow: VisualWindow;
 }
 
-export const enum BaseKind {
-  Unknown = 0,
-  StarterBase = 1,
-}
-
 declare global {
+  type RoomId = string;
+
   interface Memory {
     currentMemoryVersion: string;
-    bases: Array<BaseMemory>;
-    promises: Array<PromiseMemory>;
-  }
-
-  interface BaseMemory {
-    kind: BaseKind;
-  }
-
-  interface StarterBaseMemory extends BaseMemory {
-    kind: BaseKind.StarterBase;
-    tasksMemory: Array<TaskMemory>;
-    creepRequestHandlerMemory: CreepRequestHandlerMemory;
   }
 
   interface CreepMemory {
-    promiseId: string;
-    currentState: CreepState;
+    owningRoomId: RoomId;
+    creepType: CreepType;
+
+    // Action memory
+    harvestingSourceId?: Id<Source>;
+    currentStructureResourceTargetId?: Id<Structure>;
+    buildingConstructionSiteId?: Id<ConstructionSite>;
+
+    // Prototype memory
+    _movePath?: string;
+    _moveTargetPosSerial?: string;
   }
 
-  type CreepState = BasicHarvesterCreepState;
+  interface RoomMemory {
+    powerHarvestingMap: { [sourceId: Id<Source>]: RoomPosition };
+    _sourceToHarvestSpotMap: Map<
+      Id<Source>,
+      {
+        openSpots: number;
+        currentCreeps: Id<Creep>[];
+      }
+    >;
+  }
 
-  enum BasicHarvesterCreepState {
-    HARVESTING = 0,
-    DROPPING_OFF = 1,
+  interface BasicHarvesterCreepMemory extends CreepMemory {
+    currentState: BasicHarvesterCreepState;
+    sourceId: Id<Source>;
+    dropOffLocationId: Id<StructureSpawn>;
+  }
+
+  interface BasicUpgraderCreepMemory extends CreepMemory {
+    currentState: BasicUpgraderCreepState;
+    sourceId: Id<Source>;
+    controllerId: Id<StructureController>;
+  }
+
+  interface BasicBuilderCreepMemory extends CreepMemory {
+    currentState: BasicBuilderCreepState;
+    sourceId: Id<Source>;
+  }
+
+  enum CreepActionReturnVal {
+    SAME_ACTION = 0,
+    NEXT_ACTION = 1,
+    ACTION_ERROR = 2,
   }
 }

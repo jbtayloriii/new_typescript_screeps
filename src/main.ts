@@ -3,7 +3,11 @@ import { Headquarters } from "./headquarters";
 import { IGlobal } from "./global_types.d";
 import { VisualWindow } from "./visuals/visual_window";
 import { MemoryUtil } from "./memory_util";
-import { PromiseManager } from "resources/promise_manager";
+
+import "./prototypes/creep_prototype";
+import "./prototypes/room_position_prototype";
+import "./prototypes/room_prototype";
+import "./prototypes/tower_prototype";
 
 var global: IGlobal = {
   visualWindow: VisualWindow.getVisualWindow()
@@ -12,19 +16,13 @@ var global: IGlobal = {
 export const loop = ErrorMapper.wrapLoop(() => {
   console.log("Tick " + Game.time);
 
-  for (const name in Memory.creeps) {
-    if (!(name in Game.creeps)) {
-      delete Memory.creeps[name];
-    }
-  }
-
   if (MemoryUtil.shouldInitializeMemory()) {
     MemoryUtil.initializeMemory();
   }
 
   if (!global.hq) {
     console.log('Initializing HQ!!');
-    global.hq = Headquarters.deserialize(Memory.bases, Memory.promises);
+    global.hq = Headquarters.initialize();
   }
 
   global.hq.checkWorld();
@@ -32,14 +30,19 @@ export const loop = ErrorMapper.wrapLoop(() => {
   global.hq.run();
   global.hq.cleanUp();
 
-  // global.hq.serialize();
-
+  // TODO: move into headquarters and bases
+  for(let roomName in Game.rooms) {
+    let towers = Game.rooms[roomName].find(FIND_MY_STRUCTURES, {
+        filter: { structureType: STRUCTURE_TOWER }
+    }) as StructureTower[];
+    for(let i = 0; i < towers.length; i++) {
+        const tower = towers[i];
+        if(!tower.attackEnemy()) {
+            tower.repairStructures();
+        }
+    }
+}
   
   console.log("------------------------------");
   console.log("-");
-
-  // Test code for visuals
-  // let room: Room = Object.values(Game.rooms)[0];
-
-  // global.visualWindow.reload(room);
 });

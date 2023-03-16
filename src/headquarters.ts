@@ -1,54 +1,75 @@
-import { IBase } from "base/base";
-import { StarterBase } from "base/starter_base";
-import { BaseKind } from "global_types";
-import { PromiseManager } from "resources/promise_manager";
+import { Base } from "base/base";
+import { CreepHandler } from "./creeps/creep_handler";
+import { CreepHandlerFactory } from "./creeps/creep_handler_factory";
 
 export class Headquarters {
-  private bases: IBase[];
-  private baseMemory: BaseMemory[];
-  private promiseManager: PromiseManager;
+  private creepNameMap: Map<string, RoomId> = new Map();
+  private bases: Map<RoomId, Base> = new Map();
 
-  private constructor(baseMemory: BaseMemory[], bases: IBase[], promiseManager: PromiseManager) {
-    this.baseMemory = baseMemory;
-    this.bases = bases;
-    this.promiseManager = promiseManager;
-  }
+  private constructor() {}
 
   public checkWorld(): void {
-    // TODO: wrap in a check so that this doesn't run every tick (?)
-    if (this.bases.length == 0) {
-      const starterBase = StarterBase.createStarterBase(this.promiseManager);
-      this.baseMemory.push(starterBase.getMemory());
-      this.bases.push(starterBase);
+    this.setUpBases();
+    this.addCreepsToRooms();
+    this.removeDeadCreeps();
+  }
+
+  private setUpBases(): void {
+    // TODO: remove bases that are destroyed
+
+    const owningRooms = Object.entries(Game.rooms).filter(
+      ([roomName, room]) => room.controller && room.controller.my
+    );
+    for (let [roomName, room] of owningRooms) {
+      if (!this.bases.has(roomName)) {
+        this.bases.set(roomName, Base.createBaseFromRoom(room));
+      }
+    }
+  }
+
+  private addCreepsToRooms(): void {
+    for (let [creepName, creep] of Object.entries(Game.creeps)) {
+      if (!this.creepNameMap.has(creep.name)) {
+        const creepHandler = CreepHandlerFactory.createHandlerFromCreep(creep);
+        const roomId = creepHandler.getRoomName();
+        this.creepNameMap.set(creep.name, roomId);
+        if (this.bases.has(roomId)) {
+          this.bases.get(roomId)!.addCreep(creepHandler);
+        } else {
+          console.log(
+            `Trying to add creep ${creep.name} to nonexistent base ${roomId}`
+          );
+        }
+      }
+    }
+  }
+
+  private removeDeadCreeps(): void {
+    for (const name in Memory.creeps) {
+      if (!(name in Game.creeps)) {
+        delete Memory.creeps[name];
+        const roomId = this.creepNameMap.get(name) ?? null;
+        if (roomId && this.bases.has(roomId)) {
+          this.bases.get(roomId)!.removeDeadCreepHandler(name);
+          this.creepNameMap.delete(name);
+        }
+      }
     }
   }
 
   public processResourceRequests(): void {
-    this.bases.forEach(base => base.processResourceRequests());
+    this.bases.forEach((base) => base.processResourceRequests());
   }
 
   public run(): void {
-    this.bases.forEach(base => base.run());
+    this.bases.forEach((base) => base.run());
   }
 
   public cleanUp(): void {
-    this.bases.forEach(base => base.cleanUp());
+    this.bases.forEach((base) => base.cleanUp());
   }
 
-  public static deserialize(baseMemories: BaseMemory[], promisesMemory: PromiseMemory[]): Headquarters {
-    const bases: Array<IBase> = [];
-    const promiseManager = PromiseManager.deserialize(promisesMemory);
-    for (let baseMem of baseMemories) {
-      bases.push(Headquarters.deserializeBase(baseMem, promiseManager));
-    }
-
-    return new Headquarters(baseMemories, bases, promiseManager);
-  }
-
-  private static deserializeBase(memory: BaseMemory, promiseManager: PromiseManager): IBase {
-    if (memory.kind == BaseKind.StarterBase) {
-      return StarterBase.deserialize(memory as StarterBaseMemory, promiseManager);
-    }
-    throw "Attempted to deserialize unexpected BaseMemory";
+  public static initialize(): Headquarters {
+    return new Headquarters();
   }
 }
