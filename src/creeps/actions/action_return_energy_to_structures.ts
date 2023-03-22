@@ -37,7 +37,16 @@ export const ReturnEnergyToStructures: CreepAction<{
 
     const transferCode = args.creep.transfer(nextStructure, RESOURCE_ENERGY);
     if (transferCode == ERR_NOT_IN_RANGE) {
-      args.creep.moveTo(nextStructure, {range: 1});
+      args.creep.moveTo(nextStructure, {
+        range: 1,
+        visualizePathStyle: {
+          fill: "transparent",
+          stroke: "#fff",
+          lineStyle: "dashed",
+          strokeWidth: 0.15,
+          opacity: 0.1,
+        },
+      });
     }
   },
 };

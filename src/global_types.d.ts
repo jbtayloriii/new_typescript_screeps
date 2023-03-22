@@ -2,13 +2,6 @@ import { BasicHarvesterCreepState } from "creeps/types/basic_harvester_creep";
 import { CreepType } from "./creeps/creep_handler_factory";
 import { BasicBuilderCreepState } from "./creeps/types/basic_builder_creep";
 import { BasicUpgraderCreepState } from "./creeps/types/basic_upgrader_creep";
-import { Headquarters } from "./headquarters";
-import { VisualWindow } from "./visuals/visual_window";
-
-interface IGlobal {
-  hq?: Headquarters;
-  visualWindow: VisualWindow;
-}
 
 declare global {
   type RoomId = string;

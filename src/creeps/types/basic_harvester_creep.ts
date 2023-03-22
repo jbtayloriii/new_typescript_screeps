@@ -65,24 +65,24 @@ export class BasicHarvesterCreepHandler extends CreepHandler {
     // state changes
     if (this.memory.currentState == BasicHarvesterCreepState.HARVESTING &&
       this.creep.store[RESOURCE_ENERGY] === this.creep.store.getCapacity()) {
+        this.creep.say("Dropping off");
       this.memory.currentState = BasicHarvesterCreepState.DROPPING_OFF;
     }
 
     if (this.memory.currentState == BasicHarvesterCreepState.DROPPING_OFF
       && this.creep.store[RESOURCE_ENERGY] === 0) {
+        this.creep.say("Harvesting");
       this.memory.currentState = BasicHarvesterCreepState.HARVESTING;
     }
 
     if (this.memory.currentState == BasicHarvesterCreepState.HARVESTING) {
       ActionHarvestSource.performAction({creep: this.creep});
-      this.creep.say('harvesting');
+      return true;
 
     } else if (this.memory.currentState == BasicHarvesterCreepState.DROPPING_OFF) {
       ReturnEnergyToStructures.performAction({creep: this.creep, structures: [this.dropOffLocation]});
-      this.creep.say('returning');
+      return true;
     }
-
-
     return false;
   }
 }

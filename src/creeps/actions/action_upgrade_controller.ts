@@ -20,7 +20,7 @@ export const ActionUpgradeController: CreepAction<{
   }): void {
     const upgradeCode = args.creep.upgradeController(args.controller);
     if (upgradeCode == ERR_NOT_IN_RANGE) {
-      args.creep.moveTo(args.controller, {range: 3});
+      args.creep.moveTo(args.controller, { range: 3 });
     }
   },
 };

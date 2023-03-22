@@ -10,8 +10,12 @@ export const ActionHarvestSource: CreepAction<{ creep: Creep }> = {
 
   performAction: function (args: { creep: Creep }): void {
     if (!args.creep.memory.harvestingSourceId) {
-      const sources = args.creep.room.find(FIND_SOURCES);
-      args.creep.memory.harvestingSourceId = sources[0].id;
+      const source = args.creep.pos.findClosestByPath(FIND_SOURCES);
+      if (!source) {
+        console.log(`Unable to find source for ${args.creep.name}`);
+        return;
+      }
+      args.creep.memory.harvestingSourceId = source.id;
     }
 
     const source = Game.getObjectById(args.creep.memory.harvestingSourceId);
@@ -31,7 +35,6 @@ export const ActionHarvestSource: CreepAction<{ creep: Creep }> = {
         },
         range: 1,
       });
-      // args.creep.FindAndMoveOnPath(source.pos, 1);
     }
   },
 };

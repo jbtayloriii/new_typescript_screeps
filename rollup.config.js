@@ -7,7 +7,8 @@ import screepsUpload from "./rollup-plugin-screeps-upload.js";
 
 let cfg;
 
-const dest = "sim";
+const dest = "main";
+// const dest = "sim";
 // const dest = process.env.DEST;
 
 if (!dest) {

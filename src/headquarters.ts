@@ -5,13 +5,13 @@ import { CreepHandlerFactory } from "./creeps/creep_handler_factory";
 export class Headquarters {
   private creepNameMap: Map<string, RoomId> = new Map();
   private bases: Map<RoomId, Base> = new Map();
+  private creepMap: Map<RoomId, CreepHandler[]> = new Map();
 
   private constructor() {}
 
   public checkWorld(): void {
     this.setUpBases();
-    this.addCreepsToRooms();
-    this.removeDeadCreeps();
+    this.sortCreeps(Game.creeps);
   }
 
   private setUpBases(): void {
@@ -27,42 +27,42 @@ export class Headquarters {
     }
   }
 
-  private addCreepsToRooms(): void {
-    for (let [creepName, creep] of Object.entries(Game.creeps)) {
-      if (!this.creepNameMap.has(creep.name)) {
-        const creepHandler = CreepHandlerFactory.createHandlerFromCreep(creep);
-        const roomId = creepHandler.getRoomName();
-        this.creepNameMap.set(creep.name, roomId);
-        if (this.bases.has(roomId)) {
-          this.bases.get(roomId)!.addCreep(creepHandler);
-        } else {
-          console.log(
-            `Trying to add creep ${creep.name} to nonexistent base ${roomId}`
-          );
-        }
+  private sortCreeps(creeps: { [creepName: string]: Creep }): void {
+    const creepMap = new Map<RoomId, CreepHandler[]>();
+
+    for (let creepName in creeps) {
+      const handler = CreepHandlerFactory.createHandlerFromCreep(
+        creeps[creepName]
+      );
+      const roomId = handler.getRoomName();
+      if (!creepMap.has(roomId)) {
+        creepMap.set(roomId, []);
       }
+      creepMap.get(roomId)!.push(handler);
     }
+
+    this.creepMap = creepMap;
   }
 
-  private removeDeadCreeps(): void {
-    for (const name in Memory.creeps) {
-      if (!(name in Game.creeps)) {
-        delete Memory.creeps[name];
-        const roomId = this.creepNameMap.get(name) ?? null;
-        if (roomId && this.bases.has(roomId)) {
-          this.bases.get(roomId)!.removeDeadCreepHandler(name);
-          this.creepNameMap.delete(name);
-        }
-      }
-    }
-  }
 
   public processResourceRequests(): void {
-    this.bases.forEach((base) => base.processResourceRequests());
+    this.bases.forEach((base) =>
+      base.processResourceRequests(this.getCreeps(base.getRoomId()))
+    );
   }
 
   public run(): void {
-    this.bases.forEach((base) => base.run());
+    this.bases.forEach((base) => {
+      base.run(this.getCreeps(base.getRoomId()));
+    });
+  }
+
+  private getCreeps(roomId: RoomId): CreepHandler[] {
+    if (this.creepMap.has(roomId)) {
+      return this.creepMap.get(roomId)!;
+    }
+    console.log(`Unable to get creeps for base ${roomId}`);
+    return [];
   }
 
   public cleanUp(): void {
@@ -70,6 +70,7 @@ export class Headquarters {
   }
 
   public static initialize(): Headquarters {
+    console.log("initializing hq");
     return new Headquarters();
   }
 }
