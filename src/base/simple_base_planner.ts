@@ -9,13 +9,8 @@ import { PowerCreepConstructionPlanning } from "./construction_planning/power_cr
 
 export class SimpleBasePlanner implements BasePlanner {
   planConstruction(room: Room) {
-    if (
-      Game.time % 100 == 0 &&
-      room.find(FIND_MY_CONSTRUCTION_SITES).length == 0
-    ) {
-      const powerCreepConstruction = new PowerCreepConstructionPlanning();
-      powerCreepConstruction.plan(room);
-    }
+    const powerCreepConstruction = new PowerCreepConstructionPlanning();
+    powerCreepConstruction.plan(room);
   }
 
   planCreepCreation(room: Room, creeps: CreepHandler[]): CreepBlueprint[] {

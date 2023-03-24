@@ -41,7 +41,13 @@ export class Base {
 
     const basePlanner = this.getBasePlanner(room);
 
-    basePlanner.planConstruction(room);
+    if (
+      Game.time % 100 == 0 &&
+      room.find(FIND_MY_CONSTRUCTION_SITES).length == 0
+    ) {
+      console.log(`Planning construction for ${room.name}`);
+      basePlanner.planConstruction(room);
+    }
 
     const creepBlueprints = basePlanner.planCreepCreation(room, creeps);
 
