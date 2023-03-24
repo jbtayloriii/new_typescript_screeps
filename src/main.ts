@@ -9,7 +9,8 @@ import "./prototypes/tower_prototype";
 
 var globalHq = Headquarters.initialize();
 
-export const loop = ErrorMapper.wrapLoop(() => {
+// export const loop = ErrorMapper.wrapLoop(() => {
+export const loop = function() {
   console.log("Tick " + Game.time);
 
   if (MemoryUtil.shouldInitializeMemory()) {
@@ -36,4 +37,4 @@ export const loop = ErrorMapper.wrapLoop(() => {
   
   console.log("------------------------------");
   console.log("-");
-});
+};

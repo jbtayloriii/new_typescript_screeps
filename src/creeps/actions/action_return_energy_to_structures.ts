@@ -24,6 +24,9 @@ export const ReturnEnergyToStructures: CreepAction<{
       const needyStructures = args.structures.filter(
         (st) => st.store.getFreeCapacity(RESOURCE_ENERGY) > 0
       );
+      if (needyStructures.length == 0) {
+        return;
+      }
       args.creep.memory.currentStructureResourceTargetId =
         needyStructures[0].id;
     }

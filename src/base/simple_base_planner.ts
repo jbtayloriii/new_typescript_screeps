@@ -23,10 +23,18 @@ export class SimpleBasePlanner implements BasePlanner {
     if (!closestSpawnAndSource) {
       return [];
     }
-    if (
-      creeps.filter((creep) => creep.getType() === CreepType.BASIC_HARVESTER)
-        .length == 0
-    ) {
+
+    const harvesterCount = creeps.filter(
+      (creep) => creep.getType() === CreepType.BASIC_HARVESTER
+    ).length;
+    const upgraderCount = creeps.filter(
+      (creep) => creep.getType() === CreepType.BASIC_UPGRADER
+    ).length;
+    const builderCount = creeps.filter(
+      (creep) => creep.getType() === CreepType.BASIC_BUILDER
+    ).length;
+
+    if (harvesterCount == 0) {
       return [
         new BasicHarvesterCreepBlueprint(
           room,
@@ -37,12 +45,7 @@ export class SimpleBasePlanner implements BasePlanner {
     }
 
     const controller = room.controller;
-
-    if (
-      creeps.filter((creep) => creep.getType() === CreepType.BASIC_UPGRADER)
-        .length == 0 &&
-      controller
-    ) {
+    if (upgraderCount == 0 && controller) {
       return [
         new BasicUpgraderCreepBlueprint(
           room,
@@ -56,13 +59,19 @@ export class SimpleBasePlanner implements BasePlanner {
       (site) => site.room?.name == room.name
     );
 
-    if (
-      sites.length > 0 &&
-      creeps.filter((creep) => creep.getType() === CreepType.BASIC_BUILDER)
-        .length == 0
-    ) {
+    if (sites.length > 0 && builderCount == 0) {
       return [
         new BasicBuilderCreepBlueprint(room, closestSpawnAndSource.source),
+      ];
+    }
+
+    if (upgraderCount < 3 && controller) {
+      return [
+        new BasicUpgraderCreepBlueprint(
+          room,
+          closestSpawnAndSource.source,
+          controller
+        ),
       ];
     }
     return [];
