@@ -5,7 +5,8 @@
   "main": "main.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "push-sim": "rollup -c --environment DEST:sim"
+    "push-sim": "rollup -c --environment DEST:sim --bundleConfigAsCjs"
+    "push-main": "rollup -c --environment DEST:main --bundleConfigAsCjs"
   },
   "repository": {
     "type": "git",
