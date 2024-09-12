@@ -9,8 +9,11 @@ const dest = process.env.DEST;
 
 if (!dest) {
   console.log("No destination specified - code will be compiled but not uploaded");
-} else if ((let cfg = require("./screeps.json")[dest]) == null) {
-  throw new Error("Invalid upload destination");
+} else {
+  let cfg = require("./screeps.json")[dest];
+  if (cfg == null) {
+    throw new Error("Invalid upload destination");
+  }
 }
 
 export default {
