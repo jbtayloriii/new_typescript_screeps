@@ -65,11 +65,9 @@ export class BasicBuilderCreepHandler extends CreepHandler {
 
     if (this.memory.currentState == BasicBuilderCreepState.HARVEST_SOURCE) {
       ActionHarvestSource.performAction({creep: this.creep});
-      this.creep.say('harvesting');
 
     } else if (this.memory.currentState == BasicBuilderCreepState.BUILD_NEAREST_BUILDING) {
       ActionBuildStucture.performAction({creep: this.creep});
-      this.creep.say('building');
     }
 
     return false;
