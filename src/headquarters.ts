@@ -1,6 +1,7 @@
 import { Base } from "base/base";
 import { CreepHandler } from "./creeps/creep_handler";
 import { CreepHandlerFactory } from "./creeps/creep_handler_factory";
+import { Logger } from "logging/logger";
 
 export class Headquarters {
   private creepNameMap: Map<string, RoomId> = new Map();
@@ -61,7 +62,7 @@ export class Headquarters {
     if (this.creepMap.has(roomId)) {
       return this.creepMap.get(roomId)!;
     }
-    console.log(`Unable to get creeps for base ${roomId}`);
+    Logger.warning(`Unable to get creeps for base ${roomId}`);
     return [];
   }
 
@@ -70,7 +71,7 @@ export class Headquarters {
   }
 
   public static initialize(): Headquarters {
-    console.log("initializing hq");
+    Logger.info("Initializing hq");
     return new Headquarters();
   }
 }

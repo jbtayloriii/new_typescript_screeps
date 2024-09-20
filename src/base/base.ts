@@ -5,6 +5,7 @@ import { SimpleBasePlanner } from "./simple_base_planner";
 
 export class Base {
   private roomId: RoomId;
+  // private roomPlan: RoomPlan;
 
   private constructor(roomId: RoomId) {
     this.roomId = roomId;

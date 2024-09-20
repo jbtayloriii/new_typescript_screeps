@@ -1,5 +1,5 @@
 
-const CURRENT_MEMORY_VERSION = "2.2";
+const CURRENT_MEMORY_VERSION = "2.3";
 
 export class MemoryUtil {
   public static shouldInitializeMemory(): boolean {
@@ -20,6 +20,12 @@ export class MemoryUtil {
 
   private static initializeOtherMemory(): void {
     // Add other memory initializers here
-    
+    if (!Memory.log) {
+      Memory.log = {
+        lastReportedDate: -1,
+        infoMessages: [],
+        warningMessages: [],
+      };
+    }
   }
 }

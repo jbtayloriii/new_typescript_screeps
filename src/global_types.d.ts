@@ -8,6 +8,8 @@ declare global {
 
   interface Memory {
     currentMemoryVersion: string;
+
+    log: LogMemory;
   }
 
   interface CreepMemory {
@@ -22,6 +24,12 @@ declare global {
     // Prototype memory
     _movePath?: string;
     _moveTargetPosSerial?: string;
+  }
+
+  interface LogMemory {
+    lastReportedDate: number;
+    infoMessages: string[];
+    warningMessages: string[];
   }
 
   interface RoomMemory {
