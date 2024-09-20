@@ -1,3 +1,4 @@
+import { Logger } from "logging/logger";
 import { CreepHandler } from "../creeps/creep_handler";
 import { CreepType } from "../creeps/creep_handler_factory";
 import { BasePlanner } from "./base_planner";
@@ -12,7 +13,7 @@ export class Base {
   }
 
   public static createBaseFromRoom(room: Room) {
-    console.log(`Creating base at room ${room.name} on tick ${Game.time}`);
+    Logger.info(`Creating base at room ${room.name} on tick ${Game.time}`);
     return new Base(room.name);
   }
 
@@ -22,9 +23,7 @@ export class Base {
 
   processResourceRequests(creeps: CreepHandler[]): void {
     if (!Game.rooms[this.roomId]) {
-      console.log(
-        `Trying to plan base actions for nonexistent base: ${this.roomId}`
-      );
+      Logger.info(`Trying to plan base actions for nonexistent base: ${this.roomId}`);
       return;
     }
     const room = Game.rooms[this.roomId];
@@ -36,17 +35,14 @@ export class Base {
 
     const validSpawns = spawns.filter((spawn) => !spawn.spawning);
     if (validSpawns.length == 0) {
-      console.log("No valid spawns, skipipng process resource reqs");
+      Logger.warning("No valid spawns, skipping process resource reqs");
       return;
     }
 
     const basePlanner = this.getBasePlanner(room);
 
-    if (
-      Game.time % 100 == 0 &&
-      room.find(FIND_MY_CONSTRUCTION_SITES).length == 0
-    ) {
-      console.log(`Planning construction for ${room.name}`);
+    if (Game.time % 100 == 0) {
+      Logger.info(`Planning construction for ${room.name}`);
       basePlanner.planConstruction(room);
     }
 
