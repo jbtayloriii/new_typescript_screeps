@@ -2,6 +2,7 @@ import { BasicHarvesterCreepState } from "creeps/types/basic_harvester_creep";
 import { CreepType } from "./creeps/creep_handler_factory";
 import { BasicBuilderCreepState } from "./creeps/types/basic_builder_creep";
 import { BasicUpgraderCreepState } from "./creeps/types/basic_upgrader_creep";
+import { PowerHarvesterCreepState } from "./creeps/types/power_harvester_creep";
 
 declare global {
   type RoomId = string;
@@ -59,6 +60,13 @@ declare global {
     currentState: BasicBuilderCreepState;
     sourceId: Id<Source>;
   }
+
+  interface PowerHarvesterCreepMemory extends CreepMemory {
+    currentState: PowerHarvesterCreepState;
+    sourceId: Id<Source>;
+    containerId: Id<StructureContainer>;
+  }
+
 
   enum CreepActionReturnVal {
     SAME_ACTION = 0,

@@ -7,6 +7,7 @@ export enum CreepType {
   BASIC_HARVESTER = 0,
   BASIC_UPGRADER = 1,
   BASIC_BUILDER = 2,
+  POWER_HARVESTER = 3,
 }
 
 export class CreepHandlerFactory {
