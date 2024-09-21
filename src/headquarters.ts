@@ -4,9 +4,9 @@ import { CreepHandlerFactory } from "./creeps/creep_handler_factory";
 import { Logger } from "logging/logger";
 
 export class Headquarters {
-  private creepNameMap: Map<string, RoomId> = new Map();
-  private bases: Map<RoomId, Base> = new Map();
-  private creepMap: Map<RoomId, CreepHandler[]> = new Map();
+  private creepNameMap: Map<string, RoomName> = new Map();
+  private bases: Map<RoomName, Base> = new Map();
+  private creepMap: Map<RoomName, CreepHandler[]> = new Map();
 
   private constructor() {}
 
@@ -29,7 +29,7 @@ export class Headquarters {
   }
 
   private sortCreeps(creeps: { [creepName: string]: Creep }): void {
-    const creepMap = new Map<RoomId, CreepHandler[]>();
+    const creepMap = new Map<RoomName, CreepHandler[]>();
 
     for (let creepName in creeps) {
       const handler = CreepHandlerFactory.createHandlerFromCreep(
@@ -48,17 +48,17 @@ export class Headquarters {
 
   public processResourceRequests(): void {
     this.bases.forEach((base) =>
-      base.processResourceRequests(this.getCreeps(base.getRoomId()))
+      base.processResourceRequests(this.getCreeps(base.getRoomName()))
     );
   }
 
   public run(): void {
     this.bases.forEach((base) => {
-      base.run(this.getCreeps(base.getRoomId()));
+      base.run(this.getCreeps(base.getRoomName()));
     });
   }
 
-  private getCreeps(roomId: RoomId): CreepHandler[] {
+  private getCreeps(roomId: RoomName): CreepHandler[] {
     if (this.creepMap.has(roomId)) {
       return this.creepMap.get(roomId)!;
     }

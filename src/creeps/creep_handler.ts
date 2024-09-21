@@ -1,9 +1,10 @@
+import { BaseCreepActions } from "base/base_creep_actions";
 import { CreepType } from "./creep_handler_factory";
 
 
 export abstract class CreepHandler {
   protected creep: Creep;
-  private roomId: RoomId;
+  private roomId: RoomName;
 
   constructor(creep: Creep) {
     this.creep = creep;
@@ -14,7 +15,7 @@ export abstract class CreepHandler {
     return this.creep;
   }
 
-  getRoomName(): RoomId {
+  getRoomName(): RoomName {
     return this.roomId;
   }
 
@@ -22,5 +23,9 @@ export abstract class CreepHandler {
     return this.creep.memory.creepType;
   }
 
-  abstract handle(): boolean;
+  /** Handles this creep's actions for the turn.
+   * 
+   * @param creepActions: A set of APIs allowing the Creep to interact upward with its Base
+   */
+  abstract handle(creepActions: BaseCreepActions): void;
 }

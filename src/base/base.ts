@@ -3,30 +3,31 @@ import { CreepHandler } from "../creeps/creep_handler";
 import { CreepType } from "../creeps/creep_handler_factory";
 import { BasePlanner } from "./base_planner";
 import { SimpleBasePlanner } from "./simple_base_planner";
+import { BaseCreepActions } from "./base_creep_actions";
 
 export class Base {
-  private roomId: RoomId;
   // private roomPlan: RoomPlan;
+  private room: Room;
 
-  private constructor(roomId: RoomId) {
-    this.roomId = roomId;
+  private constructor(room: Room) {
+    this.room = room;
   }
 
   public static createBaseFromRoom(room: Room) {
     Logger.info(`Creating base at room ${room.name} on tick ${Game.time}`);
-    return new Base(room.name);
+    return new Base(room);
   }
 
-  public getRoomId(): RoomId {
-    return this.roomId;
+  public getRoomName(): RoomName {
+    return this.room.name;
   }
 
   processResourceRequests(creeps: CreepHandler[]): void {
-    if (!Game.rooms[this.roomId]) {
-      Logger.info(`Trying to plan base actions for nonexistent base: ${this.roomId}`);
+    if (!Game.rooms[this.room.name]) {
+      Logger.info(`Trying to plan base actions for nonexistent base: ${this.room.name}`);
       return;
     }
-    const room = Game.rooms[this.roomId];
+    const room = Game.rooms[this.room.name];
 
     // TODO: pass in
     const spawns = room.find(FIND_MY_STRUCTURES, {
@@ -53,7 +54,7 @@ export class Base {
         const nextBlueprint = creepBlueprints[0];
         const name = [
           CreepType[nextBlueprint.getType()],
-          this.roomId,
+          this.room.name,
           Game.time,
         ].join("_");
 
@@ -77,9 +78,32 @@ export class Base {
   }
 
   run(creeps: CreepHandler[]): void {
+    let creepActions: BaseCreepActions = {
+      baseRoomName: this.room.name,
+      getEnergySource: () => this.getEnergySource(),
+    }
+
+
     creeps.forEach((handler) => {
-      handler.handle();
+      handler.handle(creepActions);
     });
+  }
+
+  private getEnergySource(): Array<StructureStorage | StructureContainer | Source> {
+    console.log("Debug: Calling getEnergySource on tick " + Game.time);
+
+    let storages = this.room.find(FIND_MY_STRUCTURES, {filter: (s) => {return s.structureType == STRUCTURE_STORAGE;}}) as StructureStorage[];
+    if (storages.length > 0) {
+      return storages;
+    }
+    
+    // Assumes containers are all power harvesting containers
+    let containers = this.room.find(FIND_STRUCTURES, {filter: (s) => {return s.structureType == STRUCTURE_CONTAINER;}}) as StructureContainer[];
+    if (containers.length > 0) {
+      return containers;
+    }
+
+    return this.room.find(FIND_SOURCES);
   }
 
   cleanUp(): void {}

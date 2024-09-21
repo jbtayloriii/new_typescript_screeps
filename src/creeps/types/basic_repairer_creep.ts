@@ -1,3 +1,4 @@
+import { BaseCreepActions } from "base/base_creep_actions";
 import { ActionBuildStucture } from "../actions/action_build_structure";
 import { ActionHarvestSource } from "../actions/action_harvest_source";
 import { CreepBlueprint } from "../creep_blueprint";
@@ -47,7 +48,7 @@ export class BasicRepairerCreepHandler extends CreepHandler {
     this.roomName = memory.roomName;
   }
 
-  handle(): boolean {
+  handle(creepActions: BaseCreepActions) {
 // todo: implement and allow for more general energy gathering
 
     // if (this.memory.currentState == BasicBuilderCreepState.HARVEST_SOURCE &&
@@ -66,8 +67,6 @@ export class BasicRepairerCreepHandler extends CreepHandler {
     // } else if (this.memory.currentState == BasicBuilderCreepState.BUILD_NEAREST_BUILDING) {
     //   ActionBuildStucture.performAction({creep: this.creep});
     // }
-
-    return false;
   }
 
 }

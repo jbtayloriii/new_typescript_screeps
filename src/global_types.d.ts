@@ -6,7 +6,7 @@ import { PowerHarvesterCreepState } from "./creeps/types/power_harvester_creep";
 import { BasicRepairerCreepState } from "creeps/types/basic_repairer_creep";
 
 declare global {
-  type RoomId = string;
+  type RoomName = string;
 
   interface Memory {
     currentMemoryVersion: string;
@@ -15,7 +15,7 @@ declare global {
   }
 
   interface CreepMemory {
-    owningRoomId: RoomId;
+    owningRoomId: RoomName;
     creepType: CreepType;
 
     // Action memory

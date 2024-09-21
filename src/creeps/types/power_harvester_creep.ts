@@ -4,6 +4,7 @@ import { ActionUpgradeController } from "../actions/action_upgrade_controller";
 import { CreepBlueprint } from "../creep_blueprint";
 import { CreepHandler } from "../creep_handler";
 import { CreepType } from "../creep_handler_factory";
+import { BaseCreepActions } from "base/base_creep_actions";
 
 export const enum PowerHarvesterCreepState {
   MOVING = 0,
@@ -73,7 +74,7 @@ export class PowerHarvesterCreepHandler extends CreepHandler {
     this.container = container;
   }
   
-  handle(): boolean {
+  handle(creepActions: BaseCreepActions): void {
     if (this.memory.currentState == PowerHarvesterCreepState.MOVING &&
             this.container.pos == this.creep.pos) {
         this.memory.currentState = PowerHarvesterCreepState.HARVESTING;
@@ -85,7 +86,5 @@ export class PowerHarvesterCreepHandler extends CreepHandler {
             Logger.warning(`Creep ${this.creep.id} at pos ${this.creep.pos} not in range to harvest source at ${this.source.pos}.`)
         }
     }
-
-    return false;
   }
 }

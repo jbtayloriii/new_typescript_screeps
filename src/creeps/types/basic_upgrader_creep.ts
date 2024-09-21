@@ -1,3 +1,4 @@
+import { BaseCreepActions } from "base/base_creep_actions";
 import { ActionHarvestSource } from "../actions/action_harvest_source";
 import { ActionUpgradeController } from "../actions/action_upgrade_controller";
 import { CreepBlueprint } from "../creep_blueprint";
@@ -75,7 +76,7 @@ export class BasicUpgraderCreepHandler extends CreepHandler {
     this.controller = controller;
   }
   
-  handle(): boolean {
+  handle(creepActions: BaseCreepActions): void {
     if (this.memory.currentState == BasicUpgraderCreepState.HARVESTING &&
       this.creep.store[RESOURCE_ENERGY] === this.creep.store.getCapacity()) {
       this.memory.currentState = BasicUpgraderCreepState.UPGRADING;
@@ -91,9 +92,6 @@ export class BasicUpgraderCreepHandler extends CreepHandler {
     } else if (this.memory.currentState == BasicUpgraderCreepState.UPGRADING) {
       ActionUpgradeController.performAction({creep: this.creep, controller: this.controller});
     }
-
-    return false;
-
   }
   
 }

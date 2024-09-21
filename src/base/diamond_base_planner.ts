@@ -10,5 +10,4 @@ export class DiamondBasePlanner implements BasePlanner {
     planCreepCreation(room: Room, creeps: CreepHandler[]): CreepBlueprint[] {
         throw new Error("Method not implemented.")
     }
-
 }

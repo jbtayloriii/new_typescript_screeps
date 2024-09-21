@@ -1,3 +1,4 @@
+import { BasicRepairerCreepBlueprint } from "creeps/types/basic_repairer_creep";
 import { CreepBlueprint } from "../creeps/creep_blueprint";
 import { CreepHandler } from "../creeps/creep_handler";
 import { CreepType } from "../creeps/creep_handler_factory";
@@ -61,6 +62,10 @@ export class SimpleBasePlanner implements BasePlanner {
       return [
         new BasicBuilderCreepBlueprint(room, closestSpawnAndSource.source),
       ];
+    }
+    
+    if (repairerCount == 0) {
+      return [new BasicRepairerCreepBlueprint(room)];
     }
 
     if (upgraderCount < 3 && controller) {
