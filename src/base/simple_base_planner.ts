@@ -28,6 +28,9 @@ export class SimpleBasePlanner implements BasePlanner {
     const builderCount = creeps.filter(
       (creep) => creep.getType() === CreepType.BASIC_BUILDER
     ).length;
+    const repairerCount = creeps.filter(
+      (creep) => creep.getType() === CreepType.BASIC_REPAIRER
+    ).length;
 
     if (harvesterCount == 0) {
       return [

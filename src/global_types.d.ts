@@ -3,6 +3,7 @@ import { CreepType } from "./creeps/creep_handler_factory";
 import { BasicBuilderCreepState } from "./creeps/types/basic_builder_creep";
 import { BasicUpgraderCreepState } from "./creeps/types/basic_upgrader_creep";
 import { PowerHarvesterCreepState } from "./creeps/types/power_harvester_creep";
+import { BasicRepairerCreepState } from "creeps/types/basic_repairer_creep";
 
 declare global {
   type RoomId = string;
@@ -65,6 +66,11 @@ declare global {
     currentState: PowerHarvesterCreepState;
     sourceId: Id<Source>;
     containerId: Id<StructureContainer>;
+  }
+
+  interface BasicRepairerCreepMemory extends CreepMemory {
+    currentState: BasicRepairerCreepState;
+    roomName: string;
   }
 
 
