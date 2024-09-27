@@ -3,7 +3,7 @@ import { CreepHandler } from "../creeps/creep_handler";
 import { CreepType } from "../creeps/creep_handler_factory";
 import { BasePlanner } from "./base_planner";
 import { SimpleBasePlanner } from "./simple_base_planner";
-import { BaseCreepActions } from "./base_creep_actions";
+import { BaseCreepActions, EnergySources } from "./base_creep_actions";
 
 export class Base {
   // private roomPlan: RoomPlan;
@@ -80,7 +80,7 @@ export class Base {
   run(creeps: CreepHandler[]): void {
     let creepActions: BaseCreepActions = {
       baseRoomName: this.room.name,
-      getEnergySource: () => this.getEnergySource(),
+      energySources: this.getEnergySource(),
     }
 
 
@@ -89,21 +89,33 @@ export class Base {
     });
   }
 
-  private getEnergySource(): Array<StructureStorage | StructureContainer | Source> {
+  private getEnergySource(): EnergySources {
     console.log("Debug: Calling getEnergySource on tick " + Game.time);
 
     let storages = this.room.find(FIND_MY_STRUCTURES, {filter: (s) => {return s.structureType == STRUCTURE_STORAGE;}}) as StructureStorage[];
     if (storages.length > 0) {
-      return storages;
+      return {
+        storage: storages[0],
+        containers: null,
+        sources: null,
+      }
     }
     
     // Assumes containers are all power harvesting containers
     let containers = this.room.find(FIND_STRUCTURES, {filter: (s) => {return s.structureType == STRUCTURE_CONTAINER;}}) as StructureContainer[];
     if (containers.length > 0) {
-      return containers;
+      return {
+        storage: null,
+        containers: containers,
+        sources: null,
+      }
     }
 
-    return this.room.find(FIND_SOURCES);
+    return {
+      storage: null,
+      containers: null,
+      sources: this.room.find(FIND_SOURCES),
+    };
   }
 
   cleanUp(): void {}

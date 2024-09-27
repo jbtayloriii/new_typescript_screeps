@@ -71,6 +71,7 @@ declare global {
   interface BasicRepairerCreepMemory extends CreepMemory {
     currentState: BasicRepairerCreepState;
     roomName: string;
+    currentRepairId: Id<Structure> | null;
   }
 
 

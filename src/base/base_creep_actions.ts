@@ -1,3 +1,9 @@
+export interface EnergySources {
+    storage: StructureStorage | null;
+    containers: Array<StructureContainer> | null;
+    sources: Array<Source> | null;
+}
+
 /** Set of actions that a creep within a base can perform. */
 export interface BaseCreepActions {
 
@@ -13,5 +19,5 @@ export interface BaseCreepActions {
      *  2. Use a power harvesting container, if present with > 100 energy
      *  3. Use an open Source, if present
      */
-    getEnergySource(): Array<StructureStorage | StructureContainer | Source>;
+    energySources: EnergySources;
 }
