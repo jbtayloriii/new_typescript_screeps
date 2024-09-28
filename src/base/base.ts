@@ -8,6 +8,7 @@ import { BaseCreepActions, EnergySources } from "./base_creep_actions";
 export class Base {
   // private roomPlan: RoomPlan;
   private room: Room;
+  private creepHandlers: Map<string, CreepHandler> = new Map();
 
   private constructor(room: Room) {
     this.room = room;
@@ -22,7 +23,30 @@ export class Base {
     return this.room.name;
   }
 
-  processResourceRequests(creeps: CreepHandler[]): void {
+  public AddCreepHandler(handler: CreepHandler): void {
+    let creepName = handler.getCreep().name;
+    if (creepName in this.creepHandlers) {
+      Logger.warning(`Attempting to add creep ${creepName} to ${this.room.name}, already exists.`);
+    } else {
+      this.creepHandlers.set(creepName, handler);
+    }
+  }
+
+  public RemoveCreepHandler(creepName: string): void {
+    if (!this.creepHandlers.has(creepName)) {
+      Logger.warning(`Attempting to remove creep ${creepName} from ${this.room.name}, does not exist.`);
+    } else {
+      this.creepHandlers.delete(creepName);
+    }
+  }
+
+  processResourceRequests(): void {
+    // TODO: Better way of handling handlers than recreating arrays
+    let creeps: CreepHandler[] = [];
+    this.creepHandlers.forEach((v: CreepHandler, k: string) => {
+      creeps.push(v);
+    });
+
     if (!Game.rooms[this.room.name]) {
       Logger.info(`Trying to plan base actions for nonexistent base: ${this.room.name}`);
       return;
@@ -77,7 +101,13 @@ export class Base {
     return new SimpleBasePlanner();
   }
 
-  run(creeps: CreepHandler[]): void {
+  run(): void {
+    // TODO: Better way of handling handlers than recreating arrays
+    let creeps: CreepHandler[] = [];
+    this.creepHandlers.forEach((v: CreepHandler, k: string) => {
+      creeps.push(v);
+    });
+
     let creepActions: BaseCreepActions = {
       baseRoomName: this.room.name,
       energySources: this.getEnergySource(),

@@ -11,6 +11,10 @@ export abstract class CreepHandler {
     this.roomId = creep.memory.owningRoomId;
   }
 
+  setCreep(creep: Creep): void {
+    this.creep = creep;
+  }
+
   getCreep(): Creep {
     return this.creep;
   }

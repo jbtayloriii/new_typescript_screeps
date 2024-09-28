@@ -20,7 +20,7 @@ declare global {
   }
 
   interface CreepMemory {
-    owningRoomId: RoomName;
+    owningRoomId: RoomName; // Deprecated, use baseId
     creepType: CreepType;
 
     // Action memory

@@ -19,8 +19,6 @@ var globalHq = Headquarters.initialize();
 
 // export const loop = ErrorMapper.wrapLoop(() => {
 export const loop = function() {
-  console.log("Tick " + Game.time);
-
   if (MemoryUtil.shouldInitializeMemory()) {
     MemoryUtil.initializeMemory();
   }
@@ -29,7 +27,10 @@ export const loop = function() {
     ([key, value]) => handleFlagCommand(value)
   );
 
+  // Update memory
   globalHq.checkWorld();
+
+  // Handle base actions
   globalHq.processResourceRequests();
   globalHq.run();
   globalHq.cleanUp();
@@ -47,8 +48,5 @@ export const loop = function() {
             tower.repairStructures();
         }
     }
-}
-  
-  console.log("------------------------------");
-  console.log("-");
+  }
 };
