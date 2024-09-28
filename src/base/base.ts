@@ -90,31 +90,14 @@ export class Base {
   }
 
   private getEnergySource(): EnergySources {
-    console.log("Debug: Calling getEnergySource on tick " + Game.time);
-
-    let storages = this.room.find(FIND_MY_STRUCTURES, {filter: (s) => {return s.structureType == STRUCTURE_STORAGE;}}) as StructureStorage[];
-    if (storages.length > 0) {
-      return {
-        storage: storages[0],
-        containers: null,
-        sources: null,
-      }
-    }
-    
-    // Assumes containers are all power harvesting containers
-    let containers = this.room.find(FIND_STRUCTURES, {filter: (s) => {return s.structureType == STRUCTURE_CONTAINER;}}) as StructureContainer[];
-    if (containers.length > 0) {
-      return {
-        storage: null,
-        containers: containers,
-        sources: null,
-      }
-    }
+    let storages = this.room.find(FIND_MY_STRUCTURES, {filter: (s) => {return s.structureType == STRUCTURE_STORAGE && s.store[RESOURCE_ENERGY] >= 100;}}) as StructureStorage[];
+    let containers = this.room.find(FIND_STRUCTURES, {filter: (s) => {return s.structureType == STRUCTURE_CONTAINER && s.store[RESOURCE_ENERGY] >= 100;}}) as StructureContainer[];
+    let sources = this.room.find(FIND_SOURCES);
 
     return {
-      storage: null,
-      containers: null,
-      sources: this.room.find(FIND_SOURCES),
+      storage: storages.length > 0 ? storages[0]: null,
+      containers: containers.length > 0 ? containers : null,
+      sources: sources,
     };
   }
 

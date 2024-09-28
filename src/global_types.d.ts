@@ -11,7 +11,12 @@ declare global {
   interface Memory {
     currentMemoryVersion: string;
 
+
     log: LogMemory;
+  }
+
+  interface StructureMemory {
+
   }
 
   interface CreepMemory {
