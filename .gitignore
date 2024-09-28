@@ -3,3 +3,10 @@
 
 /package-lock.json
 /screeps.json
+
+# Yarn
+.yarn/*
+.pnp.*
+
+# VSCode
+.vscode/extensions.json

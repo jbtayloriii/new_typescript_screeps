@@ -8,10 +8,7 @@
     "push-sim": "rollup -c --environment DEST:sim --bundleConfigAsCjs",
     "push-main": "rollup -c --environment DEST:main --bundleConfigAsCjs"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/jbtayloriii/new_typescript_screeps.git"
-  },
+  "repository": "git+https://github.com/jbtayloriii/new_typescript_screeps.git",
   "author": "Josh Taylor",
   "license": "ISC",
   "type": "module",
@@ -30,5 +27,6 @@
   },
   "dependencies": {
     "source-map": "~0.6.1"
-  }
+  },
+  "packageManager": "yarn@4.5.0"
 }
