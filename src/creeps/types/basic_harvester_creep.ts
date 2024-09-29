@@ -1,9 +1,9 @@
 import { BaseCreepActions } from "base/base_creep_actions";
-import { ReturnEnergyToStructures } from "../actions/action_return_energy_to_structures";
 import { CreepBlueprint } from "../creep_blueprint";
 import { CreepHandler } from "../creep_handler";
 import { CreepType } from "../creep_handler_factory";
 import { ActionGetEnergy } from "creeps/actions/action_get_energy";
+import { returnEnergyToStructure } from "creeps/actions/action_return_resource_to_structure";
 
 
 export class BasicHarvesterCreepBlueprint extends CreepBlueprint {
@@ -78,7 +78,7 @@ export class BasicHarvesterCreepHandler extends CreepHandler {
       ActionGetEnergy(this.creep, creepActions);
 
     } else if (this.memory.currentState == BasicHarvesterCreepState.DROPPING_OFF) {
-      ReturnEnergyToStructures.performAction({creep: this.creep, structures: [this.dropOffLocation]});
+      returnEnergyToStructure(this.creep);
     }
   }
 }

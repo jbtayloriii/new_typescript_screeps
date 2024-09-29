@@ -13,13 +13,13 @@ export const enum BasicUpgraderCreepState {
 export class BasicUpgraderCreepBlueprint extends CreepBlueprint {
   private sourceId: Id<Source>;
   private controllerId: Id<StructureController>;
-  private roomEnergyCapacity: number;
+  private energyAvailable: number;
 
   constructor(room: Room, source: Source, controller: StructureController) {
     super(room);
     this.sourceId = source.id;
     this.controllerId = controller.id;
-    this.roomEnergyCapacity = room.energyCapacityAvailable;
+    this.energyAvailable = room.energyAvailable;
   }
 
   getType(): CreepType {
@@ -27,7 +27,7 @@ export class BasicUpgraderCreepBlueprint extends CreepBlueprint {
   }
   getBody(): BodyPartConstant[] {
     let bodyArr: BodyPartConstant[] = [];
-    let currentEnergy = this.roomEnergyCapacity;
+    let currentEnergy = this.energyAvailable;
     while (currentEnergy > 200) {
       bodyArr.push(WORK);
       bodyArr.push(MOVE);

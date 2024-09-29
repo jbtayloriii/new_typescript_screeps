@@ -17,8 +17,7 @@ if (MemoryUtil.shouldInitializeMemory()) {
 
 var globalHq = Headquarters.initialize();
 
-// export const loop = ErrorMapper.wrapLoop(() => {
-export const loop = function() {
+export const loop = ErrorMapper.wrapLoop(() => {
   if (MemoryUtil.shouldInitializeMemory()) {
     MemoryUtil.initializeMemory();
   }
@@ -49,4 +48,4 @@ export const loop = function() {
         }
     }
   }
-};
+});
