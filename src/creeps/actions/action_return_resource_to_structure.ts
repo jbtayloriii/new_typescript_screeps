@@ -57,7 +57,7 @@ function findNewTarget(creep: Creep, priorityList: StorableStructure[]) {
     
   let closestTarget;
     
-  if(!priorityList) {
+  if(priorityList.length == 0) {
     closestTarget = creep.pos.findClosestByRange(FIND_STRUCTURES, {
       filter: (structure) => {
         return (structure.structureType == STRUCTURE_EXTENSION ||

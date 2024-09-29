@@ -40,7 +40,6 @@ export const ActionGetEnergy = function(creep: Creep, creepBaseActions: BaseCree
 
   const harvestCode = creep.harvest(source);
   if (harvestCode == ERR_NOT_IN_RANGE) {
-    console.log("Moving to source");
     creep.moveTo(source, {
       visualizePathStyle: {
         fill: "transparent",
