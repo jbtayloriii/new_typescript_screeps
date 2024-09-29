@@ -8,6 +8,7 @@ import "./prototypes/creep_prototype";
 import "./prototypes/room_position_prototype";
 import "./prototypes/room_prototype";
 import "./prototypes/tower_prototype";
+import { EntityHandler } from "entity_handler";
 
 
 // Make sure to both initialize memory before looping over the HQ, but also to do so in the game loop
@@ -26,13 +27,17 @@ export const loop = ErrorMapper.wrapLoop(() => {
     ([key, value]) => handleFlagCommand(value)
   );
 
-  // Update memory
-  globalHq.checkWorld();
+  // Create handlers, update memory 
+  let entityHandler = EntityHandler.create(Game.creeps);
+  entityHandler.updateGameMemory();
+
+  // Create bases if necessary
+  globalHq.setUpBases();
 
   // Handle base actions
-  globalHq.processResourceRequests();
-  globalHq.run();
-  globalHq.cleanUp();
+  globalHq.processResourceRequests(entityHandler);
+  globalHq.run(entityHandler);
+  globalHq.cleanUp(entityHandler);
 
   Logger.report();
 

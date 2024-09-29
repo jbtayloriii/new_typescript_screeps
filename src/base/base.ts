@@ -8,7 +8,6 @@ import { BaseCreepActions, EnergySources } from "./base_creep_actions";
 export class Base {
   // private roomPlan: RoomPlan;
   private room: Room;
-  private creepHandlers: Map<string, CreepHandler> = new Map();
 
   private constructor(room: Room) {
     this.room = room;
@@ -23,30 +22,7 @@ export class Base {
     return this.room.name;
   }
 
-  public AddCreepHandler(handler: CreepHandler): void {
-    let creepName = handler.getCreep().name;
-    if (creepName in this.creepHandlers) {
-      Logger.warning(`Attempting to add creep ${creepName} to ${this.room.name}, already exists.`);
-    } else {
-      this.creepHandlers.set(creepName, handler);
-    }
-  }
-
-  public RemoveCreepHandler(creepName: string): void {
-    if (!this.creepHandlers.has(creepName)) {
-      Logger.warning(`Attempting to remove creep ${creepName} from ${this.room.name}, does not exist.`);
-    } else {
-      this.creepHandlers.delete(creepName);
-    }
-  }
-
-  processResourceRequests(): void {
-    // TODO: Better way of handling handlers than recreating arrays
-    let creeps: CreepHandler[] = [];
-    this.creepHandlers.forEach((v: CreepHandler, k: string) => {
-      creeps.push(v);
-    });
-
+  processResourceRequests(creepHandlers: CreepHandler[]): void {
     if (!Game.rooms[this.room.name]) {
       Logger.info(`Trying to plan base actions for nonexistent base: ${this.room.name}`);
       return;
@@ -71,7 +47,7 @@ export class Base {
       basePlanner.planConstruction(room);
     }
 
-    const creepBlueprints = basePlanner.planCreepCreation(room, creeps);
+    const creepBlueprints = basePlanner.planCreepCreation(room, creepHandlers);
 
     for (let spawn of validSpawns) {
       if (creepBlueprints.length > 0) {
@@ -85,6 +61,13 @@ export class Base {
         const ret = spawn.spawnCreep(nextBlueprint.getBody(), name, {
           memory: nextBlueprint.getInitialMemory(),
         });
+        switch (ret) {
+          case OK:
+            creepBlueprints.shift();
+            break;
+          case ERR_NOT_ENOUGH_ENERGY:
+            Logger.warning(`Unable to spawn creep: room ${this.room.name}, body: ${nextBlueprint.getBody()}, type: ${nextBlueprint.getType()}`)
+        }
         if (ret == OK) {
           creepBlueprints.shift();
         }
@@ -101,20 +84,14 @@ export class Base {
     return new SimpleBasePlanner();
   }
 
-  run(): void {
-    // TODO: Better way of handling handlers than recreating arrays
-    let creeps: CreepHandler[] = [];
-    this.creepHandlers.forEach((v: CreepHandler, k: string) => {
-      creeps.push(v);
-    });
-
+  run(creepHandlers: CreepHandler[]): void {
     let creepActions: BaseCreepActions = {
       baseRoomName: this.room.name,
       energySources: this.getEnergySource(),
     }
 
 
-    creeps.forEach((handler) => {
+    creepHandlers.forEach((handler) => {
       handler.handle(creepActions);
     });
   }
