@@ -21,6 +21,7 @@ export const ActionBuildStucture: CreepAction<{ creep: Creep }> = {
       args.creep.memory.buildingConstructionSiteId
     );
     if (!buildSite) {
+      delete args.creep.memory.buildingConstructionSiteId;
       return;
     }
 

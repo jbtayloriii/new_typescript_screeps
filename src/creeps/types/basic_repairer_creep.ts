@@ -1,6 +1,4 @@
 import { BaseCreepActions } from "base/base_creep_actions";
-import { ActionBuildStucture } from "../actions/action_build_structure";
-import { ActionHarvestSource } from "../actions/action_harvest_source";
 import { CreepBlueprint } from "../creep_blueprint";
 import { CreepHandler } from "../creep_handler";
 import { CreepType } from "../creep_handler_factory";

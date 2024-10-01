@@ -1,6 +1,4 @@
 import { Logger } from "logging/logger";
-import { ActionHarvestSource } from "../actions/action_harvest_source";
-import { ActionUpgradeController } from "../actions/action_upgrade_controller";
 import { CreepBlueprint } from "../creep_blueprint";
 import { CreepHandler } from "../creep_handler";
 import { CreepType } from "../creep_handler_factory";

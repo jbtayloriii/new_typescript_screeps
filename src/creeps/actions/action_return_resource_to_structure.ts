@@ -63,7 +63,7 @@ function findNewTarget(creep: Creep, priorityList: StorableStructure[]) {
         return (structure.structureType == STRUCTURE_EXTENSION ||
           structure.structureType == STRUCTURE_TOWER ||
           structure.structureType == STRUCTURE_SPAWN ||
-          structure.structureType == STRUCTURE_CONTAINER ||
+          // structure.structureType == STRUCTURE_CONTAINER || // todo: fix container issue
           structure.structureType == STRUCTURE_STORAGE) && structure.store.energy < structure.store.getCapacity(RESOURCE_ENERGY);
       }
     });

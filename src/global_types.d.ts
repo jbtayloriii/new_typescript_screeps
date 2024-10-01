@@ -33,6 +33,18 @@ declare global {
     _moveTargetPosSerial?: string;
   }
 
+  interface SourceMemory {
+    id: Id<Source>;
+    x: number;
+    y: number;
+    roomName: string;
+    canPowerHarvest: boolean;
+    maxCreeps: number;
+    currentPowerHarvester?: Id<Creep>;
+    powerHarvestContainer?: ObjectPositionMemory;
+    currentCreepIds: Id<Creep>[];
+  }
+
   interface LogMemory {
     lastReportedDate: number;
     infoMessages: string[];
@@ -48,6 +60,12 @@ declare global {
         currentCreeps: Id<Creep>[];
       }
     >;
+  }
+
+  interface ObjectPositionMemory {
+    id: string,
+    x: number,
+    y: number,
   }
 
   interface BasicHarvesterCreepMemory extends CreepMemory {
