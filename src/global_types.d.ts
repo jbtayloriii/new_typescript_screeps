@@ -38,7 +38,6 @@ declare global {
     x: number;
     y: number;
     roomName: string;
-    canPowerHarvest: boolean;
     maxCreeps: number;
     currentPowerHarvester?: Id<Creep>;
     powerHarvestContainer?: ObjectPositionMemory;
@@ -63,7 +62,7 @@ declare global {
   }
 
   interface ObjectPositionMemory {
-    id: string,
+    containerId: string,
     x: number,
     y: number,
   }
