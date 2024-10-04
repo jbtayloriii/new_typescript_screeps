@@ -4,7 +4,7 @@ import { BasicBuilderCreepState } from "./creeps/types/basic_builder_creep";
 import { BasicUpgraderCreepState } from "./creeps/types/basic_upgrader_creep";
 import { PowerHarvesterCreepState } from "./creeps/types/power_harvester_creep";
 import { BasicRepairerCreepState } from "creeps/types/basic_repairer_creep";
-import { BaseMemory } from "memory/memory_base";
+import { BaseMemory } from "memory/base_memory";
 
 declare global {
   type RoomName = string;

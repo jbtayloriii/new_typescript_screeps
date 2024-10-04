@@ -4,7 +4,7 @@ import { CreepType } from "../creeps/creep_handler_factory";
 import { BasePlanner } from "./base_planner";
 import { SimpleBasePlanner } from "./simple_base_planner";
 import { BaseCreepActions, EnergySources } from "./base_creep_actions";
-import { BaseMemory } from "memory/memory_base";
+import { BaseMemory } from "memory/base_memory";
 import { MemoryCache } from "memory/memory_cache";
 
 export class Base {

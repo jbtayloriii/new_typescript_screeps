@@ -1,4 +1,5 @@
-import { BaseMemory, mapBaseMemory } from "./memory_base";
+import { BaseMemory } from "./base_memory";
+import { BaseMemoryMapper } from "./utils/base_memory_mapper";
 
 
 export class MemoryCache {
@@ -9,7 +10,7 @@ export class MemoryCache {
         }
 
         if (!Memory.bases[room.name]) {
-            Memory.bases[room.name] = mapBaseMemory(room);
+            Memory.bases[room.name] = BaseMemoryMapper.mapBaseMemory(room);
         }
 
         return Memory.bases[room.name];
