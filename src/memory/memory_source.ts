@@ -9,12 +9,7 @@ export class MemorySource {
      * @param sourceId The ID of the Source to map
      * @returns The Source memory object if the Source exists, or null otherwise.
      */
-    public static mapSource(sourceId: Id<Source>): SourceMemory | null {
-        let sourceObj = Game.getObjectById(sourceId);
-        if(!sourceObj) {
-            return null;
-        }
-        
+    public static mapSourceMemory(sourceObj: Source): SourceMemory {
         let powerHarvestingContainerPosition = this.getSourceContainerPosition(sourceObj);
 
         // Memory.memSources[mSourceId] = memoryObj;
@@ -23,7 +18,7 @@ export class MemorySource {
             x: sourceObj.pos.x,
             y: sourceObj.pos.y,
             roomName: sourceObj.room.name,
-            maxCreeps: MemorySource.getOpenLocationsForSource(source),
+            maxCreeps: MemorySource.getOpenLocationsForSource(sourceObj),
             powerHarvestContainer: powerHarvestingContainerPosition,
             currentPowerHarvester: undefined,
             currentCreepIds: [],

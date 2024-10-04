@@ -4,18 +4,23 @@ import { CreepType } from "../creeps/creep_handler_factory";
 import { BasePlanner } from "./base_planner";
 import { SimpleBasePlanner } from "./simple_base_planner";
 import { BaseCreepActions, EnergySources } from "./base_creep_actions";
+import { BaseMemory } from "memory/memory_base";
+import { MemoryCache } from "memory/memory_cache";
 
 export class Base {
   // private roomPlan: RoomPlan;
   private room: Room;
+  private baseMemory: BaseMemory;
 
-  private constructor(room: Room) {
+  private constructor(room: Room, baseMemory: BaseMemory) {
     this.room = room;
+    this.baseMemory = baseMemory;
   }
 
   public static createBaseFromRoom(room: Room) {
     Logger.info(`Creating base at room ${room.name} on tick ${Game.time}`);
-    return new Base(room);
+    let baseMemory = MemoryCache.getBaseMemory(room);
+    return new Base(room, baseMemory);
   }
 
   public getRoomName(): RoomName {

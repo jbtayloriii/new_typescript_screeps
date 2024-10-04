@@ -4,13 +4,14 @@ import { BasicBuilderCreepState } from "./creeps/types/basic_builder_creep";
 import { BasicUpgraderCreepState } from "./creeps/types/basic_upgrader_creep";
 import { PowerHarvesterCreepState } from "./creeps/types/power_harvester_creep";
 import { BasicRepairerCreepState } from "creeps/types/basic_repairer_creep";
+import { BaseMemory } from "memory/memory_base";
 
 declare global {
   type RoomName = string;
 
   interface Memory {
     currentMemoryVersion: string;
-
+    bases: { [roomName: string]: BaseMemory };
 
     log: LogMemory;
   }

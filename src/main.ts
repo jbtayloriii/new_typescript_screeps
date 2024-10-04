@@ -23,6 +23,11 @@ export const loop = ErrorMapper.wrapLoop(() => {
     MemoryUtil.initializeMemory();
   }
 
+  if (Game.cpu.bucket >= 10000) {
+    Game.cpu.generatePixel();
+    Logger.info("Generating pixel");
+  }
+
   Object.entries(Game.flags).forEach(
     ([key, value]) => handleFlagCommand(value)
   );
