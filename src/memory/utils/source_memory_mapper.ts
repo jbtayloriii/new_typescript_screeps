@@ -1,7 +1,6 @@
 
-
 /** Memory mapper for handling Sources. */
-export class MemorySource {
+export class SourceMemoryMapper {
 
 
     /**
@@ -18,7 +17,7 @@ export class MemorySource {
             x: sourceObj.pos.x,
             y: sourceObj.pos.y,
             roomName: sourceObj.room.name,
-            maxCreeps: MemorySource.getOpenLocationsForSource(sourceObj),
+            maxCreeps: SourceMemoryMapper.getOpenLocationsForSource(sourceObj),
             powerHarvestContainer: powerHarvestingContainerPosition,
             currentPowerHarvester: undefined,
             currentCreepIds: [],

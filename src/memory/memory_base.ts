@@ -1,4 +1,4 @@
-import { MemorySource } from "./memory_source";
+import { SourceMemoryMapper } from "./utils/source_memory_mapper";
 
 export interface BaseMemory {
     sources: SourceMemory[];
@@ -9,7 +9,7 @@ export const mapBaseMemory = function(room: Room): BaseMemory {
 
     let sourceMemoryList: SourceMemory[] = [];
     for(let source of sources) {
-        sourceMemoryList.push(MemorySource.mapSourceMemory(source));
+        sourceMemoryList.push(SourceMemoryMapper.mapSourceMemory(source));
     }
 
     return {
