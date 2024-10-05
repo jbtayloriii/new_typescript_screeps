@@ -53,8 +53,6 @@ export function returnEnergyToStructure(creep: Creep, priorityList: StorableStru
 }
 
 function findNewTarget(creep: Creep, priorityList: StorableStructure[]) {
-
-    
   let closestTarget;
     
   if(priorityList.length == 0) {
