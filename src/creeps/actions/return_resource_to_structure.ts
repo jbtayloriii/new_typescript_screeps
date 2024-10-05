@@ -1,13 +1,13 @@
 import { Logger } from "logging/logger";
 
-type StorableStructure = STRUCTURE_SPAWN | STRUCTURE_EXTENSION | STRUCTURE_STORAGE;
+export type StorableStructure = STRUCTURE_SPAWN | STRUCTURE_EXTENSION | STRUCTURE_STORAGE;
 
 /**
  * Finds (if necessary) and attempts to store energy from a creep onto a structure.
  * @param creep The creep to act.
  * @param priorityList An optional list of target priorities to choose when picking a new structure
  */
-export function returnEnergyToStructure(creep: Creep, priorityList: StorableStructure[] = []) {
+export function returnResourceToStructure(creep: Creep, priorityList: StorableStructure[] = []) {
   // Clear the current structure if it's invalid
   if (creep.memory.currentStructureResourceTargetId) {
     let targetObj = Game.getObjectById(creep.memory.currentStructureResourceTargetId);
