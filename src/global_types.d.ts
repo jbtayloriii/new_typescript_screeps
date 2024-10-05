@@ -70,7 +70,6 @@ declare global {
 
   interface BasicHarvesterCreepMemory extends CreepMemory {
     currentState: BasicHarvesterCreepState;
-    sourceId: Id<Source>;
     dropOffLocationId: Id<StructureSpawn>;
   }
 

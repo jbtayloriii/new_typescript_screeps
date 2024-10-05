@@ -7,12 +7,10 @@ import { harvestNearestSource } from "creeps/actions/action_harvest_nearest_sour
 
 
 export class BasicHarvesterCreepBlueprint extends CreepBlueprint {
-  private sourceId: Id<Source>;
   private spawnId: Id<StructureSpawn>;
 
-  constructor(room: Room, source: Source, spawn: StructureSpawn) {
+  constructor(room: Room, spawn: StructureSpawn) {
     super(room);
-    this.sourceId = source.id;
     this.spawnId = spawn.id;
   }
 
@@ -26,7 +24,6 @@ export class BasicHarvesterCreepBlueprint extends CreepBlueprint {
   getInitialMemory(): BasicHarvesterCreepMemory {
     return {
       currentState: BasicHarvesterCreepState.HARVESTING,
-      sourceId: this.sourceId,
       dropOffLocationId: this.spawnId,
       creepType: CreepType.BASIC_HARVESTER,
       owningRoomId: this.owningRoomId,
@@ -42,18 +39,11 @@ export const enum BasicHarvesterCreepState {
 export class BasicHarvesterCreepHandler extends CreepHandler {
   memory: BasicHarvesterCreepMemory;
   dropOffLocation: StructureSpawn;
-  source: Source;
   
   constructor(creep: Creep) {
     super(creep);
     const harvesterMemory = creep.memory as BasicHarvesterCreepMemory;
     this.memory = harvesterMemory;
-
-    const source = Game.getObjectById(harvesterMemory.sourceId);
-    if (!source) {
-      throw `Unable to create basic harvester creep: Invalid source with ID ${harvesterMemory.sourceId}`;
-    }
-    this.source = source;
 
     const dropOffLocation = Game.getObjectById(harvesterMemory.dropOffLocationId);
     if (!dropOffLocation) {

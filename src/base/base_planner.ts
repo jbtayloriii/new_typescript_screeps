@@ -1,3 +1,4 @@
+import { BaseMemory } from "memory/base_memory";
 import { CreepBlueprint } from "../creeps/creep_blueprint";
 import { CreepHandler } from "../creeps/creep_handler";
 
@@ -5,5 +6,5 @@ import { CreepHandler } from "../creeps/creep_handler";
 export interface BasePlanner {
   planConstruction(room: Room): void;
 
-  planCreepCreation(room: Room, creeps: CreepHandler[]): CreepBlueprint[];
+  planCreepCreation(room: Room, baseMemory: BaseMemory, creeps: CreepHandler[]): CreepBlueprint[];
 }

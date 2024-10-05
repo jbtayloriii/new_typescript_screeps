@@ -52,7 +52,7 @@ export class Base {
       basePlanner.planConstruction(room);
     }
 
-    const creepBlueprints = basePlanner.planCreepCreation(room, creepHandlers);
+    const creepBlueprints = basePlanner.planCreepCreation(room, this.baseMemory, creepHandlers);
 
     for (let spawn of validSpawns) {
       if (creepBlueprints.length > 0) {

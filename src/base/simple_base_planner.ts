@@ -1,4 +1,5 @@
 import { BasicRepairerCreepBlueprint } from "creeps/types/basic_repairer_creep";
+import { BaseMemory } from "memory/base_memory";
 import { CreepBlueprint } from "../creeps/creep_blueprint";
 import { CreepHandler } from "../creeps/creep_handler";
 import { CreepType } from "../creeps/creep_handler_factory";
@@ -14,11 +15,21 @@ export class SimpleBasePlanner implements BasePlanner {
     powerCreepConstruction.plan(room);
   }
 
-  planCreepCreation(room: Room, creeps: CreepHandler[]): CreepBlueprint[] {
+  planCreepCreation(room: Room, baseMemory: BaseMemory, creeps: CreepHandler[]): CreepBlueprint[] {
     const closestSpawnAndSource = this.getSpawnAndClosestSource(room);
     if (!closestSpawnAndSource) {
       return [];
     }
+    
+    const spawns = room.find(FIND_MY_SPAWNS);
+    if (spawns.length == 0) {
+      return [];
+    }
+
+    // TODO: Use first open instead of just first spawn
+    const spawn = spawns[0];
+
+
 
     const harvesterCount = creeps.filter(
       (creep) => creep.getType() === CreepType.BASIC_HARVESTER
@@ -37,8 +48,7 @@ export class SimpleBasePlanner implements BasePlanner {
       return [
         new BasicHarvesterCreepBlueprint(
           room,
-          closestSpawnAndSource.source,
-          closestSpawnAndSource.spawn
+          spawn
         ),
       ];
     }
