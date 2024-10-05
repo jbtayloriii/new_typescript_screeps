@@ -1,6 +1,13 @@
 import { BaseCreepActions } from "base/base_creep_actions";
 
-export const actionGetEnergy = function(creep: Creep, creepBaseActions: BaseCreepActions) {
+/** Attempts to get energy for the given creep.
+ * 
+ * The priority list for creeps is:
+ * 1. Get energy from the room's storage, if present
+ * 2. Get energy from the room's containers, if present
+ * 3. Get energy by mining from a Source.
+ */
+export const getEnergy = function(creep: Creep, creepBaseActions: BaseCreepActions) {
   let energySources = creepBaseActions.energySources;
 
   // First priority: Pull from storage

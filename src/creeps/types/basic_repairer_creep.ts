@@ -2,7 +2,7 @@ import { BaseCreepActions } from "base/base_creep_actions";
 import { CreepBlueprint } from "../creep_blueprint";
 import { CreepHandler } from "../creep_handler";
 import { CreepType } from "../creep_handler_factory";
-import { actionGetEnergy } from "creeps/actions/action_get_energy";
+import { getEnergy } from "creeps/actions/get_energy";
 
 
 // Repair up to 10000 hits
@@ -66,7 +66,7 @@ export class BasicRepairerCreepHandler extends CreepHandler {
     }
 
     if (this.memory.currentState == BasicRepairerCreepState.GET_ENERGY) {
-      actionGetEnergy(this.creep, creepActions);
+      getEnergy(this.creep, creepActions);
     } else if (this.memory.currentState == BasicRepairerCreepState.REPAIR_NEAREST) {
       this.repairStructure(creepActions);
     }
