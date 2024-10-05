@@ -1,6 +1,6 @@
 import { BaseCreepActions } from "base/base_creep_actions";
 
-export const ActionGetEnergy = function(creep: Creep, creepBaseActions: BaseCreepActions) {
+export const actionGetEnergy = function(creep: Creep, creepBaseActions: BaseCreepActions) {
   let energySources = creepBaseActions.energySources;
 
   // First priority: Pull from storage
@@ -14,7 +14,6 @@ export const ActionGetEnergy = function(creep: Creep, creepBaseActions: BaseCree
 
   // Second priority: Pull from (power harvesting) containers
   if (energySources.containers) {
-    
     let closestContainer = creep.pos.findClosestByPath(energySources.containers) as StructureContainer;
     let withdrawCode = creep.withdraw(closestContainer, RESOURCE_ENERGY);
     if (withdrawCode == ERR_NOT_IN_RANGE) {

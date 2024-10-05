@@ -3,7 +3,7 @@ import { ActionBuildStucture } from "../actions/action_build_structure";
 import { CreepBlueprint } from "../creep_blueprint";
 import { CreepHandler } from "../creep_handler";
 import { CreepType } from "../creep_handler_factory";
-import { ActionGetEnergy } from "creeps/actions/action_get_energy";
+import { actionGetEnergy } from "creeps/actions/action_get_energy";
 
 
 export class BasicBuilderCreepBlueprint extends CreepBlueprint {
@@ -65,7 +65,7 @@ export class BasicBuilderCreepHandler extends CreepHandler {
     }
 
     if (this.memory.currentState == BasicBuilderCreepState.HARVEST_SOURCE) {
-      ActionGetEnergy(this.creep, creepActions);
+      actionGetEnergy(this.creep, creepActions);
 
     } else if (this.memory.currentState == BasicBuilderCreepState.BUILD_NEAREST_BUILDING) {
       ActionBuildStucture.performAction({creep: this.creep});

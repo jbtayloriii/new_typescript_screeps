@@ -3,7 +3,7 @@ import { ActionUpgradeController } from "../actions/action_upgrade_controller";
 import { CreepBlueprint } from "../creep_blueprint";
 import { CreepHandler } from "../creep_handler";
 import { CreepType } from "../creep_handler_factory";
-import { ActionGetEnergy } from "creeps/actions/action_get_energy";
+import { actionGetEnergy } from "creeps/actions/action_get_energy";
 
 export const enum BasicUpgraderCreepState {
   HARVESTING = 0,
@@ -88,7 +88,7 @@ export class BasicUpgraderCreepHandler extends CreepHandler {
     }
 
     if (this.memory.currentState == BasicUpgraderCreepState.HARVESTING) {
-      ActionGetEnergy(this.creep, creepActions);
+      actionGetEnergy(this.creep, creepActions);
     } else if (this.memory.currentState == BasicUpgraderCreepState.UPGRADING) {
       ActionUpgradeController.performAction({creep: this.creep, controller: this.controller});
     }
