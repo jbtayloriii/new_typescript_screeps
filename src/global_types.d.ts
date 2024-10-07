@@ -11,7 +11,8 @@ declare global {
 
   interface Memory {
     currentMemoryVersion: string;
-    bases: { [roomName: string]: BaseMemory };
+    bases_v2: { [roomName: string]: BaseMemory };
+    sources: { [sourceId: string]: SourceMemory };
 
     log: LogMemory;
   }
@@ -87,7 +88,6 @@ declare global {
   interface PowerHarvesterCreepMemory extends CreepMemory {
     currentState: PowerHarvesterCreepState;
     sourceId: Id<Source>;
-    containerId: Id<StructureContainer>;
   }
 
   interface BasicRepairerCreepMemory extends CreepMemory {

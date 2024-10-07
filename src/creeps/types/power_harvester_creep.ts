@@ -3,6 +3,8 @@ import { CreepBlueprint } from "../creep_blueprint";
 import { CreepHandler } from "../creep_handler";
 import { CreepType } from "../creep_handler_factory";
 import { BaseCreepActions } from "base/base_creep_actions";
+import { BaseMemory } from "memory/base_memory";
+import { MemoryCache } from "memory/memory_cache";
 
 export const enum PowerHarvesterCreepState {
   MOVING = 0,
@@ -44,7 +46,6 @@ export class PowerHarvesterCreepBlueprint extends CreepBlueprint {
       creepType: CreepType.POWER_HARVESTER,
       currentState: PowerHarvesterCreepState.MOVING,
       sourceId: this.sourceId,
-      containerId: this.containerId,
     };
   }
 }
@@ -52,7 +53,6 @@ export class PowerHarvesterCreepBlueprint extends CreepBlueprint {
 export class PowerHarvesterCreepHandler extends CreepHandler {
   memory: PowerHarvesterCreepMemory;
   source: Source;
-  container: StructureContainer;
 
   constructor(creep: Creep) {
     super(creep);
@@ -64,15 +64,11 @@ export class PowerHarvesterCreepHandler extends CreepHandler {
       throw `Unable to create power harvester creep: Invalid source with ID ${powerHarvesterMemory.sourceId}`;
     }
     this.source = source;
-
-    const container = Game.getObjectById(powerHarvesterMemory.containerId);
-    if (!container) {
-      throw `Unable to create power harvester creep: Invalid container with ID ${powerHarvesterMemory.containerId}`;
-    }
-    this.container = container;
   }
   
   handle(creepActions: BaseCreepActions): void {
+    let baseMemory: BaseMemory = MemoryCache.getBaseMemory(this.creep);
+
     if (this.memory.currentState == PowerHarvesterCreepState.MOVING &&
             this.container.pos == this.creep.pos) {
         this.memory.currentState = PowerHarvesterCreepState.HARVESTING;
