@@ -9,6 +9,7 @@
 
 import { CreepHandler } from "creeps/creep_handler";
 import { CreepHandlerFactory } from "creeps/creep_handler_factory";
+import { MemoryCache } from "memory/memory_cache";
 
 export interface BaseEntities {
     creeps: Creep[];
@@ -61,7 +62,7 @@ export class EntityHandler {
         // Delete memory of creeps that no longer exist
         for (let creepName in Memory.creeps) {
             if(!Game.creeps[creepName]) {
-                // TODO: Create a more robust linking/unlinking for creeps
+                MemoryCache.unlinkCreep(creepName);
 
                 delete Memory.creeps[creepName];
             }

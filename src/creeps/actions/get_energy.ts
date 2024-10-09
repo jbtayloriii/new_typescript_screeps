@@ -30,6 +30,7 @@ export const getEnergy = function(creep: Creep, creepBaseActions: BaseCreepActio
   }
 
   // Third priorty: Manually harvest from sources
+  // todo: change to finding open source instead of forcing it
   if (!creep.memory.harvestingSourceId) {
     const source = creep.pos.findClosestByPath(FIND_SOURCES);
     if (!source) {

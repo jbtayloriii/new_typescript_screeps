@@ -67,11 +67,19 @@ export class PowerHarvesterCreepHandler extends CreepHandler {
   }
   
   handle(creepActions: BaseCreepActions): void {
-    let baseMemory: BaseMemory = MemoryCache.getBaseMemory(this.creep);
+    let source = Game.getObjectById(this.memory.sourceId);
+    if (!source) {
+      Logger.warning(`Unable to find Source ${this.memory.sourceId} for power harvester.`);
+      return;
+    }
+    let sourceMemory: SourceMemory = MemoryCache.getSourceMemory(source);
 
-    if (this.memory.currentState == PowerHarvesterCreepState.MOVING &&
-            this.container.pos == this.creep.pos) {
+    if (this.memory.currentState == PowerHarvesterCreepState.MOVING) {
+      if (this.creep.pos.x == sourceMemory.x && this.creep.pos.y == sourceMemory.y) {
         this.memory.currentState = PowerHarvesterCreepState.HARVESTING;
+      } else {
+        this.creep.moveTo(new RoomPosition(sourceMemory.x, sourceMemory.y, source.room.name));
+      }
     }
 
     if (this.memory.currentState == PowerHarvesterCreepState.HARVESTING) {

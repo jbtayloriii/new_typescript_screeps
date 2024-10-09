@@ -30,9 +30,16 @@ declare global {
     currentStructureResourceTargetId?: Id<Structure>;
     buildingConstructionSiteId?: Id<ConstructionSite>;
 
+    // Linked actions
+    links: CreepLinks;
+
     // Prototype memory
     _movePath?: string;
     _moveTargetPosSerial?: string;
+  }
+
+  interface CreepLinks {
+    powerHarvestSourceId?: Id<Source>;
   }
 
   interface SourceMemory {
