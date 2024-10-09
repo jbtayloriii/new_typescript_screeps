@@ -34,6 +34,7 @@ export class BasicRepairerCreepBlueprint extends CreepBlueprint {
       roomName: this.roomName,
       creepType: CreepType.BASIC_REPAIRER,
       owningRoomId: this.owningRoomId,
+      links: {},
     };
   }
 }

@@ -49,6 +49,7 @@ export class BasicUpgraderCreepBlueprint extends CreepBlueprint {
       currentState: BasicUpgraderCreepState.HARVESTING,
       sourceId: this.sourceId,
       controllerId: this.controllerId,
+      links: {},
     };
   }
 }

@@ -7,11 +7,8 @@ import { getEnergy } from "creeps/actions/get_energy";
 
 
 export class BasicBuilderCreepBlueprint extends CreepBlueprint {
-  private sourceId: Id<Source>;
-
-  constructor(room: Room, source: Source) {
+  constructor(room: Room) {
     super(room);
-    this.sourceId = source.id;
   }
 
   getBody(): BodyPartConstant[] {
@@ -25,9 +22,9 @@ export class BasicBuilderCreepBlueprint extends CreepBlueprint {
   getInitialMemory(): BasicBuilderCreepMemory {
     return {
       currentState: BasicBuilderCreepState.HARVEST_SOURCE,
-      sourceId: this.sourceId,
       creepType: CreepType.BASIC_BUILDER,
       owningRoomId: this.owningRoomId,
+      links: {},
     };
   }
 }
@@ -39,18 +36,11 @@ export const enum BasicBuilderCreepState {
 
 export class BasicBuilderCreepHandler extends CreepHandler {
   memory: BasicBuilderCreepMemory;
-  source: Source;
 
   constructor(creep: Creep) {
     super(creep);
     const memory = creep.memory as BasicBuilderCreepMemory;
     this.memory = memory;
-    
-    const source = Game.getObjectById(memory.sourceId);
-    if (!source) {
-      throw `Unable to create basic builder creep: Invalid source with ID ${memory.sourceId}`;
-    }
-    this.source = source;
   }
 
   handle(creepActions: BaseCreepActions): void {

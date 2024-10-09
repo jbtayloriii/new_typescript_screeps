@@ -46,6 +46,7 @@ export class PowerHarvesterCreepBlueprint extends CreepBlueprint {
       creepType: CreepType.POWER_HARVESTER,
       currentState: PowerHarvesterCreepState.MOVING,
       sourceId: this.sourceId,
+      links: {},
     };
   }
 }

@@ -89,7 +89,6 @@ declare global {
 
   interface BasicBuilderCreepMemory extends CreepMemory {
     currentState: BasicBuilderCreepState;
-    sourceId: Id<Source>;
   }
 
   interface PowerHarvesterCreepMemory extends CreepMemory {

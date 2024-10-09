@@ -27,6 +27,7 @@ export class BasicHarvesterCreepBlueprint extends CreepBlueprint {
       dropOffLocationId: this.spawnId,
       creepType: CreepType.BASIC_HARVESTER,
       owningRoomId: this.owningRoomId,
+      links: {},
     }
   }
 }
