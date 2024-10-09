@@ -83,7 +83,6 @@ declare global {
 
   interface BasicUpgraderCreepMemory extends CreepMemory {
     currentState: BasicUpgraderCreepState;
-    sourceId: Id<Source>;
     controllerId: Id<StructureController>;
   }
 

@@ -11,13 +11,11 @@ export const enum BasicUpgraderCreepState {
 }
 
 export class BasicUpgraderCreepBlueprint extends CreepBlueprint {
-  private sourceId: Id<Source>;
   private controllerId: Id<StructureController>;
   private energyAvailable: number;
 
-  constructor(room: Room, source: Source, controller: StructureController) {
+  constructor(room: Room, controller: StructureController) {
     super(room);
-    this.sourceId = source.id;
     this.controllerId = controller.id;
     this.energyAvailable = room.energyAvailable;
   }
@@ -47,7 +45,6 @@ export class BasicUpgraderCreepBlueprint extends CreepBlueprint {
       owningRoomId: this.owningRoomId,
       creepType: CreepType.BASIC_UPGRADER,
       currentState: BasicUpgraderCreepState.HARVESTING,
-      sourceId: this.sourceId,
       controllerId: this.controllerId,
       links: {},
     };
