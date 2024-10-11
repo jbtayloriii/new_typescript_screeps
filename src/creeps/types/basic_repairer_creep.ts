@@ -20,7 +20,7 @@ export class BasicRepairerCreepBlueprint extends CreepBlueprint {
   }
 
   getBody(): BodyPartConstant[] {
-    return [WORK, CARRY, WORK, WORK, MOVE, MOVE];
+    return [WORK, CARRY, MOVE];
   }
 
   getType(): CreepType {
