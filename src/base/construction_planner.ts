@@ -1,9 +1,17 @@
-import { ConstructionPlanning } from "../construction_planning";
 
-export class PowerCreepConstructionPlanning implements ConstructionPlanning {
-  constructor() {}
 
-  plan(room: Room): void {
+export class ConstructionPlanner {
+  private constructor() {}
+
+  public static plan(room: Room): void {
+    this.planPowerCreepPaths(room);
+
+    if (room.controller && room.controller.level > 1) {
+      // TODO: plan diamonds
+    }
+  }
+
+  public static planPowerCreepPaths(room: Room): void {
     const spawns = room.find(FIND_MY_SPAWNS);
     if (spawns.length == 0) {
       return;
@@ -33,7 +41,7 @@ export class PowerCreepConstructionPlanning implements ConstructionPlanning {
     }
   }
 
-  private createPowerHarvestingPath(room: Room, start: Structure, end: Source) {
+  private static createPowerHarvestingPath(room: Room, start: Structure, end: Source) {
     const pathArr = PathFinder.search(start.pos, {
       pos: end.pos,
       range: 1,
@@ -54,7 +62,7 @@ export class PowerCreepConstructionPlanning implements ConstructionPlanning {
     return pathArr[pathArr.length - 1];
   }
 
-  private shouldAddRoad(pos: RoomPosition, source: Source): boolean {
+  private static shouldAddRoad(pos: RoomPosition, source: Source): boolean {
     for (let lookObj of pos.look()) {
       if (
         lookObj.type == LOOK_CONSTRUCTION_SITES &&

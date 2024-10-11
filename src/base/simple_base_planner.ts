@@ -7,12 +7,11 @@ import { BasicBuilderCreepBlueprint } from "../creeps/types/basic_builder_creep"
 import { BasicHarvesterCreepBlueprint } from "../creeps/types/basic_harvester_creep";
 import { BasicUpgraderCreepBlueprint } from "../creeps/types/basic_upgrader_creep";
 import { BasePlanner } from "./base_planner";
-import { PowerCreepConstructionPlanning } from "./construction_planning/power_creep_construction_planning";
+import { ConstructionPlanner } from "./construction_planner";
 
 export class SimpleBasePlanner implements BasePlanner {
   planConstruction(room: Room) {
-    const powerCreepConstruction = new PowerCreepConstructionPlanning();
-    powerCreepConstruction.plan(room);
+    ConstructionPlanner.plan(room);
   }
 
   planCreepCreation(room: Room, baseMemory: BaseMemory, creeps: CreepHandler[]): CreepBlueprint[] {
