@@ -53,19 +53,12 @@ export class BasicUpgraderCreepBlueprint extends CreepBlueprint {
 
 export class BasicUpgraderCreepHandler extends CreepHandler {
   memory: BasicUpgraderCreepMemory;
-  source: Source;
   controller: StructureController;
 
   constructor(creep: Creep) {
     super(creep);
     const upgraderMemory = creep.memory as BasicUpgraderCreepMemory;
     this.memory = upgraderMemory;
-
-    const source = Game.getObjectById(upgraderMemory.sourceId);
-    if (!source) {
-      throw `Unable to create basic harvester creep: Invalid source with ID ${upgraderMemory.sourceId}`;
-    }
-    this.source = source;
 
     const controller = Game.getObjectById(upgraderMemory.controllerId);
     if (!controller) {
