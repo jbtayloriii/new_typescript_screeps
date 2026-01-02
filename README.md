@@ -4,7 +4,7 @@
 
 1. Install Homebrew
 
-2. Install Node.js: `brew install node@22`
+2. Install Corepack: `npm install -g corepack`
 
 3. Enable corepack: `corepack enable`
 

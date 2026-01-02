@@ -3,6 +3,7 @@
 
 /package-lock.json
 /screeps.json
+/scripts/auth_codes.json
 
 # Yarn
 .yarn/*

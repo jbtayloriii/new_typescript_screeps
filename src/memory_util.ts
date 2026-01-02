@@ -10,12 +10,12 @@ export class MemoryUtil {
   }
 
   public static initializeMemory() {
-		console.log("Initializing memory to version " + CURRENT_MEMORY_VERSION);
+    console.log("Initializing memory to version " + CURRENT_MEMORY_VERSION);
 
-		// RawMemory.set("{}");
-		MemoryUtil.initializeOtherMemory();
+    // RawMemory.set("{}");
+    MemoryUtil.initializeOtherMemory();
 
-		Memory.currentMemoryVersion = CURRENT_MEMORY_VERSION;
+    Memory.currentMemoryVersion = CURRENT_MEMORY_VERSION;
   }
 
   private static initializeOtherMemory(): void {
