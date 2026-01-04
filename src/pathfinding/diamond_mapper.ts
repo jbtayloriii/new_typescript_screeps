@@ -68,6 +68,12 @@ export function getDiamondMapping(walls: Position[], mapSize: number = DEFAULT_M
     return tileArr;
 }
 
+
+/** Internal function that performs diamond and/or square mapping, based on queue additions. */
+function performMapping(queueFn: (queue: WeightedPosition[], val: WeightedPosition) => void) {
+
+}
+
 /** Initializes values in the return array and intenral queue. */
 export function initializeEdges(tileArr: number[][], queue: WeightedPosition[], mapSize: number): void {
 
