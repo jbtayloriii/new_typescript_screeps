@@ -5,7 +5,21 @@ describe('10x10 diamond', () => {
     test('Initialize edges 10x10', () => {
         let mapSize = 10;
         let tileArr = Array.from({ length: mapSize }, () => Array(mapSize).fill(0));
+        let visitedArr = Array.from({ length: mapSize }, () => Array(mapSize).fill(false));
         let queue: WeightedPosition[] = [];
+
+        let expectedVisitedArr = [
+            [true, true, true, true, true, true, true, true, true, true],
+            [true, true, true, true, true, true, true, true, true, true],
+            [true, true, false, false, false, false, false, false, true, true],
+            [true, true, false, false, false, false, false, false, true, true],
+            [true, true, false, false, false, false, false, false, true, true],
+            [true, true, false, false, false, false, false, false, true, true],
+            [true, true, false, false, false, false, false, false, true, true],
+            [true, true, false, false, false, false, false, false, true, true],
+            [true, true, true, true, true, true, true, true, true, true],
+            [true, true, true, true, true, true, true, true, true, true]
+        ]
 
         let expectedTileArr = [
             [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
@@ -20,11 +34,12 @@ describe('10x10 diamond', () => {
             [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
         ]
 
-        initializeEdges(tileArr, queue, mapSize);
+        initializeEdges(tileArr, visitedArr, queue, mapSize);
 
         // One element for each cell directly inside -> 8, 8, 6, 6 for walls
         expect(queue.length).toBe(28);
         expect(tileArr).toStrictEqual(expectedTileArr);
+        expect(visitedArr).toStrictEqual(expectedVisitedArr);
     });
 
     test('No walls 10x10', () => {
@@ -76,6 +91,7 @@ describe('getDiamondMapping module', () => {
     test('Initialize edges 5x5', () => {
         let mapSize = 5;
         let tileArr = Array.from({ length: mapSize }, () => Array(mapSize).fill(0));
+        let visitedArr = Array.from({ length: mapSize }, () => Array(mapSize).fill(false));
         let queue: WeightedPosition[] = [];
 
         let expectedTileArr = [
@@ -86,11 +102,20 @@ describe('getDiamondMapping module', () => {
             [-1, -1, -1, -1, -1],
         ]
 
-        initializeEdges(tileArr, queue, mapSize);
+        let expectedVisitedArr = [
+            [true, true, true, true, true],
+            [true, true, true, true, true],
+            [true, true, false, true, true],
+            [true, true, true, true, true],
+            [true, true, true, true, true],
+        ]
+
+        initializeEdges(tileArr, visitedArr, queue, mapSize);
 
         // One element for each cell directly inside
         expect(queue.length).toBe(8);
         expect(tileArr).toStrictEqual(expectedTileArr);
+        expect(visitedArr).toStrictEqual(expectedVisitedArr);
     });
 
     test('No walls 5x5', () => {

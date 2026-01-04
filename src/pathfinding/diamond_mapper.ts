@@ -28,11 +28,11 @@ const DEFAULT_MAP_SIZE = 50;
  *  W12321W    W..D..W
  */
 export function getDiamondMapping(walls: Position[], mapSize: number = DEFAULT_MAP_SIZE): number[][] {
-    let tileArr = Array.from({ length: mapSize }, () => Array(mapSize).fill(0));
-
+    let tileArr: number[][] = Array.from({ length: mapSize }, () => Array(mapSize).fill(0));
+    let visitedArr: boolean[][] = Array.from({ length: mapSize }, () => Array(mapSize).fill(false));
     let queue: WeightedPosition[] = [];
 
-    initializeEdges(tileArr, queue, mapSize);
+    initializeEdges(tileArr, visitedArr, queue, mapSize);
 
     // Add walls and push values next to walls
     walls.forEach((row) => {
@@ -75,16 +75,26 @@ function performMapping(queueFn: (queue: WeightedPosition[], val: WeightedPositi
 }
 
 /** Initializes values in the return array and intenral queue. */
-export function initializeEdges(tileArr: number[][], queue: WeightedPosition[], mapSize: number): void {
-
+export function initializeEdges(
+    tileArr: number[][],
+    visitedArr: boolean[][],
+    queue: WeightedPosition[],
+    mapSize: number
+): void {
     // Add top/bottom edges
     for (let i = 0; i < mapSize; i++) {
         tileArr[0][i] = -1;
         tileArr[mapSize - 1][i] = -1
 
+        visitedArr[0][i] = true;
+        visitedArr[mapSize - 1][i] = true;
+
         if (i > 0 && i < mapSize - 1) {
             queue.push({ x: i, y: 1, v: 1 });
             queue.push({ x: i, y: mapSize - 2, v: 1 });
+
+            visitedArr[1][i] = true;
+            visitedArr[mapSize - 2][i] = true;
         }
     }
 
@@ -93,9 +103,15 @@ export function initializeEdges(tileArr: number[][], queue: WeightedPosition[], 
         tileArr[i][0] = -1;
         tileArr[i][mapSize - 1] = -1
 
+        visitedArr[i][0] = true;
+        visitedArr[i][mapSize - 1] = true;
+
         if (i > 1 && i < mapSize - 2) {
             queue.push({ x: 1, y: i, v: 1 });
             queue.push({ x: mapSize - 2, y: i, v: 1 });
+
+            visitedArr[i][1] = true;
+            visitedArr[i][mapSize - 2] = true;
         }
     }
 }
