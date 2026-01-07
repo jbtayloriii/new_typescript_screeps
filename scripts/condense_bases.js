@@ -9,7 +9,7 @@ const TILE_TYPE_TABLE = {
   "swamp": 2,
 };
 
-async function* walk(dir_filepath) {
+export async function* walk(dir_filepath) {
   for await (const d of await fs.opendir(dir_filepath)) {
     const entry = path.join(dir_filepath, d.name);
     if (d.isFile()) {

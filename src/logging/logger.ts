@@ -6,7 +6,7 @@ export class Logger {
     // Screeps API limits emails to 1000 characters
     private static readonly MAX_EMAIL_LENGTH = 1000;
 
-    private static instance:Logger | null = null;
+    private static instance: Logger | null = null;
 
     private constructor() { }
 
@@ -14,8 +14,8 @@ export class Logger {
         // Send logs when the day switches over
         let currentDate = new Date().getDate();
         if (Memory.log.lastReportedDate !== currentDate) {
-            // Schedule 20 messages to send
-            let emailCount = 20;
+            // Schedule 30 messages to send
+            let emailCount = 30;
             while (emailCount > 0 && this.sendAndDumpLines()) {
                 emailCount--;
             }

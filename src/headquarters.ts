@@ -7,7 +7,7 @@ export class Headquarters {
   private bases: Map<RoomName, Base> = new Map();
   private creepHandlerMap: Map<string, CreepHandler> = new Map();
 
-  private constructor() {}
+  private constructor() { }
 
   public setUpBases(): void {
     // TODO: remove bases that are destroyed
@@ -17,6 +17,7 @@ export class Headquarters {
     );
     for (let [roomName, room] of owningRooms) {
       if (!this.bases.has(roomName)) {
+        console.log(`Creating base at ${roomName}`);
         this.bases.set(roomName, Base.createBaseFromRoom(room));
       }
     }

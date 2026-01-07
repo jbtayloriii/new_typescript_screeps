@@ -1,5 +1,5 @@
 
-const CURRENT_MEMORY_VERSION = "2.3";
+const CURRENT_MEMORY_VERSION = "2.4";
 
 export class MemoryUtil {
   public static shouldInitializeMemory(): boolean {
@@ -14,6 +14,10 @@ export class MemoryUtil {
 
     // RawMemory.set("{}");
     MemoryUtil.initializeOtherMemory();
+
+    if (!Memory.roomInfo) {
+      Memory.roomInfo = {};
+    }
 
     Memory.currentMemoryVersion = CURRENT_MEMORY_VERSION;
   }
