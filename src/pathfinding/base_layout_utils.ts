@@ -2,6 +2,29 @@ import { BaseLayoutMap, BasePlanningCoordinateString, Coordinate, CoordinateStri
 import { CoordinateStringToCoordinate } from "utils/string_utils";
 import { BaseLayoutMapObj } from "./base_layout_map_obj";
 
+// Edges around a center location, for forming a 3x3 square
+const CENTER_RING_OFFSETS: Coordinate[] = [
+    { x: -1, y: -1 },
+    { x: -1, y: 1 },
+    { x: 1, y: -1 },
+    { x: 1, y: 1 },
+    { x: -1, y: 0 },
+    { x: 1, y: 0 },
+    { x: 0, y: -1 },
+    { x: 0, y: 1 },
+];
+
+// Buildings to build around the center ring. Skips the initial spawn
+// This MUST be 7 elements or less
+const CENTER_BUILDINGS: { level: number, building: BuildableStructureConstant }[] = [
+    { level: 1, building: STRUCTURE_ROAD },
+    { level: 3, building: STRUCTURE_TOWER },
+    { level: 4, building: STRUCTURE_STORAGE },
+    { level: 5, building: STRUCTURE_LINK },
+    { level: 6, building: STRUCTURE_TERMINAL },
+    { level: 7, building: STRUCTURE_FACTORY },
+    { level: 8, building: STRUCTURE_NUKER },
+];
 
 export class BaseLayoutError extends Error { }
 
@@ -20,15 +43,16 @@ export function getBaseLayout(room: Room, diamondDistances: number[][], squareDi
     if (spawns.length !== 1) {
         throw new BaseLayoutError(`Could not find initial spawn at ${room.name} for base planning`);
     }
+    let spawnCoord: Coordinate = { x: spawns[0].pos.x, y: spawns[0].pos.y };
 
     let baseMap = new BaseLayoutMapObj();
 
     // search around the initial location for a center, this cannot be the center.
-    let centerLocation = getInitialBaseCenter(spawns[0].pos, squareDistances);
+    let centerLocation = getInitialBaseCenter(spawnCoord, squareDistances);
     if (centerLocation === null) {
         throw new BaseLayoutError(`Cannot find suitable center location for ${spawns[0].pos}`);
     }
-    createRoomCore(centerLocation, room, baseMap);
+    createRoomCore(centerLocation, spawnCoord, room, baseMap);
 
     return baseMap.toSerializedMap();
 }
@@ -56,9 +80,35 @@ function getInitialBaseCenter(initialCoordinate: Coordinate, squareDistances: nu
     return null;
 }
 
-function createRoomCore(centerLocation: Coordinate, room: Room, baseMap: BaseLayoutMapObj): void {
-    // Add roads around edge
-    for (let i = 0; i < 5; i++) {
-
+function createRoomCore(centerLocation: Coordinate, spawnCoord: Coordinate, room: Room, baseMap: BaseLayoutMapObj): void {
+    // Add roads around 3x3 center, leaving corners
+    for (let i = -1; i <= 1; i++) {
+        baseMap.addBuilding(1, { x: centerLocation.x + i, y: centerLocation.y - 2 }, STRUCTURE_ROAD);
+        baseMap.addBuilding(1, { x: centerLocation.x + i, y: centerLocation.y + 2 }, STRUCTURE_ROAD);
+        baseMap.addBuilding(1, { x: centerLocation.x - 2, y: centerLocation.y + i }, STRUCTURE_ROAD);
+        baseMap.addBuilding(1, { x: centerLocation.x + 2, y: centerLocation.y + i }, STRUCTURE_ROAD);
     }
+
+    // Add remaining buildings as a ring around, skipping spawn
+    let centerBuildingIndex = 0;
+    for (let i = 0; i < CENTER_RING_OFFSETS.length; i++) {
+        let nextCoord: Coordinate = {
+            x: centerLocation.x + CENTER_RING_OFFSETS[i].x,
+            y: centerLocation.y + CENTER_RING_OFFSETS[i].y,
+        };
+
+        // TODO: Don't assume spawn is already spawned
+        if (nextCoord.x === spawnCoord.x && nextCoord.y === spawnCoord.y) {
+            baseMap.addBuilding(1, nextCoord, STRUCTURE_SPAWN);
+        } else {
+            baseMap.addBuilding(
+                CENTER_BUILDINGS[centerBuildingIndex].level,
+                nextCoord,
+                CENTER_BUILDINGS[centerBuildingIndex].building);
+            centerBuildingIndex++;
+        }
+    }
+
+    // Start center rampart at 5 for now
+    baseMap.addBuilding(5, centerLocation, STRUCTURE_RAMPART);
 }

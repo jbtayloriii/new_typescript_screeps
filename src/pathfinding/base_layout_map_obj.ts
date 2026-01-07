@@ -1,11 +1,11 @@
-import { BaseLayoutMap, Coordinate } from "global_types";
-import { PositionToBasePlan } from "utils/string_utils";
+import { BaseLayoutMap, BasePlanningCoordinateString, Coordinate } from "global_types";
+import { PositionToBasePlan } from "../utils/string_utils";
 
 
 export class BaseLayoutMapObj {
-    private internalMap: BaseLayoutMap = new ();
+    private internalMap: BaseLayoutMap = new Map<number, BasePlanningCoordinateString[]>();
 
-    public BaseLayoutMapObj() {
+    public constructor() {
         for (let i = 1; i <= 8; i++) {
             this.internalMap.set(i, [])
         }

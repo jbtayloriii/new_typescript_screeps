@@ -2,10 +2,9 @@ import { BasePlanningCoordinateString, Coordinate, CoordinateString } from "glob
 
 
 export function CoordinateStringToCoordinate(coord: CoordinateString): { x: number, y: number } {
-    try {
-        let parts = coord.split("_");
-        return { x: parseInt(parts[0]), y: parseInt(parts[1]) };
-    }
+    // TODO: better handling instead of parseInt
+    let parts = coord.split("_");
+    return { x: parseInt(parts[0]), y: parseInt(parts[1]) };
 }
 
 export function CoordinateToCoordString(coordinate: { x: number, y: number }): CoordinateString {
