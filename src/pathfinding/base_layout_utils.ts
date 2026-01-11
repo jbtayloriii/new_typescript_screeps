@@ -1,5 +1,4 @@
 import { BaseLayoutMap, BasePlanningCoordinateString, Coordinate, CoordinateString } from "global_types";
-import { CoordinateStringToCoordinate } from "utils/string_utils";
 import { BaseLayoutMapObj } from "./base_layout_map_obj";
 
 // Edges around a center location, for forming a 3x3 square
@@ -66,7 +65,7 @@ export function getBaseLayout(room: Room, diamondDistances: number[][], squareDi
  * @return A coordinate that satisfies a base center, or null if no coordinate
  *     can be found. 
 */
-function getInitialBaseCenter(initialCoordinate: Coordinate, squareDistances: number[][]): Coordinate | null {
+export function getInitialBaseCenter(initialCoordinate: Coordinate, squareDistances: number[][]): Coordinate | null {
     for (let y = initialCoordinate.y - 1; y <= initialCoordinate.y + 1; y++) {
         for (let x = initialCoordinate.x - 1; x <= initialCoordinate.x + 1; x++) {
             if (x == initialCoordinate.x && y == initialCoordinate.y) {
