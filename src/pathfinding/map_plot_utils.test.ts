@@ -93,6 +93,22 @@ describe('Diamond mapping', () => {
         expect(mappingToPrintable(actual)).toStrictEqual(mappingToPrintable(expected));
     });
 
+    test('Edge walls 10x10', () => {
+        let walls = [
+            { x: 0, y: 0 },
+            { x: 9, y: 9 },
+            { x: 0, y: 5 },
+            { x: 9, y: 4 },
+            { x: 3, y: 0 },
+            { x: 6, y: 9 },
+            { x: 1, y: 1 },
+            { x: 2, y: 1 },
+            { x: 5, y: 5 },
+        ];
+        let actual = getDiamondMapping(walls, 10);
+
+    });
+
     test('Inner walls 10x10', () => {
         let walls = [
             { x: 1, y: 1 },

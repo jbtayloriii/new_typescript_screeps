@@ -30,11 +30,7 @@ export class BaseLayoutError extends Error { }
 // Support a 3x3 square, plus roads. This is 5x5 total, or radius 3
 const BASE_CENTER_RADIUS = 3;
 
-/**
- * Creates a base layout given an initial core location and precomputed distance maps.
- * @throws {BaseLayoutError} if a base layout cannot be successfully determined.
- */
-export function getBaseLayout(room: Room, diamondDistances: number[][], squareDistances: [][], walls: Coordinate[], mapSize: number): BaseLayoutMap {
+export function getBaseLayoutForRoom(room: Room, diamondDistances: number[][], squareDistances: [][], walls: Coordinate[], mapSize: number) {
     // TODO: Don't assume there's already a spawn in the room, allow for empty rooms
     let spawns = room.find(FIND_MY_STRUCTURES, {
         filter: { structureType: STRUCTURE_SPAWN },
@@ -44,14 +40,26 @@ export function getBaseLayout(room: Room, diamondDistances: number[][], squareDi
     }
     let spawnCoord: Coordinate = { x: spawns[0].pos.x, y: spawns[0].pos.y };
 
+    return getBaseLayout(spawnCoord, diamondDistances, squareDistances, walls, mapSize);
+}
+
+/**
+ * Creates a base layout given an initial core location and precomputed distance maps.
+ * @throws {BaseLayoutError} if a base layout cannot be successfully determined.
+ */
+export function getBaseLayout(initialCoordinate: Coordinate, diamondDistances: number[][], squareDistances: number[][], walls: Coordinate[], mapSize: number): BaseLayoutMap {
+
+
     let baseMap = new BaseLayoutMapObj();
 
-    // search around the initial location for a center, this cannot be the center.
-    let centerLocation = getInitialBaseCenter(spawnCoord, squareDistances);
+    // Search around the initial location for a center, this cannot be the center.
+    let centerLocation = getInitialBaseCenter(initialCoordinate, squareDistances);
     if (centerLocation === null) {
-        throw new BaseLayoutError(`Cannot find suitable center location for ${spawns[0].pos}`);
+        throw new BaseLayoutError(`Cannot find suitable center location for ${initialCoordinate}`);
     }
-    createRoomCore(centerLocation, spawnCoord, room, baseMap);
+    createRoomCore(centerLocation, initialCoordinate, baseMap);
+
+    // Create the expansions around the base center now
 
     return baseMap.toSerializedMap();
 }
@@ -79,7 +87,7 @@ export function getInitialBaseCenter(initialCoordinate: Coordinate, squareDistan
     return null;
 }
 
-function createRoomCore(centerLocation: Coordinate, spawnCoord: Coordinate, room: Room, baseMap: BaseLayoutMapObj): void {
+function createRoomCore(centerLocation: Coordinate, spawnCoord: Coordinate, baseMap: BaseLayoutMapObj): void {
     // Add roads around 3x3 center, leaving corners
     for (let i = -1; i <= 1; i++) {
         baseMap.addBuilding(1, { x: centerLocation.x + i, y: centerLocation.y - 2 }, STRUCTURE_ROAD);

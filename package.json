@@ -33,6 +33,7 @@
     "screeps-api": "^1.16.0",
     "screeps-jest": "^2.0.3",
     "ts-jest": "^29.4.6",
+    "ts-node": "^10.9.2",
     "typescript": "^4.9.4"
   },
   "dependencies": {

@@ -14,6 +14,7 @@ type CoordinateString = string;
 type BasePlanningCoordinateString = string;
 
 type Coordinate = { x: number, y: number };
+type LayoutCoordinate = { x: number, y: number, type: BuildableStructureConstant };
 
 type BaseLayoutMap = Map<number, BasePlanningCoordinateString[]>;
 

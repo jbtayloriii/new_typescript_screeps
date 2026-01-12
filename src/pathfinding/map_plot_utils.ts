@@ -80,11 +80,14 @@ export function getDiamondMapping(walls: Position[], mapSize: number = DEFAULT_M
             queue.push({ x: moreX, y: nextVal.y, v: nextVal.v + 1 });
         }
 
-        if (!visitedArr[lessY][nextVal.x] && lessY >= 0) {
+        // TODO: Figure out why flipping this condition is buggy
+        if (lessY >= 0 && !visitedArr[lessY][nextVal.x]) {
             visitedArr[lessY][nextVal.x] = true;
             queue.push({ x: nextVal.x, y: lessY, v: nextVal.v + 1 });
         }
-        if (!visitedArr[moreY][nextVal.x] && moreY < mapSize) {
+
+        // TODO: Figure out why flipping this condition is buggy
+        if (moreY < mapSize && !visitedArr[moreY][nextVal.x]) {
             visitedArr[moreY][nextVal.x] = true;
             queue.push({ x: nextVal.x, y: moreY, v: nextVal.v + 1 });
         }
