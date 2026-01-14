@@ -42,7 +42,7 @@ function validateIndividualConfig(cfg) {
   }
   return [
     (typeof cfg.email === "string" && typeof cfg.password === "string") ||
-      typeof cfg.token === "string",
+    typeof cfg.token === "string",
     cfg.protocol === "http" || cfg.protocol === "https",
     typeof cfg.hostname === "string",
     typeof cfg.port === "number",
@@ -70,6 +70,12 @@ function uploadSource(configFile, dest, options) {
   } else {
     const config = loadConfigFile(configFile, dest);
     const code = getFileList(options.file);
+
+    if (config === undefined) {
+      console.log('No config found, exiting');
+      return;
+    }
+
     const branch = config.branch;
     const api = new ScreepsAPI(config);
     if (!config.token) {

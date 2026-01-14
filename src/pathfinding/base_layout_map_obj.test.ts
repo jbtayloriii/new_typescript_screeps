@@ -3,7 +3,7 @@ import { BaseLayoutMapObj } from './base_layout_map_obj';
 
 describe('new module', () => {
     test('No base modules added', () => {
-        const baseLayoutMapObj = new BaseLayoutMapObj();
+        const baseLayoutMapObj = new BaseLayoutMapObj(5);
 
         const serializedMap = baseLayoutMapObj.toSerializedMap();
 
@@ -20,7 +20,7 @@ describe('new module', () => {
     });
 
     test('Added base modules', () => {
-        const baseLayoutMapObj = new BaseLayoutMapObj();
+        const baseLayoutMapObj = new BaseLayoutMapObj(5);
         baseLayoutMapObj.addBuilding(1, { x: 1, y: 1 }, "road");
         baseLayoutMapObj.addBuilding(1, { x: 2, y: 1 }, "road");
         baseLayoutMapObj.addBuilding(4, { x: 3, y: 3 }, "storage");
@@ -38,14 +38,14 @@ describe('new module', () => {
     });
 
     test('Adding to level too low', () => {
-        const baseLayoutMapObj = new BaseLayoutMapObj();
+        const baseLayoutMapObj = new BaseLayoutMapObj(5);
         expect(() =>
             baseLayoutMapObj.addBuilding(0, { x: 1, y: 1 }, STRUCTURE_CONTAINER)
         ).toThrow(Error);
     });
 
     test('Adding to level too high', () => {
-        const baseLayoutMapObj = new BaseLayoutMapObj();
+        const baseLayoutMapObj = new BaseLayoutMapObj(5);
         expect(() =>
             baseLayoutMapObj.addBuilding(9, { x: 1, y: 1 }, STRUCTURE_CONTAINER)
         ).toThrow(Error);

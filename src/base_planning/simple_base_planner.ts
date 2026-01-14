@@ -1,5 +1,5 @@
 import { CoordinateString } from "global_types";
-import { getBaseLayout } from "pathfinding/base_layout_utils";
+import { getBaseLayoutForRoom } from "pathfinding/base_layout_utils";
 import { getDiamondMapping, getSquareMapping } from "pathfinding/map_plot_utils";
 
 
@@ -48,7 +48,7 @@ export class BasePlanner {
         let diamondDistances = getDiamondMapping(walls, 50);
         let squareDistances = getSquareMapping(walls, 50);
 
-        let baseLayout = getBaseLayout(room, diamondDistances, squareDistances, walls, 50);
+        let baseLayout = getBaseLayoutForRoom(room, diamondDistances, squareDistances, 50);
 
         return {
             initialSpawn: initialSpawnLocation,

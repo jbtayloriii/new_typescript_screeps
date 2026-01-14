@@ -5,6 +5,7 @@
   "main": "main.ts",
   "scripts": {
     "test": "jest",
+    "dryrun": "rollup -c --bundleConfigAsCjs",
     "push-sim": "rollup -c --environment DEST:sim --bundleConfigAsCjs",
     "push-main": "rollup -c --environment DEST:main --bundleConfigAsCjs"
   },

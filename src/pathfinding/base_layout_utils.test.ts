@@ -3,18 +3,31 @@ import { getBaseLayout, getInitialBaseCenter } from './base_layout_utils';
 import { readFile } from '../testing/file_utils';
 import { getDiamondMapping, getSquareMapping } from './map_plot_utils';
 import { Coordinate } from 'global_types';
-import { baseMapToString } from '../testing/map_utils';
+import { baseMapToString } from '../utils/map_utils';
+import { mockInstanceOf, mockStructure } from 'screeps-jest';
 
 describe('getBaseLayout', () => {
     test('fullMapGeneration', () => {
-        const initialCoord = { x: 10, y: 10 };
-        const terrainWalls = getTerrainWalls('testdata/input/terrain.txt');
+        const initialCoord: RoomPosition = mockInstanceOf<RoomPosition>({ x: 40, y: 40 });
+        const { walls: terrainWalls } = getTerrainWalls('testdata/input/terrain.txt');
         const diamondDistances = getDiamondMapping(terrainWalls, 50);
         const squareDistances = getSquareMapping(terrainWalls, 50);
 
-        const baseLayout = getBaseLayout(initialCoord, diamondDistances, squareDistances, terrainWalls, 50);
+        const mockSources: Source[] = [
+            mockInstanceOf<Source>({
+                id: 'source1' as Id<Source>,
+                pos: { x: 40, y: 40 } as RoomPosition
+            })
+        ]
 
-        const expected = baseMapToString(baseLayout, terrainWalls, 50);
+        const baseLayout = getBaseLayout(
+            initialCoord,
+            mockSources,
+            diamondDistances,
+            squareDistances,
+            50);
+
+        const expected = baseMapToString(baseLayout, terrainWalls, 50, 8);
 
         console.log(expected);
 
@@ -69,19 +82,29 @@ describe('getBaseCenter', () => {
  * 
  * Walls are denoted by '1' in the terrain map.
  */
-function getTerrainWalls(subpath: string): Coordinate[] {
+function getTerrainWalls(subpath: string): { walls: Coordinate[], sources: Source[], controller: StructureController } {
     const terrainData = readFile(__dirname, subpath);
     const lines = terrainData.split('\n');
 
-    let coords: Coordinate[] = [];
+    let walls: Coordinate[] = [];
+    let sources: Source[] = [];
+    let controllerPos: Coordinate = { x: -1, y: -1 };
 
     for (let y = 0; y < lines.length; y++) {
         for (let x = 0; x < lines[y].length; x++) {
             if (lines[y].charAt(x) === '1') {
-                coords.push({ x: x, y: y })
+                walls.push({ x: x, y: y })
+            } else if (lines[y].charAt(x) === 'C') {
+                controllerPos = { x: x, y: y };
+            } else if (lines[y].charAt(x) === 'S') {
+
             }
         }
     }
 
-    return coords;
+    return {
+        walls: walls,
+        sources: sources,
+        controller: mockInstanceOf<StructureController>({ pos: { x: controllerPos.x, y: controllerPos.y } }),
+    }
 }

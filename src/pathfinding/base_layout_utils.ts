@@ -13,6 +13,18 @@ const CENTER_RING_OFFSETS: Coordinate[] = [
     { x: 0, y: 1 },
 ];
 
+// Spaces to look for expansion diamonds around the center location
+const CENTER_RING_TO_EXPANSION_OFFSETS: Coordinate[] = [
+    { x: 3, y: 2 },
+    { x: 2, y: 3 },
+    { x: -3, y: 2 },
+    { x: -2, y: 3 },
+    { x: 3, y: -2 },
+    { x: 2, y: -3 },
+    { x: -3, y: -2 },
+    { x: -2, y: -3 },
+];
+
 // Buildings to build around the center ring. Skips the initial spawn
 // This MUST be 7 elements or less
 const CENTER_BUILDINGS: { level: number, building: BuildableStructureConstant }[] = [
@@ -25,12 +37,40 @@ const CENTER_BUILDINGS: { level: number, building: BuildableStructureConstant }[
     { level: 8, building: STRUCTURE_NUKER },
 ];
 
+const EXPANSION_STAMP: { x: number, y: number, buildingType: BuildableStructureConstant }[] = [
+    { x: 0, y: 0, buildingType: STRUCTURE_EXTENSION },
+    { x: 1, y: 0, buildingType: STRUCTURE_EXTENSION },
+    { x: -1, y: 0, buildingType: STRUCTURE_EXTENSION },
+    { x: 0, y: 1, buildingType: STRUCTURE_EXTENSION },
+    { x: 0, y: -1, buildingType: STRUCTURE_EXTENSION },
+    { x: -2, y: 0, buildingType: STRUCTURE_ROAD },
+    { x: -1, y: -1, buildingType: STRUCTURE_ROAD },
+    { x: 0, y: -2, buildingType: STRUCTURE_ROAD },
+    { x: 1, y: -1, buildingType: STRUCTURE_ROAD },
+    { x: 2, y: 0, buildingType: STRUCTURE_ROAD },
+    { x: 1, y: 1, buildingType: STRUCTURE_ROAD },
+    { x: 0, y: 2, buildingType: STRUCTURE_ROAD },
+    { x: -1, y: 1, buildingType: STRUCTURE_ROAD },
+];
+
+// Tracks which level each extension stamp should be. For example, level 3 allows for 10
+// extensions and level 4 allows for 20, so stamps 3 and 4 would be for level 4.
+const LEVEL_PER_EXTENSION_STAMP: number[] = [
+    2,
+    3,
+    4, 4,
+    5, 5,
+    6, 6,
+    7, 7,
+    8, 8,
+]
+
 export class BaseLayoutError extends Error { }
 
 // Support a 3x3 square, plus roads. This is 5x5 total, or radius 3
 const BASE_CENTER_RADIUS = 3;
 
-export function getBaseLayoutForRoom(room: Room, diamondDistances: number[][], squareDistances: [][], walls: Coordinate[], mapSize: number) {
+export function getBaseLayoutForRoom(room: Room, diamondDistances: number[][], squareDistances: number[][], mapSize: number) {
     // TODO: Don't assume there's already a spawn in the room, allow for empty rooms
     let spawns = room.find(FIND_MY_STRUCTURES, {
         filter: { structureType: STRUCTURE_SPAWN },
@@ -38,28 +78,50 @@ export function getBaseLayoutForRoom(room: Room, diamondDistances: number[][], s
     if (spawns.length !== 1) {
         throw new BaseLayoutError(`Could not find initial spawn at ${room.name} for base planning`);
     }
-    let spawnCoord: Coordinate = { x: spawns[0].pos.x, y: spawns[0].pos.y };
+    let sources: Source[] = room.find(FIND_SOURCES);
 
-    return getBaseLayout(spawnCoord, diamondDistances, squareDistances, walls, mapSize);
+    return getBaseLayout(spawns[0].pos, sources, diamondDistances, squareDistances, mapSize);
 }
 
 /**
  * Creates a base layout given an initial core location and precomputed distance maps.
  * @throws {BaseLayoutError} if a base layout cannot be successfully determined.
  */
-export function getBaseLayout(initialCoordinate: Coordinate, diamondDistances: number[][], squareDistances: number[][], walls: Coordinate[], mapSize: number): BaseLayoutMap {
+export function getBaseLayout(
+    initialSpawnPosition: RoomPosition,
+    sources: Source[],
+    diamondDistances: number[][],
+    squareDistances: number[][],
+    mapSize: number): BaseLayoutMap {
 
-
-    let baseMap = new BaseLayoutMapObj();
+    let baseMap = new BaseLayoutMapObj(mapSize);
 
     // Search around the initial location for a center, this cannot be the center.
-    let centerLocation = getInitialBaseCenter(initialCoordinate, squareDistances);
+    let centerLocation = getInitialBaseCenter(initialSpawnPosition, squareDistances);
     if (centerLocation === null) {
-        throw new BaseLayoutError(`Cannot find suitable center location for ${initialCoordinate}`);
+        throw new BaseLayoutError(`Cannot find suitable center location for ${initialSpawnPosition}`);
     }
-    createRoomCore(centerLocation, initialCoordinate, baseMap);
+    createRoomCore(centerLocation, initialSpawnPosition, baseMap);
 
     // Create the expansions around the base center now
+    addBaseExtensions(centerLocation, diamondDistances, baseMap);
+
+    const baseMatrix = baseMap.getCostMatrix();
+
+    // TODO: Add paths to sources/controller, and downlevel roads on those paths
+    sources.forEach(source => {
+        const opts: PathFinderOpts = {
+            plainCost: 1,
+            swampCost: 5,
+            roomCallback: _ => baseMatrix,
+        };
+
+        const pathArr = PathFinder.search(initialSpawnPosition, {
+            pos: source.pos,
+            range: 1,
+        }, opts).path;
+
+    });
 
     return baseMap.toSerializedMap();
 }
@@ -118,4 +180,47 @@ function createRoomCore(centerLocation: Coordinate, spawnCoord: Coordinate, base
 
     // Start center rampart at 5 for now
     baseMap.addBuilding(5, centerLocation, STRUCTURE_RAMPART);
+}
+
+function addBaseExtensions(baseCenter: Coordinate, diamondDistances: number[][], baseMap: BaseLayoutMapObj): void {
+    // Initialize
+    let expansionQueue: Coordinate[] = [];
+    for (let i = 0; i < CENTER_RING_TO_EXPANSION_OFFSETS.length; i++) {
+        const nextSpot = CENTER_RING_TO_EXPANSION_OFFSETS[i];
+        expansionQueue.push({ x: baseCenter.x + nextSpot.x, y: baseCenter.y + nextSpot.y });
+    }
+
+    const canStampFn = function (center: Coordinate): boolean {
+        if (diamondDistances[center.y][center.x] < 3) {
+            return false;
+        }
+        for (let i = 0; i < EXPANSION_STAMP.length; i++) {
+            const nextCoord = { x: center.x + EXPANSION_STAMP[i].x, y: center.y + EXPANSION_STAMP[i].y };
+            if (!baseMap.isOpenOrType(nextCoord, EXPANSION_STAMP[i].buildingType)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // Loop through queue
+    let maxIterations = 30;
+    let currentLevelIdx = 0;
+    while (expansionQueue.length > 0 && maxIterations > 0 && currentLevelIdx < LEVEL_PER_EXTENSION_STAMP.length) {
+        const nextCoord = expansionQueue.shift()!;
+        if (canStampFn(nextCoord)) {
+            const nextLevel = LEVEL_PER_EXTENSION_STAMP[currentLevelIdx++];
+            console.log(`Stamping at level ${nextLevel}`);
+            for (let i = 0; i < EXPANSION_STAMP.length; i++) {
+                const stampCoord = { x: nextCoord.x + EXPANSION_STAMP[i].x, y: nextCoord.y + EXPANSION_STAMP[i].y };
+                baseMap.addBuilding(nextLevel, stampCoord, EXPANSION_STAMP[i].buildingType);
+            }
+            expansionQueue.push({ x: nextCoord.x + 2, y: nextCoord.y + 2 });
+            expansionQueue.push({ x: nextCoord.x - 2, y: nextCoord.y + 2 });
+            expansionQueue.push({ x: nextCoord.x + 2, y: nextCoord.y - 2 });
+            expansionQueue.push({ x: nextCoord.x - 2, y: nextCoord.y - 2 });
+
+        }
+        maxIterations--;
+    }
 }

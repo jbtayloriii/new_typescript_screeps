@@ -2,18 +2,18 @@ import { BaseLayoutMap, Coordinate } from "global_types";
 
 const StructureSymbol: Record<string, string> = {
     road: 'r',
-    extension: 'x',
+    extension: '☉',
     spawn: 's',
     tower: 't',
-    storage: 'g',
+    storage: '🫙',
     link: 'l',
     nuker: 'n',
-    rampart: 'p',
+    rampart: 'R',
     terminal: '$',
     factory: 'f',
 }
 
-function typeToSymbol(buildingtype: string): string {
+export function typeToSymbol(buildingtype: string): string {
     if (StructureSymbol.hasOwnProperty(buildingtype)) {
         const v: any = StructureSymbol[buildingtype];
         if (typeof v === 'string') {
@@ -33,7 +33,10 @@ export function baseMapToString(baseMap: BaseLayoutMap, walls: Coordinate[], map
 
     walls.forEach(w => baseArr[w.y][w.x] = 1);
 
-    baseMap.forEach((layoutCoords, _) => {
+    baseMap.forEach((layoutCoords, lvl) => {
+        if (lvl > level) {
+            return;
+        }
         layoutCoords.forEach(c => {
 
             // TODO: convert to a util function
