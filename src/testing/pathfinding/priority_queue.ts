@@ -1,15 +1,11 @@
 
 
-export class PriorityQueue {
-    private priorities: Map<number, number>;
-    private heap: number[];
-    private size: number;
+export class PriorityQueue<IndexType extends number> {
+    private priorities = new Map<IndexType, number>();
+    private heap: IndexType[] = [];
+    private size: number = 0;
 
-    constructor() {
-        this.priorities = new Map();
-        this.heap = [];
-        this.size = 0;
-    }
+    constructor() { }
 
     /** Returns true iff there are no elements in the priority queue. */
     isEmpty(): boolean {
@@ -17,12 +13,12 @@ export class PriorityQueue {
     }
 
     /** Returns the priority for a given index, or undefined if the index is not in the queue. */
-    getPriority(index: number): number | undefined {
+    getPriority(index: IndexType): number | undefined {
         return this.priorities.get(index);
     }
 
     /** Removes the top element from the queue and returns it and its priority. */
-    pop(): { index: number, priority: number | undefined } | undefined {
+    pop(): { index: IndexType, priority: number } | undefined {
         if (this.isEmpty()) {
             return undefined;
         }
@@ -30,6 +26,9 @@ export class PriorityQueue {
         // Get top value from the heap before bubbling
         const retIndex = this.heap[1];
         const retPriority = this.priorities.get(retIndex);
+        if (retPriority === undefined) {
+            throw new Error(`Got an undefined priority for index ${retIndex}`);
+        }
         const ret = {
             index: retIndex,
             priority: retPriority,
@@ -38,7 +37,6 @@ export class PriorityQueue {
         this.heap[1] = this.heap[this.size];
         this.size -= 1;
 
-        //
         let vv: number = 1;
         do {
             const uu: number = vv;
@@ -77,14 +75,14 @@ export class PriorityQueue {
         return ret;
     }
 
-    insert(index: number, priority: number): void {
+    insert(index: IndexType, priority: number): void {
         this.priorities.set(index, priority);
         this.size += 1;
         this.heap[this.size] = index;
         this.bubbleUp(this.size);
     }
 
-    update(index: number, priority: number): void {
+    update(index: IndexType, priority: number): void {
         for (let ii = this.size; ii > 0; ii--) {
             if (this.heap[ii] == index) {
                 // Only update if the new priority is lower
