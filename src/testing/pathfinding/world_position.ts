@@ -26,6 +26,12 @@ export class WorldPosition {
         return ((0xffff & this.xx) << 16) | this.yy;
     }
 
+    public static fromId(id: number): WorldPosition {
+        const xx = (0xffff0000 & id) >> 16;
+        const yy = 0xffff & id;
+        return new WorldPosition(xx, yy);
+    }
+
     // Returns a new WorldPosition in the given direction relative to this object.
     public worldPositionInDirection(direction: Direction): WorldPosition {
         switch (direction) {
