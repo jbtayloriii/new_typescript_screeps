@@ -4,10 +4,12 @@
 import { MapPosition } from "./map_position";
 import { Direction } from "./types";
 
+export type WorldPositionId = number;
+
 /** Encapsulates a single point on the world map. */
 export class WorldPosition {
-    public readonly xx: number;
-    public readonly yy: number;
+    public xx: number;
+    public yy: number;
 
     constructor(xx: number, yy: number) {
         this.xx = xx;
@@ -22,11 +24,11 @@ export class WorldPosition {
      * @returns An ID consisting of a 32 bit number split into 16 high bits for the 'xx' coordinate
      *   and 16 low bits for the 'yy' coordinate.
      */
-    public getId(): number {
+    public getId(): WorldPositionId {
         return ((0xffff & this.xx) << 16) | this.yy;
     }
 
-    public static fromId(id: number): WorldPosition {
+    public static fromId(id: WorldPositionId): WorldPosition {
         const xx = (0xffff0000 & id) >> 16;
         const yy = 0xffff & id;
         return new WorldPosition(xx, yy);

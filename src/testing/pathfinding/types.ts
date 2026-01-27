@@ -12,6 +12,12 @@ export type MockRoom = {
     terrain: number[],
 };
 
+export type RoomPositionLike = {
+    x: number,
+    y: number,
+    roomName: string,
+}
+
 export enum Direction {
     TOP = 1,
     TOP_RIGHT,
