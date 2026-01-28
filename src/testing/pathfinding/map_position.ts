@@ -3,6 +3,9 @@
  * 
  * For example, E1N1 on a map of size 255 translates to MapPosition {xx: 129, yy: 126}.
  */
+
+const WORLD_SIZE = 255;
+
 export class MapPosition {
     public readonly xx: number;
     public readonly yy: number;
@@ -21,5 +24,12 @@ export class MapPosition {
      */
     public getId(): number {
         return ((0xffff & this.xx) << 16) | this.yy;
+    }
+
+    public toRoomName(): string {
+        return (
+            (this.xx <= WORLD_SIZE >> 1 ? 'W' + ((WORLD_SIZE >> 1) - this.xx) : 'E' + (this.xx - (WORLD_SIZE >> 1) - 1)) +
+            (this.yy <= WORLD_SIZE >> 1 ? 'N' + ((WORLD_SIZE >> 1) - this.yy) : 'S' + (this.yy - (WORLD_SIZE >> 1) - 1))
+        );
     }
 }

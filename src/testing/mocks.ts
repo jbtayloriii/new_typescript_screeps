@@ -52,15 +52,8 @@ const roomNameToMapPosition = function (roomName: string): MapPosition {
 }
 
 /** Generates a Room Name from a MapPosition coordinate pair */
-const generateRoomName = function (mapPos: MapPosition) {
-    return (
-        (mapPos.xx <= kWorldSize >> 1 ? 'W' + ((kWorldSize >> 1) - mapPos.xx) : 'E' + (mapPos.xx - (kWorldSize >> 1) - 1)) +
-        (mapPos.yy <= kWorldSize >> 1 ? 'N' + ((kWorldSize >> 1) - mapPos.yy) : 'S' + (mapPos.yy - (kWorldSize >> 1) - 1))
-    );
-}
 
 const toWorldPosition = function (rp: RoomPositionLike): WorldPosition {
-
     let xx = rp.x | 0, yy = rp.y | 0;
     if (!(xx >= 0 && xx < 50 && yy >= 0 && yy < 50)) {
         throw new Error('Invalid room position');
@@ -73,13 +66,13 @@ const fromWorldPosition = function (wp: WorldPosition): RoomPositionLike {
     return {
         x: wp.xx % 50,
         y: wp.yy % 50,
-        roomName: generateRoomName(wp.getMapPosition()),
+        roomName: wp.getMapPosition().toRoomName(),
     };
 }
 
 const mod = new MockPathFinder();
 
-const initRooms = function (rooms: MockRoom[]) {
+export const initRooms = function (rooms: MockRoom[]) {
 
     let terrainData: TerrainData[] = [];
     rooms.forEach(function (room) {
@@ -141,7 +134,7 @@ const search = function (
         } else {
             finalCallback = function (cb) {
                 return function (mapPos: MapPosition) {
-                    let ret = cb(generateRoomName(mapPos));
+                    let ret = cb(mapPos.toRoomName());
                     if (ret === false) {
                         return ret;
                     } else if (ret) {
