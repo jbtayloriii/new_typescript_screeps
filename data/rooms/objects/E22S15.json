@@ -1,0 +1,46 @@
+[
+  {
+    "_id": "55db3411efa8e3fe66e05ba7",
+    "room": "E22S15",
+    "type": "source",
+    "x": 24,
+    "y": 30,
+    "energy": 3000,
+    "energyCapacity": 3000,
+    "ticksToRegeneration": 300,
+    "nextRegenerationTime": null,
+    "invaderHarvested": 3784,
+    "_updated": 13053927
+  },
+  {
+    "_id": "55db3411efa8e3fe66e05ba6",
+    "room": "E22S15",
+    "type": "controller",
+    "x": 16,
+    "y": 18,
+    "level": 0,
+    "reservation": {
+      "user": "2",
+      "endTime": 72976097
+    },
+    "user": null,
+    "progress": 0,
+    "downgradeTime": null,
+    "hits": 0,
+    "hitsMax": 0,
+    "progressTotal": 0,
+    "_updated": 13053927,
+    "safeModeAvailable": 0,
+    "isPowerEnabled": false,
+    "safeMode": null,
+    "safeModeCooldown": null,
+    "upgradeBlocked": 72847972,
+    "effects": null,
+    "sign": {
+      "user": "58c25410ddc5f279024ef0de",
+      "text": "Fully Autonomous Open Source Bot * github.com/ScreepsQuorum/screeps-quorum * #quorum in Slack",
+      "time": 72847369,
+      "datetime": 1768995810178
+    }
+  }
+]

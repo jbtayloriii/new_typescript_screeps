@@ -1,0 +1,59 @@
+[
+  {
+    "_id": "55db3432efa8e3fe66e05c69",
+    "room": "E23S15",
+    "type": "source",
+    "x": 33,
+    "y": 6,
+    "energy": 3000,
+    "energyCapacity": 3000,
+    "ticksToRegeneration": 300,
+    "nextRegenerationTime": null,
+    "invaderHarvested": 46362,
+    "_updated": 13053927
+  },
+  {
+    "_id": "55db3432efa8e3fe66e05c6a",
+    "room": "E23S15",
+    "type": "source",
+    "x": 18,
+    "y": 23,
+    "energy": 3000,
+    "energyCapacity": 3000,
+    "ticksToRegeneration": 300,
+    "nextRegenerationTime": null,
+    "invaderHarvested": 464570,
+    "_updated": 13053927
+  },
+  {
+    "_id": "55db3432efa8e3fe66e05c6b",
+    "room": "E23S15",
+    "type": "controller",
+    "x": 12,
+    "y": 26,
+    "level": 0,
+    "reservation": {
+      "user": "2",
+      "endTime": 72975994
+    },
+    "user": null,
+    "progress": 0,
+    "downgradeTime": null,
+    "upgradeBlocked": null,
+    "hits": 0,
+    "hitsMax": 0,
+    "progressTotal": 0,
+    "_updated": 13053927,
+    "safeModeAvailable": 0,
+    "safeMode": null,
+    "safeModeCooldown": null,
+    "isPowerEnabled": false,
+    "effects": null,
+    "sign": {
+      "user": "58c25410ddc5f279024ef0de",
+      "text": "Fully Autonomous Open Source Bot * github.com/ScreepsQuorum/screeps-quorum * #quorum in Slack",
+      "time": 72847217,
+      "datetime": 1768995083077
+    }
+  }
+]

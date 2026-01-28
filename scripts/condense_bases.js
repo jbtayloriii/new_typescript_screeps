@@ -18,7 +18,7 @@ export async function* walk(dir_filepath) {
   }
 }
 
-let directory = path.join(process.cwd(), "data", "rooms");
+let directory = path.join(process.cwd(), "data/rooms/terrain");
 
 (async () => {
   console.log(`Traversing ${directory}`);
