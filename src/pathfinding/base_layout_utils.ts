@@ -1,5 +1,6 @@
 import { BaseLayoutMap, BasePlanningCoordinateString, Coordinate, CoordinateString } from "global_types";
 import { BaseLayoutMapObj } from "./base_layout_map_obj";
+import { forEach } from "lodash";
 
 // Edges around a center location, for forming a 3x3 square
 const CENTER_RING_OFFSETS: Coordinate[] = [
@@ -116,10 +117,20 @@ export function getBaseLayout(
             roomCallback: _ => baseMatrix,
         };
 
-        const pathArr = PathFinder.search(initialSpawnPosition, {
+        const { path: pathArr, incomplete: isIncomplete, ops: opsTaken } = PathFinder.search(initialSpawnPosition, {
             pos: source.pos,
             range: 1,
-        }, opts).path;
+        }, opts);
+
+        pathArr.forEach((v, idx) => {
+            if (idx < pathArr.length - 1) {
+                baseMap.addBuilding(1, { x: v.x, y: v.y }, STRUCTURE_ROAD);
+            }
+        });
+
+        // console.log(pathArr);
+        // console.log(isIncomplete);
+        // console.log(opsTaken);
 
     });
 
@@ -204,13 +215,13 @@ function addBaseExtensions(baseCenter: Coordinate, diamondDistances: number[][],
     }
 
     // Loop through queue
-    let maxIterations = 30;
+    let maxIterations = 50;
     let currentLevelIdx = 0;
     while (expansionQueue.length > 0 && maxIterations > 0 && currentLevelIdx < LEVEL_PER_EXTENSION_STAMP.length) {
         const nextCoord = expansionQueue.shift()!;
         if (canStampFn(nextCoord)) {
             const nextLevel = LEVEL_PER_EXTENSION_STAMP[currentLevelIdx++];
-            console.log(`Stamping at level ${nextLevel}`);
+            // console.log(`Stamping at level ${nextLevel}`);
             for (let i = 0; i < EXPANSION_STAMP.length; i++) {
                 const stampCoord = { x: nextCoord.x + EXPANSION_STAMP[i].x, y: nextCoord.y + EXPANSION_STAMP[i].y };
                 baseMap.addBuilding(nextLevel, stampCoord, EXPANSION_STAMP[i].buildingType);

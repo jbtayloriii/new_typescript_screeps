@@ -24,7 +24,7 @@ export function typeToSymbol(buildingtype: string): string {
 }
 
 
-export function baseMapToString(baseMap: BaseLayoutMap, walls: Coordinate[], mapSize: number, level: number = 8): string {
+export function baseMapToString(baseMap: BaseLayoutMap, walls: Coordinate[], sources: Source[], mapSize: number, level: number = 8): string {
     if (level < 1 || level > 8) {
         throw new Error(`Cannot convert base map to string at level ${level}`);
     }
@@ -32,6 +32,8 @@ export function baseMapToString(baseMap: BaseLayoutMap, walls: Coordinate[], map
     let baseArr = Array.from({ length: mapSize }, () => Array(mapSize).fill('.'));
 
     walls.forEach(w => baseArr[w.y][w.x] = 1);
+
+    sources.forEach(s => baseArr[s.pos.y][s.pos.x] = 'S');
 
     baseMap.forEach((layoutCoords, lvl) => {
         if (lvl > level) {

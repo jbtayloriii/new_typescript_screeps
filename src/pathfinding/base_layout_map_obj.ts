@@ -43,7 +43,7 @@ export class BaseLayoutMapObj {
         }
         this.internalMap.get(level)!.push(PositionToBasePlan(coord, buildingType));
         this.internalArray[coord.y][coord.x] = typeSymbol;
-        this.costMatrix.set(coord.x, coord.y, buildingType === STRUCTURE_ROAD ? 1 : 0xff);
+        this.costMatrix.set(coord.x, coord.y, buildingType === STRUCTURE_ROAD ? 1 : buildingType === STRUCTURE_SPAWN ? 1 : 0xff);
     }
 
     public getCostMatrix(): CostMatrix {

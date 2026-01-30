@@ -5,18 +5,34 @@ import { getDiamondMapping, getSquareMapping } from './map_plot_utils';
 import { Coordinate } from 'global_types';
 import { baseMapToString } from '../utils/map_utils';
 import { mockInstanceOf, mockStructure } from 'screeps-jest';
+import { initRooms } from '../testing/mocks';
 
 describe('getBaseLayout', () => {
     test('fullMapGeneration', () => {
-        const initialCoord: RoomPosition = mockInstanceOf<RoomPosition>({ x: 40, y: 40 });
-        const { walls: terrainWalls } = getTerrainWalls('testdata/input/terrain.txt');
+        const initialCoord: RoomPosition = mockInstanceOf<RoomPosition>({ roomName: "E23S15", x: 40, y: 40 });
+
+
+        const { walls: terrainWalls, terrainLayout: terrainLayout } = getTerrainData('terrain');
+
+        const rooms = ["E23S15", 'E22S15'];
+        const mockRooms = rooms.map(r => {
+            const { terrainLayout: t } = getTerrainData(r);
+            return { room: r, terrain: t };
+        });
+
+        initRooms(mockRooms);
+
         const diamondDistances = getDiamondMapping(terrainWalls, 50);
         const squareDistances = getSquareMapping(terrainWalls, 50);
 
         const mockSources: Source[] = [
             mockInstanceOf<Source>({
                 id: 'source1' as Id<Source>,
-                pos: { x: 40, y: 40 } as RoomPosition
+                pos: { roomName: "E23S15", x: 18, y: 23 } as RoomPosition
+            }),
+            mockInstanceOf<Source>({
+                id: 'source1' as Id<Source>,
+                pos: { roomName: "E23S15", x: 33, y: 6 } as RoomPosition
             })
         ]
 
@@ -27,11 +43,11 @@ describe('getBaseLayout', () => {
             squareDistances,
             50);
 
-        const expected = baseMapToString(baseLayout, terrainWalls, 50, 8);
+        const expected = baseMapToString(baseLayout, terrainWalls, mockSources, 50, 8);
 
         console.log(expected);
 
-        // console.log(diamondDistances.map(row => row.map(v => v == -1 ? '0' : v).join('')).join('\n'));
+        // TODO: finish this test
 
         // expect(getInitialBaseCenter({ x: 2, y: 2 }, squareDistances)).toStrictEqual({ x: 2, y: 1 });
     });
@@ -82,22 +98,30 @@ describe('getBaseCenter', () => {
  * 
  * Walls are denoted by '1' in the terrain map.
  */
-function getTerrainWalls(subpath: string): { walls: Coordinate[], sources: Source[], controller: StructureController } {
-    const terrainData = readFile(__dirname, subpath);
+function getTerrainData(subpath: string): { walls: Coordinate[], sources: Source[], controller: StructureController, terrainLayout: number[][] } {
+    const fullSubpath = 'testdata/input/' + subpath + '.txt'
+    const terrainData = readFile(__dirname, fullSubpath);
     const lines = terrainData.split('\n');
 
     let walls: Coordinate[] = [];
     let sources: Source[] = [];
     let controllerPos: Coordinate = { x: -1, y: -1 };
+    const terrainLayout: number[][] = Array.from({ length: 50 }, () => Array(50).fill(0));
+    ;
 
     for (let y = 0; y < lines.length; y++) {
         for (let x = 0; x < lines[y].length; x++) {
-            if (lines[y].charAt(x) === '1') {
+            if (lines[y].charAt(x) === '1') { // Wall
                 walls.push({ x: x, y: y })
-            } else if (lines[y].charAt(x) === 'C') {
+                terrainLayout[y][x] = 1;
+            } else if (lines[y].charAt(x) === 'C') { // Controller
                 controllerPos = { x: x, y: y };
-            } else if (lines[y].charAt(x) === 'S') {
-
+                terrainLayout[y][x] = 1;
+            } else if (lines[y].charAt(x) === 'S') { // Source
+                sources.push(mockInstanceOf<Source>({ pos: { x: x, y: y } }));
+                terrainLayout[y][x] = 1;
+            } else if (lines[y].charAt(x) === '2') { // Swamp
+                terrainLayout[y][x] = 2;
             }
         }
     }
@@ -106,5 +130,6 @@ function getTerrainWalls(subpath: string): { walls: Coordinate[], sources: Sourc
         walls: walls,
         sources: sources,
         controller: mockInstanceOf<StructureController>({ pos: { x: controllerPos.x, y: controllerPos.y } }),
+        terrainLayout: terrainLayout,
     }
 }
