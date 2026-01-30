@@ -17,6 +17,10 @@ export class PriorityQueue<IndexType extends number> {
         return this.priorities.get(index);
     }
 
+    getSize(): number {
+        return this.size;
+    }
+
     /** Removes the top element from the queue and returns it and its priority. */
     pop(): { index: IndexType, priority: number } | undefined {
         if (this.isEmpty()) {

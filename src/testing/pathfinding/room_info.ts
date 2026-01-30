@@ -1,28 +1,25 @@
 import { PfCostMatrix } from "./cost_matrix";
 import { MapPosition } from "./map_position";
-import { TerrainPackedBits } from "./types";
 
 
 
 export class RoomInfo {
-
-    private terrainData: TerrainPackedBits;
+    private terrainVals: number[][];
     public costMatrix: PfCostMatrix | null;
     public mapPosition: MapPosition;
 
-    public constructor(terrainData: TerrainPackedBits, costMatrix: PfCostMatrix | null, mapPosition: MapPosition) {
+    public constructor(terrainVals: number[][], costMatrix: PfCostMatrix | null, mapPosition: MapPosition) {
         this.costMatrix = costMatrix === null ? new PfCostMatrix() : costMatrix;
-        this.terrainData = terrainData;
+        this.terrainVals = terrainVals;
         this.mapPosition = mapPosition;
     }
 
     /** Returns the terrain at the given position. */
     public look(xx: number, yy: number): number {
-        if (this.costMatrix !== null && this.costMatrix.get(xx, yy) !== undefined) {
+        if (this.costMatrix !== null && this.costMatrix.get(xx, yy) !== undefined && this.costMatrix.get(xx, yy) !== 0) {
             return this.costMatrix.get(xx, yy)!;
         }
 
-        const index = xx * 50 + yy;
-        return 0x03 & this.terrainData[(index / 4) | 0] >> (index % 4 * 2);
+        return this.terrainVals[yy][xx];
     }
 }

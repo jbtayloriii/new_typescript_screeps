@@ -4,12 +4,13 @@ export type TerrainPackedBits = Uint8Array;
 
 export type TerrainData = {
     room: MapPosition,
-    bits: TerrainPackedBits,
+    // bits: TerrainPackedBits,
+    vals: number[][],
 }
 
 export type MockRoom = {
     room: string,
-    terrain: number[],
+    terrain: number[][],
 };
 
 export type RoomPositionLike = {

@@ -73,21 +73,11 @@ const fromWorldPosition = function (wp: WorldPosition): RoomPositionLike {
 const mod = new MockPathFinder();
 
 export const initRooms = function (rooms: MockRoom[]) {
-
     let terrainData: TerrainData[] = [];
-    rooms.forEach(function (room) {
-        let pack = new Uint8Array(50 * 50 / 4);
-        let terrain = room.terrain;
-        for (let xx = 0; xx < 50; ++xx) {
-            for (let yy = 0; yy < 50; ++yy) {
-                let ii = xx * 50 + yy;
-                let bit = Number(terrain[yy * 50 + xx]);
-                pack[ii / 4 | 0] = pack[ii / 4 | 0] & ~(0x03 << ii % 4 * 2) | bit << ii % 4 * 2;
-            }
-        }
+    rooms.forEach(room => {
         terrainData.push({
             room: roomNameToMapPosition(room.room),
-            bits: pack,
+            vals: room.terrain,
         });
     });
 

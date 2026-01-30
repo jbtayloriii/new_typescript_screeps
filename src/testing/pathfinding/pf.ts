@@ -32,7 +32,7 @@ export class RoomCallbackError extends Error { }
 
 export class MockPathFinder {
     private lookTable: Cost[] = [OBSTACLE, OBSTACLE, OBSTACLE, OBSTACLE];
-    private terrainByMapPosId = new Map<number, TerrainPackedBits>();
+    private terrainByMapPosId = new Map<number, number[][]>();
     private childToParentMapping = new Map<WorldPositionId, WorldPositionId>();
     private roomInfoByMapPositionId = new Map<number, RoomInfo>();
 
@@ -52,7 +52,7 @@ export class MockPathFinder {
         for (let i = 0; i < terrainData.length; i++) {
             const nextData = terrainData[i];
             const mapPos = nextData.room;
-            this.terrainByMapPosId.set(mapPos.getId(), nextData.bits);
+            this.terrainByMapPosId.set(mapPos.getId(), nextData.vals);
         }
     }
 
@@ -115,6 +115,7 @@ export class MockPathFinder {
 
             // Loop until we have a solution
             while (!this.heap.isEmpty() && opsRemaining > 0) {
+
                 // Pull cheapest open node off the heap and close the node
                 const { index: nextIndex, priority: nextPriority } = this.heap.pop()!;
                 this.openClosedSet.close(nextIndex);
@@ -122,7 +123,7 @@ export class MockPathFinder {
                 // Calculate costs
                 const worldPos: WorldPosition = WorldPosition.fromId(nextIndex);
                 const heuristicCost = this.heuristic(worldPos);
-                const gCost = nextPriority - (heuristicCost * this.heuristicWeight);
+                const gCost = nextPriority - ((heuristicCost * this.heuristicWeight) | 0);
 
                 // Reached destination?
                 if (heuristicCost === 0) {
@@ -144,7 +145,6 @@ export class MockPathFinder {
                 this.jps(nextIndex, worldPos, gCost);
                 opsRemaining -= 1;
             }
-
         } catch (e) {
             return undefined;
         }
@@ -238,13 +238,14 @@ export class MockPathFinder {
         if (roomInfo.costMatrix !== null) {
             const tmp = roomInfo.costMatrix.get(worldPos.xx % 50, worldPos.yy % 50);
             if (tmp !== undefined && tmp !== 0) {
-                if (tmp === 0xff) {
+                if (tmp >= 0xff) {
                     return OBSTACLE;
                 } else {
                     return tmp;
                 }
             }
         }
+
         return this.lookTable[roomInfo.look(worldPos.xx % 50, worldPos.yy % 50)];
     }
 
@@ -285,6 +286,7 @@ export class MockPathFinder {
             if (nCost === OBSTACLE) {
                 continue;
             }
+
             this.pushNode(index, neighbor, gCost + nCost);
         }
     }
@@ -297,7 +299,7 @@ export class MockPathFinder {
             return;
         }
 
-        const heuristicCost = this.heuristic(node) * this.heuristicWeight;
+        const heuristicCost = (this.heuristic(node) * this.heuristicWeight) | 0;
         const fCost = heuristicCost + gCost;
 
         if (this.openClosedSet.isOpen(nodeId)) {
@@ -560,6 +562,7 @@ export class MockPathFinder {
             if (newNeighbor === null) {
                 return;
             }
+            gCost += nCost * (worldPos.getRangeTo(neighbor) - 1) + this.look(neighbor);
             this.pushNode(parentId, newNeighbor, gCost);
         }
     }
