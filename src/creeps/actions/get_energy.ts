@@ -7,8 +7,18 @@ import { BaseCreepActions } from "base/base_creep_actions";
  * 2. Get energy from the room's containers, if present
  * 3. Get energy by mining from a Source.
  */
-export const getEnergy = function(creep: Creep, creepBaseActions: BaseCreepActions) {
+export const getEnergy = function (creep: Creep, creepBaseActions: BaseCreepActions) {
   let energySources = creepBaseActions.energySources;
+
+  // TODO: pull this into a separate helper method.
+  // Extra first priority: Get energy from ruins
+  const droppedResources = creep.pos.findClosestByRange(FIND_RUINS, { filter: o => o.store.energy > 0 });
+  if (droppedResources) {
+    if (creep.withdraw(droppedResources, RESOURCE_ENERGY) === ERR_NOT_IN_RANGE) {
+      creep.moveTo(droppedResources);
+    }
+    return;
+  }
 
   // First priority: Pull from storage
   if (energySources.storage) {
