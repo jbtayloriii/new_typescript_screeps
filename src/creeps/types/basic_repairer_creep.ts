@@ -77,27 +77,27 @@ export class BasicRepairerCreepHandler extends CreepHandler {
     let repairId = null;
 
     // Determine if we keep our current target
-    if(this.memory.currentRepairId) {
+    if (this.memory.currentRepairId) {
       let repairObjMem = Game.getObjectById(this.memory.currentRepairId);
-  
-      if(repairObjMem && repairObjMem.hits < repairObjMem.hitsMax && repairObjMem.hits <= REPAIR_CUTOFF) {
-          repairId = this.memory.currentRepairId;
+
+      if (repairObjMem && repairObjMem.hits < repairObjMem.hitsMax && repairObjMem.hits <= REPAIR_CUTOFF) {
+        repairId = this.memory.currentRepairId;
       } else {
-          this.memory.currentRepairId = null;
+        this.memory.currentRepairId = null;
       }
     }
 
     // Find a new target if we don't have one, prioritizing the critical cutff first
     if (!this.memory.currentRepairId) {
       let structureArr = this.creep.pos.findClosestByPath(FIND_STRUCTURES, {
-          filter: (structure) => (structure.hits < structure.hitsMax) && (structure.hits <= CRITICAL_REPAIR_CUTOFF)
+        filter: (structure) => (structure.hits < structure.hitsMax) && (structure.hits <= CRITICAL_REPAIR_CUTOFF)
       });
       if (!structureArr) {
         structureArr = this.creep.pos.findClosestByPath(FIND_STRUCTURES, {
           filter: (structure) => (structure.hits < structure.hitsMax) && (structure.hits <= REPAIR_CUTOFF)
         });
       }
-  
+
       if (structureArr) {
         this.memory.currentRepairId = structureArr.id;
       }
@@ -111,11 +111,12 @@ export class BasicRepairerCreepHandler extends CreepHandler {
     if (repairObj == null) {
       return;
     }
-        
+
     let repairCode = this.creep.repair(repairObj);
-    if(repairCode == ERR_NOT_IN_RANGE) {
-        this.creep.moveTo(repairObj);
+    if (repairCode == ERR_NOT_IN_RANGE) {
+      this.creep.moveTo(repairObj);
     }
+    this.creep.SayJobAction('🔧');
   }
 
 }
