@@ -2,10 +2,11 @@ import { BaseLayoutMap, Coordinate } from "global_types";
 
 const StructureSymbol: Record<string, string> = {
     road: 'r',
-    extension: '☉',
+    container: 'C',
+    extension: 'x',
     spawn: 's',
     tower: 't',
-    storage: '🫙',
+    storage: 'T',
     link: 'l',
     nuker: 'n',
     rampart: 'R',

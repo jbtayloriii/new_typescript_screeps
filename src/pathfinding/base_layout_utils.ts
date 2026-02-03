@@ -1,6 +1,5 @@
 import { BaseLayoutMap, BasePlanningCoordinateString, Coordinate, CoordinateString } from "global_types";
 import { BaseLayoutMapObj } from "./base_layout_map_obj";
-import { forEach } from "lodash";
 
 // Edges around a center location, for forming a 3x3 square
 const CENTER_RING_OFFSETS: Coordinate[] = [
@@ -29,7 +28,7 @@ const CENTER_RING_TO_EXPANSION_OFFSETS: Coordinate[] = [
 // Buildings to build around the center ring. Skips the initial spawn
 // This MUST be 7 elements or less
 const CENTER_BUILDINGS: { level: number, building: BuildableStructureConstant }[] = [
-    { level: 1, building: STRUCTURE_ROAD },
+    { level: 2, building: STRUCTURE_ROAD },
     { level: 3, building: STRUCTURE_TOWER },
     { level: 4, building: STRUCTURE_STORAGE },
     { level: 5, building: STRUCTURE_LINK },
@@ -71,7 +70,12 @@ export class BaseLayoutError extends Error { }
 // Support a 3x3 square, plus roads. This is 5x5 total, or radius 3
 const BASE_CENTER_RADIUS = 3;
 
-export function getBaseLayoutForRoom(room: Room, diamondDistances: number[][], squareDistances: number[][], mapSize: number) {
+export function getBaseLayoutForRoom(
+    room: Room,
+    diamondDistances: number[][],
+    squareDistances: number[][],
+    mapSize: number
+): BaseLayoutMap {
     // TODO: Don't assume there's already a spawn in the room, allow for empty rooms
     let spawns = room.find(FIND_MY_STRUCTURES, {
         filter: { structureType: STRUCTURE_SPAWN },
@@ -124,14 +128,11 @@ export function getBaseLayout(
 
         pathArr.forEach((v, idx) => {
             if (idx < pathArr.length - 1) {
-                baseMap.addBuilding(1, { x: v.x, y: v.y }, STRUCTURE_ROAD);
+                baseMap.addBuilding(2, { x: v.x, y: v.y }, STRUCTURE_ROAD);
+            } else {
+                baseMap.addBuilding(2, { x: v.x, y: v.y }, STRUCTURE_CONTAINER);
             }
         });
-
-        // console.log(pathArr);
-        // console.log(isIncomplete);
-        // console.log(opsTaken);
-
     });
 
     return baseMap.toSerializedMap();
