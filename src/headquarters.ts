@@ -23,53 +23,6 @@ export class Headquarters {
     }
   }
 
-  /** Handles creating and destorying creep handlers based on what is present in the game. */
-  // private sortCreeps(): void {
-
-  //   // Create new handlers
-  //   for (let creepName in Game.creeps) {
-  //     let creep: Creep = Game.creeps[creepName];
-  //     if (!this.creepHandlerMap.has(creepName)) {
-  //       const handler = CreepHandlerFactory.createHandlerFromCreep(creep);
-  //       const baseId = handler.getRoomName();
-
-  //       let base = this.bases.get(baseId);
-  //       if (!base) {
-  //         Logger.warning(`Unable to find base ${baseId} to add creep ${creep.name}`);
-  //       } else {
-  //         base.AddCreepHandler(handler);
-  //       }
-  //       this.creepHandlerMap.set(creepName, handler);
-  //     } else {
-  //       // Update existing handlers to have current creep reference
-  //       let handler = this.creepHandlerMap.get(creepName);
-  //       if (handler) {
-  //         handler.setCreep(creep);
-  //       }
-  //     }
-  //   }
-
-  //   // Delete dead creeps
-  //   for (let creepName in Memory.creeps) {
-  //     if(!Game.creeps[creepName]) {
-  //       // TODO: Create a more robust linking/unlinking for creeps
-  //       let creepMemory = Memory.creeps[creepName];
-  //       let baseId = creepMemory.owningRoomId;
-  //       if (baseId in this.bases) {
-  //         this.bases.get(baseId)!.RemoveCreepHandler(creepName);
-  //       }
-
-  //       if (this.creepHandlerMap.has(creepName)) {
-  //         this.creepHandlerMap.delete(creepName);
-  //       }
-
-  //       delete Memory.creeps[creepName];
-  //     }
-  //   }
-
-  //   // Update handler references
-  // }
-
   public processResourceRequests(entityHandler: EntityHandler): void {
     this.bases.forEach((base) => base.processResourceRequests(entityHandler.getCreepHandlersForBase(base.getRoomName())));
   }
