@@ -12,9 +12,8 @@ import { EntityHandler } from "entity_handler";
 
 
 // Make sure to both initialize memory before looping over the HQ, but also to do so in the game loop
-if (MemoryUtil.shouldInitializeMemory()) {
-  MemoryUtil.initializeMemory();
-}
+console.log(`---Full object reset at ${Game.time}---`);
+MemoryUtil.initializeMemory();
 
 var globalHq = Headquarters.initialize();
 
@@ -47,15 +46,15 @@ export const loop = ErrorMapper.wrapLoop(() => {
   Logger.report();
 
   // TODO: move into headquarters and bases
-  for(let roomName in Game.rooms) {
+  for (let roomName in Game.rooms) {
     let towers = Game.rooms[roomName].find(FIND_MY_STRUCTURES, {
-        filter: { structureType: STRUCTURE_TOWER }
+      filter: { structureType: STRUCTURE_TOWER }
     }) as StructureTower[];
-    for(let i = 0; i < towers.length; i++) {
-        const tower = towers[i];
-        if(!tower.attackEnemy()) {
-            tower.repairStructures();
-        }
+    for (let i = 0; i < towers.length; i++) {
+      const tower = towers[i];
+      if (!tower.attackEnemy()) {
+        tower.repairStructures();
+      }
     }
   }
 });

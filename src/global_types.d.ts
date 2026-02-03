@@ -5,7 +5,6 @@ import { BasicUpgraderCreepState } from "./creeps/types/basic_upgrader_creep";
 import { PowerHarvesterCreepState } from "./creeps/types/power_harvester_creep";
 import { BasicRepairerCreepState } from "creeps/types/basic_repairer_creep";
 import { BaseMemory } from "memory/base_memory";
-import { BasePlanBuilding } from "base_planning/simple_base_planner";
 
 /** A string that is of type "x_y", e.g. "33_4" */
 type CoordinateString = string;
@@ -36,9 +35,7 @@ declare global {
 
   interface RoomInfoMemory {
     initialSpawn: CoordinateString;
-    baseLayout: BaseMap;
-    diamondDistances: number[][];
-    squareDistances: number[][];
+    baseLayout: BaseLayoutMap;
   }
 
   interface CreepMemory {
