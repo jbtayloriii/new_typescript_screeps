@@ -23,16 +23,20 @@ export class Headquarters {
     }
   }
 
+  public plan(entityHandler: EntityHandler): void {
+    this.bases.forEach(base => base.plan(entityHandler));
+  }
+
   public processResourceRequests(entityHandler: EntityHandler): void {
-    this.bases.forEach((base) => base.processResourceRequests(entityHandler.getCreepHandlersForBase(base.getRoomName())));
+    this.bases.forEach(base => base.processResourceRequests(entityHandler.getCreepHandlersForBase(base.getRoomName())));
   }
 
   public run(entityHandler: EntityHandler): void {
-    this.bases.forEach((base) => base.run(entityHandler.getCreepHandlersForBase(base.getRoomName())));
+    this.bases.forEach(base => base.run(entityHandler.getCreepHandlersForBase(base.getRoomName())));
   }
 
   public cleanUp(entityHandler: EntityHandler): void {
-    this.bases.forEach((base) => base.cleanUp());
+    this.bases.forEach(base => base.cleanUp());
   }
 
   public static initialize(): Headquarters {

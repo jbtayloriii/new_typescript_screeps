@@ -39,6 +39,7 @@ export const loop = ErrorMapper.wrapLoop(() => {
   globalHq.setUpBases();
 
   // Handle base actions
+  globalHq.plan(entityHandler);
   globalHq.processResourceRequests(entityHandler);
   globalHq.run(entityHandler);
   globalHq.cleanUp(entityHandler);

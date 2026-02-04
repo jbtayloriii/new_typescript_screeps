@@ -6,9 +6,9 @@ import { SimpleBasePlanner } from "./simple_base_planner";
 import { BaseCreepActions, EnergySources } from "./base_creep_actions";
 import { BaseMemory } from "memory/base_memory";
 import { MemoryCache } from "memory/memory_cache";
+import { EntityHandler } from "entity_handler";
 
 export class Base {
-  // private roomPlan: RoomPlan;
   private room: Room;
   private baseMemory: BaseMemory;
 
@@ -25,6 +25,10 @@ export class Base {
 
   public getRoomName(): RoomName {
     return this.room.name;
+  }
+
+  public plan(entityHandler: EntityHandler): void {
+    // TODO: implement
   }
 
   processResourceRequests(creepHandlers: CreepHandler[]): void {
@@ -102,16 +106,16 @@ export class Base {
   }
 
   private getEnergySource(): EnergySources {
-    let storages = this.room.find(FIND_MY_STRUCTURES, {filter: (s) => {return s.structureType == STRUCTURE_STORAGE && s.store[RESOURCE_ENERGY] >= 100;}}) as StructureStorage[];
-    let containers = this.room.find(FIND_STRUCTURES, {filter: (s) => {return s.structureType == STRUCTURE_CONTAINER && s.store[RESOURCE_ENERGY] >= 100;}}) as StructureContainer[];
+    let storages = this.room.find(FIND_MY_STRUCTURES, { filter: (s) => { return s.structureType == STRUCTURE_STORAGE && s.store[RESOURCE_ENERGY] >= 100; } }) as StructureStorage[];
+    let containers = this.room.find(FIND_STRUCTURES, { filter: (s) => { return s.structureType == STRUCTURE_CONTAINER && s.store[RESOURCE_ENERGY] >= 100; } }) as StructureContainer[];
     let sources = this.room.find(FIND_SOURCES);
 
     return {
-      storage: storages.length > 0 ? storages[0]: null,
+      storage: storages.length > 0 ? storages[0] : null,
       containers: containers.length > 0 ? containers : null,
       sources: sources,
     };
   }
 
-  cleanUp(): void {}
+  cleanUp(): void { }
 }

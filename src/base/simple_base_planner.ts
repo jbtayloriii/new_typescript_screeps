@@ -15,11 +15,6 @@ export class SimpleBasePlanner implements BasePlanner {
   }
 
   planCreepCreation(room: Room, baseMemory: BaseMemory, creeps: CreepHandler[]): CreepBlueprint[] {
-    // const closestSpawnAndSource = this.getSpawnAndClosestSource(room);
-    // if (!closestSpawnAndSource) {
-    //   return [];
-    // }
-
     const spawns = room.find(FIND_MY_SPAWNS);
     if (spawns.length == 0) {
       return [];
@@ -69,7 +64,7 @@ export class SimpleBasePlanner implements BasePlanner {
     if (sites.length > 0 && builderCount == 0) {
       return [new BasicBuilderCreepBlueprint(room)];
     }
-    
+
     if (repairerCount == 0) {
       return [new BasicRepairerCreepBlueprint(room)];
     }

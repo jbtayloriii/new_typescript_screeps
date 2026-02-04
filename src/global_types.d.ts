@@ -25,12 +25,13 @@ declare global {
     bases_v2: { [roomName: string]: BaseMemory };
     sources: { [sourceId: string]: SourceMemory };
     roomInfo: { [roomName: string]: RoomInfoMemory };
+    tasks: { [taskId: string]: TaskMemory };
 
     log: LogMemory;
   }
 
-  interface StructureMemory {
-
+  interface TaskMemory {
+    roomName: string;
   }
 
   interface RoomInfoMemory {
