@@ -7,20 +7,24 @@ import { BaseCreepActions, EnergySources } from "./base_creep_actions";
 import { BaseMemory } from "memory/base_memory";
 import { MemoryCache } from "memory/memory_cache";
 import { EntityHandler } from "entity_handler";
+import { Task } from "tasks/task";
+import { TaskFactory } from "tasks/task_factory";
 
 export class Base {
   private room: Room;
   private baseMemory: BaseMemory;
+  private tasks: Task[];
 
-  private constructor(room: Room, baseMemory: BaseMemory) {
+  private constructor(room: Room, baseMemory: BaseMemory, tasks: Task[]) {
     this.room = room;
     this.baseMemory = baseMemory;
+    this.tasks = tasks;
   }
 
-  public static createBaseFromRoom(room: Room) {
+  public static createBaseFromRoom(room: Room, tasks: Task[]) {
     Logger.info(`Creating base at room ${room.name} on tick ${Game.time}`);
     let baseMemory = MemoryCache.getBaseMemory(room);
-    return new Base(room, baseMemory);
+    return new Base(room, baseMemory, tasks);
   }
 
   public getRoomName(): RoomName {
@@ -117,5 +121,15 @@ export class Base {
     };
   }
 
-  cleanUp(): void { }
+  cleanUp(): void {
+
+    // Remove dead tasks
+    for (let i = this.tasks.length - 1; i >= 0; i--) {
+      const task = this.tasks[i];
+      if (task.shouldBeRemoved()) {
+        TaskFactory.removeTask(task);
+        this.tasks.splice(i, 1);
+      }
+    }
+  }
 }

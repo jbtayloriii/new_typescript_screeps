@@ -9,6 +9,7 @@ import "./prototypes/room_position_prototype";
 import "./prototypes/room_prototype";
 import "./prototypes/tower_prototype";
 import { EntityHandler } from "entity_handler";
+import { TaskHandler } from "tasks/task_handler";
 
 
 // Make sure to both initialize memory before looping over the HQ, but also to do so in the game loop
@@ -16,6 +17,8 @@ console.log(`---Full object reset at ${Game.time}---`);
 MemoryUtil.initializeMemory();
 
 var globalHq = Headquarters.initialize();
+
+const taskHandler = new TaskHandler();
 
 export const loop = ErrorMapper.wrapLoop(() => {
   if (MemoryUtil.shouldInitializeMemory()) {
@@ -34,6 +37,7 @@ export const loop = ErrorMapper.wrapLoop(() => {
   // Create handlers, update memory 
   let entityHandler = EntityHandler.create(Game.creeps);
   entityHandler.updateGameMemory();
+  taskHandler.updateCreepToTasks(Game.creeps);
 
   // Create bases if necessary
   globalHq.setUpBases();

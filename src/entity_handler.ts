@@ -10,6 +10,7 @@
 import { CreepHandler } from "creeps/creep_handler";
 import { CreepHandlerFactory } from "creeps/creep_handler_factory";
 import { MemoryCache } from "memory/memory_cache";
+import { Task } from "tasks/task";
 
 export interface BaseEntities {
     creeps: Creep[];
@@ -18,6 +19,8 @@ export interface BaseEntities {
 
 export class EntityHandler {
     private creepHandlerMap: Map<RoomName, CreepHandler[]>;
+
+    private taskToRoomMap: Map<RoomName, Task[]>;
 
     private constructor(creepHandlerMap: Map<RoomName, CreepHandler[]>) {
         this.creepHandlerMap = creepHandlerMap;
@@ -32,18 +35,18 @@ export class EntityHandler {
     /** Creates a map of room names (baseIds) to creep handlers associated with that room. */
     private static createCreepHandlerMap(creeps: { [creepName: string]: Creep }): Map<RoomName, CreepHandler[]> {
         const creepMap = new Map<RoomName, CreepHandler[]>();
-    
+
         for (let creepName in creeps) {
-          const handler = CreepHandlerFactory.createHandlerFromCreep(
-            creeps[creepName]
-          );
-          const roomId = handler.getRoomName();
-          if (!creepMap.has(roomId)) {
-            creepMap.set(roomId, []);
-          }
-          creepMap.get(roomId)!.push(handler);
+            const handler = CreepHandlerFactory.createHandlerFromCreep(
+                creeps[creepName]
+            );
+            const roomId = handler.getRoomName();
+            if (!creepMap.has(roomId)) {
+                creepMap.set(roomId, []);
+            }
+            creepMap.get(roomId)!.push(handler);
         }
-    
+
         return creepMap;
     }
 
@@ -61,7 +64,7 @@ export class EntityHandler {
     public updateGameMemory(): void {
         // Delete memory of creeps that no longer exist
         for (let creepName in Memory.creeps) {
-            if(!Game.creeps[creepName]) {
+            if (!Game.creeps[creepName]) {
                 MemoryCache.unlinkCreep(creepName);
 
                 delete Memory.creeps[creepName];
