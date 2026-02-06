@@ -1,3 +1,4 @@
+import { BaseCreepActions } from "base/base_creep_actions";
 
 
 export enum TaskType {
@@ -14,7 +15,7 @@ export abstract class Task {
 
     public taskMemory: TaskMemory;
 
-    private creeps: Creep[] = [];
+    protected creeps: Creep[] = [];
 
     constructor(taskMemory: TaskMemory) {
         this.taskMemory = taskMemory;
@@ -29,7 +30,8 @@ export abstract class Task {
         return this.taskMemory.taskType;
     }
 
-    abstract run(): void;
+    /** Runs the task. This method should be overridden by subclasses. */
+    abstract run(creepActions: BaseCreepActions): void;
 
     markForDeletion(): void {
         this.shouldDelete = true;

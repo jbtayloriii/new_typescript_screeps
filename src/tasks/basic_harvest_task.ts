@@ -1,4 +1,7 @@
-import { Task, TaskType } from "./task";
+import { BaseCreepActions } from "base/base_creep_actions";
+import { Task } from "./task";
+import { getEnergy } from "creeps/actions/get_energy";
+import { returnResourceToStructure } from "creeps/actions/return_resource_to_structure";
 
 const enum BasicHarvestTaskState {
     HARVESTING = 0,
@@ -10,23 +13,29 @@ export class BasicHarvestTask extends Task {
         super(taskMemory);
     }
 
-    run(): void {
+    run(creepActions: BaseCreepActions): void {
+        if (this.creeps.length < 1) {
+            return;
+        }
+
+        const creep = this.creeps[0];
+
         // state changes
         if (this.taskMemory.currentState === BasicHarvestTaskState.HARVESTING &&
-            this.creep.store[RESOURCE_ENERGY] === this.creep.store.getCapacity()) {
+            creep.store[RESOURCE_ENERGY] === creep.store.getCapacity()) {
             this.taskMemory.currentState = BasicHarvestTaskState.DROPPING_OFF;
         }
 
-        if (this.memory.currentState === BasicHarvestTaskState.DROPPING_OFF
-            && this.creep.store[RESOURCE_ENERGY] === 0) {
-            this.memory.currentState = BasicHarvestTaskState.HARVESTING;
+        if (this.taskMemory.currentState === BasicHarvestTaskState.DROPPING_OFF
+            && creep.store[RESOURCE_ENERGY] === 0) {
+            this.taskMemory.currentState = BasicHarvestTaskState.HARVESTING;
         }
 
-        if (this.memory.currentState === BasicHarvestTaskState.HARVESTING) {
-            getEnergy(this.creep, creepActions);
+        if (this.taskMemory.currentState === BasicHarvestTaskState.HARVESTING) {
+            getEnergy(creep, creepActions);
 
-        } else if (this.memory.currentState === BasicHarvestTaskState.DROPPING_OFF) {
-            returnResourceToStructure(this.creep);
+        } else if (this.taskMemory.currentState === BasicHarvestTaskState.DROPPING_OFF) {
+            returnResourceToStructure(creep);
         }
     }
 }

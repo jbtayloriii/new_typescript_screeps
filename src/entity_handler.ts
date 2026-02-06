@@ -61,7 +61,7 @@ export class EntityHandler {
         return [];
     }
 
-    public updateGameMemory(): void {
+    public static updateGameMemory(): void {
         // Delete memory of creeps that no longer exist
         for (let creepName in Memory.creeps) {
             if (!Game.creeps[creepName]) {

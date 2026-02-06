@@ -36,7 +36,7 @@ export const loop = ErrorMapper.wrapLoop(() => {
 
   // Create handlers, update memory 
   let entityHandler = EntityHandler.create(Game.creeps);
-  entityHandler.updateGameMemory();
+  EntityHandler.updateGameMemory();
   taskHandler.updateCreepToTasks(Game.creeps);
 
   // Create bases if necessary
