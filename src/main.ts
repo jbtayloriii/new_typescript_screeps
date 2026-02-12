@@ -40,7 +40,7 @@ export const loop = ErrorMapper.wrapLoop(() => {
   taskHandler.updateCreepToTasks(Game.creeps);
 
   // Create bases if necessary
-  globalHq.setUpBases();
+  globalHq.setUpBases(taskHandler);
 
   // Handle base actions
   globalHq.plan(entityHandler);
@@ -48,7 +48,7 @@ export const loop = ErrorMapper.wrapLoop(() => {
   globalHq.run(entityHandler);
   globalHq.cleanUp(entityHandler);
 
-  Logger.report();
+  // Logger.report();
 
   // TODO: move into headquarters and bases
   for (let roomName in Game.rooms) {

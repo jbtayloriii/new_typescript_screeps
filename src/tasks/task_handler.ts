@@ -11,6 +11,13 @@ export class TaskHandler {
 
     public constructor() { }
 
+    public getTasksForRoom(roomName: RoomName): Task[] {
+        if (this.taskToRoomMap.has(roomName)) {
+            return this.taskToRoomMap.get(roomName)!;
+        }
+        return [];
+    }
+
     public updateCreepToTasks(creeps: { [creepName: string]: Creep }): void {
 
         // Sort creeps by task name

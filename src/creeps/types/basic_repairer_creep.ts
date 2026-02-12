@@ -29,6 +29,7 @@ export class BasicRepairerCreepBlueprint extends CreepBlueprint {
 
   getInitialMemory(): BasicRepairerCreepMemory {
     return {
+      taskName: "TODO: remove",
       currentState: BasicRepairerCreepState.GET_ENERGY,
       currentRepairId: null,
       roomName: this.roomName,

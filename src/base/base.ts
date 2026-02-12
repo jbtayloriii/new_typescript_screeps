@@ -22,7 +22,7 @@ export class Base {
   }
 
   public static createBaseFromRoom(room: Room, tasks: Task[]) {
-    Logger.info(`Creating base at room ${room.name} on tick ${Game.time}`);
+    console.log(`Creating base at room ${room.name} on tick ${Game.time}`);
     let baseMemory = MemoryCache.getBaseMemory(room);
     return new Base(room, baseMemory, tasks);
   }

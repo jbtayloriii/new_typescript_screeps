@@ -1,4 +1,4 @@
-import { CreepMoveStatus } from "../prototypes/creep_prototype";
+import { CreepMoveStatus } from "./creep_prototype";
 
 export { }
 

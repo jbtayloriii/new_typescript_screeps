@@ -2,6 +2,7 @@ import { Base } from "base/base";
 import { CreepHandler } from "./creeps/creep_handler";
 import { Logger } from "logging/logger";
 import { EntityHandler } from "entity_handler";
+import { TaskHandler } from "tasks/task_handler";
 
 export class Headquarters {
   private bases: Map<RoomName, Base> = new Map();
@@ -9,7 +10,7 @@ export class Headquarters {
 
   private constructor() { }
 
-  public setUpBases(): void {
+  public setUpBases(taskHandler: TaskHandler): void {
     // TODO: remove bases that are destroyed
 
     const owningRooms = Object.entries(Game.rooms).filter(
@@ -18,7 +19,9 @@ export class Headquarters {
     for (let [roomName, room] of owningRooms) {
       if (!this.bases.has(roomName)) {
         console.log(`Creating base at ${roomName}`);
-        this.bases.set(roomName, Base.createBaseFromRoom(room));
+
+        const tasks = taskHandler.getTasksForRoom(roomName);
+        this.bases.set(roomName, Base.createBaseFromRoom(room, tasks));
       }
     }
   }

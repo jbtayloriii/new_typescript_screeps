@@ -42,6 +42,7 @@ export class PowerHarvesterCreepBlueprint extends CreepBlueprint {
 
   getInitialMemory(): PowerHarvesterCreepMemory {
     return {
+      taskName: "TODO: remove",
       owningRoomId: this.owningRoomId,
       creepType: CreepType.POWER_HARVESTER,
       currentState: PowerHarvesterCreepState.MOVING,
@@ -66,7 +67,7 @@ export class PowerHarvesterCreepHandler extends CreepHandler {
     }
     this.source = source;
   }
-  
+
   handle(creepActions: BaseCreepActions): void {
     let source = Game.getObjectById(this.memory.sourceId);
     if (!source) {
@@ -84,10 +85,10 @@ export class PowerHarvesterCreepHandler extends CreepHandler {
     }
 
     if (this.memory.currentState == PowerHarvesterCreepState.HARVESTING) {
-        let harvestCode = this.creep.harvest(this.source);
-        if (harvestCode == ERR_NOT_IN_RANGE) {
-            Logger.warning(`Creep ${this.creep.id} at pos ${this.creep.pos} not in range to harvest source at ${this.source.pos}.`)
-        }
+      let harvestCode = this.creep.harvest(this.source);
+      if (harvestCode == ERR_NOT_IN_RANGE) {
+        Logger.warning(`Creep ${this.creep.id} at pos ${this.creep.pos} not in range to harvest source at ${this.source.pos}.`)
+      }
     }
   }
 }

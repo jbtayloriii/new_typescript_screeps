@@ -10,7 +10,6 @@
 import { CreepHandler } from "creeps/creep_handler";
 import { CreepHandlerFactory } from "creeps/creep_handler_factory";
 import { MemoryCache } from "memory/memory_cache";
-import { Task } from "tasks/task";
 
 export interface BaseEntities {
     creeps: Creep[];
@@ -19,8 +18,6 @@ export interface BaseEntities {
 
 export class EntityHandler {
     private creepHandlerMap: Map<RoomName, CreepHandler[]>;
-
-    private taskToRoomMap: Map<RoomName, Task[]>;
 
     private constructor(creepHandlerMap: Map<RoomName, CreepHandler[]>) {
         this.creepHandlerMap = creepHandlerMap;

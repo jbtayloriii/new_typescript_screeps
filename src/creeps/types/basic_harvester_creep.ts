@@ -23,6 +23,7 @@ export class BasicHarvesterCreepBlueprint extends CreepBlueprint {
 
   getInitialMemory(): BasicHarvesterCreepMemory {
     return {
+      taskName: "TODO: remove",
       currentState: BasicHarvesterCreepState.HARVESTING,
       dropOffLocationId: this.spawnId,
       creepType: CreepType.BASIC_HARVESTER,
@@ -40,7 +41,7 @@ export const enum BasicHarvesterCreepState {
 export class BasicHarvesterCreepHandler extends CreepHandler {
   memory: BasicHarvesterCreepMemory;
   dropOffLocation: StructureSpawn;
-  
+
   constructor(creep: Creep) {
     super(creep);
     const harvesterMemory = creep.memory as BasicHarvesterCreepMemory;

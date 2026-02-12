@@ -111,6 +111,7 @@ declare global {
   }
 
   interface BasicBuilderCreepMemory extends CreepMemory {
+    taskName: "TODO: remove";
     currentState: BasicBuilderCreepState;
   }
 

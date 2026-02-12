@@ -21,6 +21,7 @@ export class BasicBuilderCreepBlueprint extends CreepBlueprint {
 
   getInitialMemory(): BasicBuilderCreepMemory {
     return {
+      taskName: "TODO: remove",
       currentState: BasicBuilderCreepState.HARVEST_SOURCE,
       creepType: CreepType.BASIC_BUILDER,
       owningRoomId: this.owningRoomId,

@@ -42,6 +42,7 @@ export class BasicUpgraderCreepBlueprint extends CreepBlueprint {
   }
   getInitialMemory(): BasicUpgraderCreepMemory {
     return {
+      taskName: "TODO: remove",
       owningRoomId: this.owningRoomId,
       creepType: CreepType.BASIC_UPGRADER,
       currentState: BasicUpgraderCreepState.HARVESTING,
@@ -66,7 +67,7 @@ export class BasicUpgraderCreepHandler extends CreepHandler {
     }
     this.controller = controller;
   }
-  
+
   handle(creepActions: BaseCreepActions): void {
     if (this.memory.currentState == BasicUpgraderCreepState.HARVESTING &&
       this.creep.store[RESOURCE_ENERGY] === this.creep.store.getCapacity()) {
@@ -84,5 +85,5 @@ export class BasicUpgraderCreepHandler extends CreepHandler {
       upgradeController(this.creep, this.controller);
     }
   }
-  
+
 }
