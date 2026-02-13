@@ -4,7 +4,6 @@ import { BasicBuilderCreepState } from "./creeps/types/basic_builder_creep";
 import { BasicUpgraderCreepState } from "./creeps/types/basic_upgrader_creep";
 import { PowerHarvesterCreepState } from "./creeps/types/power_harvester_creep";
 import { BasicRepairerCreepState } from "creeps/types/basic_repairer_creep";
-import { BaseMemory } from "memory/base_memory";
 import { TaskType } from "tasks/task";
 
 /** A string that is of type "x_y", e.g. "33_4" */
@@ -31,6 +30,10 @@ declare global {
     log: LogMemory;
   }
 
+  interface BaseMemory {
+    sources: Id<Source>[];
+  }
+
   interface TaskMemory {
     name: string;
     roomName: string;
@@ -48,6 +51,8 @@ declare global {
     creepType: CreepType;
 
     taskName: string;
+
+    currentState?: number;
 
     // Action memory
     harvestingSourceId?: Id<Source>;

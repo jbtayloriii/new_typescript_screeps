@@ -1,7 +1,6 @@
 import { ErrorMapper } from "./third_party/error_mapper";
 import { Headquarters } from "./headquarters";
 import { MemoryUtil } from "./memory_util";
-import { handleFlagCommand } from "./commands/flag_commands";
 import { Logger } from "logging/logger";
 
 import "./prototypes/creep_prototype";
@@ -29,10 +28,6 @@ export const loop = ErrorMapper.wrapLoop(() => {
     Game.cpu.generatePixel();
     Logger.info("Generating pixel");
   }
-
-  Object.entries(Game.flags).forEach(
-    ([key, value]) => handleFlagCommand(value)
-  );
 
   // Create handlers, update memory 
   let entityHandler = EntityHandler.create(Game.creeps);

@@ -1,4 +1,4 @@
-import { BaseLayoutMap, BasePlanningCoordinateString, Coordinate, CoordinateString } from "global_types";
+import { BaseLayoutMap, Coordinate } from "global_types";
 import { BaseLayoutMapObj } from "./base_layout_map_obj";
 
 // Edges around a center location, for forming a 3x3 square
@@ -37,6 +37,12 @@ const CENTER_BUILDINGS: { level: number, building: BuildableStructureConstant }[
     { level: 8, building: STRUCTURE_NUKER },
 ];
 
+// A star shaped stamp that is used for placing extensions:
+// . . r . .
+// . r x r .
+// r x x x r
+// . r x r .
+// . . r . .
 const EXPANSION_STAMP: { x: number, y: number, buildingType: BuildableStructureConstant }[] = [
     { x: 0, y: 0, buildingType: STRUCTURE_EXTENSION },
     { x: 1, y: 0, buildingType: STRUCTURE_EXTENSION },
@@ -54,7 +60,7 @@ const EXPANSION_STAMP: { x: number, y: number, buildingType: BuildableStructureC
 ];
 
 // Tracks which level each extension stamp should be. For example, level 3 allows for 10
-// extensions and level 4 allows for 20, so stamps 3 and 4 would be for level 4.
+// extensions and level 4 allows for 20, so stamps 3 and 4 (indices 2 and 3) would be for level 4.
 const LEVEL_PER_EXTENSION_STAMP: number[] = [
     2,
     3,

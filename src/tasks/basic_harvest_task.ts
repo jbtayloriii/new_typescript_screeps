@@ -3,14 +3,18 @@ import { Task } from "./task";
 import { getEnergy } from "creeps/actions/get_energy";
 import { returnResourceToStructure } from "creeps/actions/return_resource_to_structure";
 
-const enum BasicHarvestTaskState {
+export const enum BasicHarvestTaskState {
     HARVESTING = 0,
     DROPPING_OFF = 1,
 }
 
-export class BasicHarvestTask extends Task {
+export class BasicHarvestTask extends Task<TaskMemory> {
     constructor(taskMemory: TaskMemory) {
         super(taskMemory);
+    }
+
+    getSpawnPriority(): number {
+        return this.creeps.length < 1 ? 100 : 0;
     }
 
     run(creepActions: BaseCreepActions): void {
@@ -19,6 +23,10 @@ export class BasicHarvestTask extends Task {
         }
 
         const creep = this.creeps[0];
+
+        if (creep.spawning) {
+            return;
+        }
 
         // state changes
         if (this.taskMemory.currentState === BasicHarvestTaskState.HARVESTING &&

@@ -7,8 +7,9 @@ import { BaseCreepActions, EnergySources } from "./base_creep_actions";
 import { BaseMemory } from "memory/base_memory";
 import { MemoryCache } from "memory/memory_cache";
 import { EntityHandler } from "entity_handler";
-import { Task } from "tasks/task";
+import { Task, TaskType } from "tasks/task";
 import { TaskFactory } from "tasks/task_factory";
+import { BasicHarvestTaskState } from "tasks/basic_harvest_task";
 
 export class Base {
   private room: Room;
@@ -32,6 +33,26 @@ export class Base {
   }
 
   public plan(entityHandler: EntityHandler): void {
+    if (this.room.controller && this.room.controller.level == 1) {
+      let hasHarvestTask = false;
+      let hasUpgradeTask = false;
+      this.tasks.forEach(task => {
+        if (task.getType() == TaskType.BASIC_HARVEST_TASK) {
+          hasHarvestTask = true;
+        }
+        if (task.getType() == TaskType.BASIC_UPGRADE_TASK) {
+          hasUpgradeTask = true;
+        }
+      });
+
+      if (!hasHarvestTask) {
+        this.tasks.push(TaskFactory.newTask(this.room, TaskType.BASIC_HARVEST_TASK, BasicHarvestTaskState.HARVESTING));
+      }
+      if (!hasUpgradeTask) {
+        // TODO: add upgrade task here
+      }
+
+    }
     // TODO: implement
   }
 
@@ -41,6 +62,8 @@ export class Base {
       return;
     }
     const room = Game.rooms[this.room.name];
+
+    // TODO 2026: add task prioritizing here
 
     // TODO: pass in
     const spawns = room.find(FIND_MY_STRUCTURES, {
