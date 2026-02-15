@@ -3,7 +3,6 @@ import { CreepBlueprint } from "../creep_blueprint";
 import { CreepHandler } from "../creep_handler";
 import { CreepType } from "../creep_handler_factory";
 import { BaseCreepActions } from "base/base_creep_actions";
-import { BaseMemory } from "memory/base_memory";
 import { MemoryCache } from "memory/memory_cache";
 
 export const enum PowerHarvesterCreepState {

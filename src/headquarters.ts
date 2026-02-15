@@ -18,10 +18,22 @@ export class Headquarters {
     );
     for (let [roomName, room] of owningRooms) {
       if (!this.bases.has(roomName)) {
+        const spawns = room.find(FIND_MY_STRUCTURES, {
+          filter: { structureType: STRUCTURE_SPAWN },
+        }) as StructureSpawn[];
+
+        if (spawns.length == 0) {
+          console.log(`Unable to create base in ${roomName}, no initial spawns.`);
+          continue;
+        }
+
+        const initialSpawn = spawns[0];
+
+
         console.log(`Creating base at ${roomName}`);
 
         const tasks = taskHandler.getTasksForRoom(roomName);
-        this.bases.set(roomName, Base.createBaseFromRoom(room, tasks));
+        this.bases.set(roomName, Base.createBaseFromInitialSpawn(initialSpawn, tasks));
       }
     }
   }

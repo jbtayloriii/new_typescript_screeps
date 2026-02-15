@@ -1,5 +1,4 @@
 import { BasicRepairerCreepBlueprint } from "creeps/types/basic_repairer_creep";
-import { BaseMemory } from "memory/base_memory";
 import { CreepBlueprint } from "../creeps/creep_blueprint";
 import { CreepHandler } from "../creeps/creep_handler";
 import { CreepType } from "../creeps/creep_handler_factory";

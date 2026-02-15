@@ -4,12 +4,12 @@ import { CreepType } from "../creeps/creep_handler_factory";
 import { BasePlanner } from "./base_planner";
 import { SimpleBasePlanner } from "./simple_base_planner";
 import { BaseCreepActions, EnergySources } from "./base_creep_actions";
-import { BaseMemory } from "memory/base_memory";
-import { MemoryCache } from "memory/memory_cache";
 import { EntityHandler } from "entity_handler";
 import { Task, TaskType } from "tasks/task";
 import { TaskFactory } from "tasks/task_factory";
 import { BasicHarvestTaskState } from "tasks/basic_harvest_task";
+import { CoordinateToCoordString } from "utils/string_utils";
+import { getBaseLayoutForSpawn } from "pathfinding/base_layout_utils";
 
 export class Base {
   private room: Room;
@@ -22,10 +22,20 @@ export class Base {
     this.tasks = tasks;
   }
 
-  public static createBaseFromRoom(room: Room, tasks: Task[]) {
-    console.log(`Creating base at room ${room.name} on tick ${Game.time}`);
-    let baseMemory = MemoryCache.getBaseMemory(room);
-    return new Base(room, baseMemory, tasks);
+  public static createBaseFromInitialSpawn(initialSpawn: StructureSpawn, tasks: Task[]) {
+    console.log(`Creating base at room ${initialSpawn.room.name} on tick ${Game.time}`);
+
+    if (!(initialSpawn.room.name in Memory.bases_v3)) {
+      const baseLayoutMap = getBaseLayoutForSpawn(initialSpawn);
+
+      Memory.bases_v3[initialSpawn.room.name] = {
+        initialSpawn: CoordinateToCoordString(initialSpawn.pos),
+        baseLayout: baseLayoutMap,
+      };
+    }
+    const baseMemory: BaseMemory = Memory.bases_v3[initialSpawn.room.name];
+
+    return new Base(initialSpawn.room, baseMemory, tasks);
   }
 
   public getRoomName(): RoomName {

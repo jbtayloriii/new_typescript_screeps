@@ -31,8 +31,8 @@ export class MemoryUtil {
     // RawMemory.set("{}");
     MemoryUtil.initializeOtherMemory();
 
-    if (!Memory.roomInfo) {
-      Memory.roomInfo = {};
+    if (!Memory.bases_v3) {
+      Memory.bases_v3 = {};
     }
 
     Memory.currentMemoryVersion = CURRENT_MEMORY_VERSION;

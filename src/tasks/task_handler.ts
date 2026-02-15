@@ -33,8 +33,8 @@ export class TaskHandler {
         // Pass in fresh creep references
         for (const [roomName, tasks] of this.taskToRoomMap) {
             tasks.forEach(task => {
-                if (creepsByTaskName.has(task.taskMemory.name)) {
-                    task.resetCreeps(creepsByTaskName.get(task.taskMemory.name)!);
+                if (creepsByTaskName.has(task.getMemory().name)) {
+                    task.resetCreeps(creepsByTaskName.get(task.getMemory().name)!);
                 }
             });
         }

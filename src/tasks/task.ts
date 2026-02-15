@@ -10,15 +10,14 @@ export enum TaskType {
  * 
  * Each task should additionally add its type to the above enum.
  */
-export abstract class Task<M extends TaskMemory> {
+export abstract class Task {
     private shouldDelete: boolean = false;
-
-    public taskMemory: M;
+    private type: TaskType;
 
     protected creeps: Creep[] = [];
 
-    constructor(taskMemory: M) {
-        this.taskMemory = taskMemory;
+    constructor(type: TaskType) {
+        this.type = type;
     }
 
     // Called once per game tick to get fresh creep object references
@@ -27,13 +26,15 @@ export abstract class Task<M extends TaskMemory> {
     }
 
     getType(): TaskType {
-        return this.taskMemory.taskType;
+        return this.type;
     }
 
     /** Runs the task. This method should be overridden by subclasses. */
     abstract run(creepActions: BaseCreepActions): void;
 
     abstract getSpawnPriority(): number;
+
+    abstract getMemory(): TaskMemory;
 
     markForDeletion(): void {
         this.shouldDelete = true;

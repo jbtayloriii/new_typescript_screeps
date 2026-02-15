@@ -2,7 +2,7 @@
  * Module for performing mapping calculations for base planning.
  */
 
-type Position = {
+export type Position = {
     x: number,
     y: number,
 }

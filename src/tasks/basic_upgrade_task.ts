@@ -1,5 +1,5 @@
 import { BaseCreepActions } from "base/base_creep_actions";
-import { Task } from "./task";
+import { Task, TaskType } from "./task";
 import { getEnergy } from "creeps/actions/get_energy";
 import { upgradeController } from "creeps/actions/upgrade_controller";
 
@@ -8,36 +8,40 @@ export const enum BasicUpgradeTaskState {
     UPGRADING = 1,
 }
 
-interface UpgradeTaskMemory extends TaskMemory {
+export interface UpgradeTaskMemory extends TaskMemory {
     controllerId: Id<StructureController>;
 }
 
-export class BasicUpgradeTask extends Task<UpgradeTaskMemory> {
+export class BasicUpgradeTask extends Task {
+    private readonly upgradeTaskMemory: UpgradeTaskMemory;
     private controller: StructureController;
 
-    constructor(taskMemory: UpgradeTaskMemory) {
-        super(taskMemory);
+    constructor(upgradeTaskMemory: UpgradeTaskMemory) {
+        super(TaskType.BASIC_UPGRADE_TASK);
 
-        const controller = Game.getObjectById(taskMemory.controllerId);
+        const controller = Game.getObjectById(upgradeTaskMemory.controllerId);
         if (!controller) {
-            throw `Unable to create basic upgrader creep; no controller ${taskMemory.controllerId}`;
+            throw `Unable to create basic upgrader creep; no controller ${upgradeTaskMemory.controllerId}`;
         }
         this.controller = controller;
+        this.upgradeTaskMemory = upgradeTaskMemory;
     }
 
-    getSpawnPriority(): number {
+    override getMemory(): UpgradeTaskMemory {
+        return this.upgradeTaskMemory;
+    }
+
+    override getSpawnPriority(): number {
         if (this.creeps.length >= 5) {
             return 0;
         }
         return 90 - (this.creeps.length * 4);
     }
 
-    run(creepActions: BaseCreepActions): void {
+    override run(creepActions: BaseCreepActions): void {
         if (this.creeps.length < 1) {
             return;
         }
-
-
 
         for (let i = 0; i < this.creeps.length; i++) {
             const nextCreep = this.creeps[i];

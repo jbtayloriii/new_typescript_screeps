@@ -1,4 +1,5 @@
 import { BasicHarvestTask } from "./basic_harvest_task";
+import { BasicUpgradeTask, UpgradeTaskMemory } from "./basic_upgrade_task";
 import { Task, TaskType } from "./task";
 
 
@@ -8,6 +9,8 @@ export class TaskFactory {
         switch (taskMemory.taskType) {
             case TaskType.BASIC_HARVEST_TASK:
                 return new BasicHarvestTask(taskMemory);
+            case TaskType.BASIC_UPGRADE_TASK:
+                return new BasicUpgradeTask(taskMemory as UpgradeTaskMemory);
             default:
                 throw new Error(`Could not determine task to create from type ${taskMemory.taskType}`);
         }
@@ -33,11 +36,11 @@ export class TaskFactory {
     }
 
     public static removeTask(task: Task): boolean {
-        if (Memory.tasks[task.taskMemory.name]) {
-            delete Memory.tasks[task.taskMemory.name];
+        if (Memory.tasks[task.getMemory().name]) {
+            delete Memory.tasks[task.getMemory().name];
             return true;
         } else {
-            console.log(`Attempted to delete task without memory: ${task.taskMemory.name}`);
+            console.log(`Attempted to delete task without memory: ${task.getMemory().name}`);
             return false;
         }
     }

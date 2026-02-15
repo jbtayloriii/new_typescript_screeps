@@ -22,16 +22,16 @@ declare global {
 
   interface Memory {
     currentMemoryVersion: string;
-    bases_v2: { [roomName: string]: BaseMemory };
+    bases_v3: { [roomName: string]: BaseMemory };
     sources: { [sourceId: string]: SourceMemory };
-    roomInfo: { [roomName: string]: RoomInfoMemory };
     tasks: { [roomName: string]: TaskMemory[] };
 
     log: LogMemory;
   }
 
   interface BaseMemory {
-    sources: Id<Source>[];
+    initialSpawn: CoordinateString;
+    baseLayout: BaseLayoutMap;
   }
 
   interface TaskMemory {

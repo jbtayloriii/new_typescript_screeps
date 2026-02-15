@@ -1,5 +1,6 @@
 import { BaseLayoutMap, Coordinate } from "global_types";
 import { BaseLayoutMapObj } from "./base_layout_map_obj";
+import { getDiamondMapping, getSquareMapping, Position } from "./map_plot_utils";
 
 // Edges around a center location, for forming a 3x3 square
 const CENTER_RING_OFFSETS: Coordinate[] = [
@@ -76,22 +77,24 @@ export class BaseLayoutError extends Error { }
 // Support a 3x3 square, plus roads. This is 5x5 total, or radius 3
 const BASE_CENTER_RADIUS = 3;
 
-export function getBaseLayoutForRoom(
-    room: Room,
-    diamondDistances: number[][],
-    squareDistances: number[][],
-    mapSize: number
-): BaseLayoutMap {
-    // TODO: Don't assume there's already a spawn in the room, allow for empty rooms
-    let spawns = room.find(FIND_MY_STRUCTURES, {
-        filter: { structureType: STRUCTURE_SPAWN },
-    }) as StructureSpawn[];
-    if (spawns.length !== 1) {
-        throw new BaseLayoutError(`Could not find initial spawn at ${room.name} for base planning`);
+export function getBaseLayoutForSpawn(initialSpawn: StructureSpawn): BaseLayoutMap {
+    // TODO: See if there's a cheaper way to do this
+    const walls: Position[] = [];
+    const terrain = initialSpawn.room.getTerrain();
+    for (let x = 0; x < 50; x++) {
+        for (let y = 0; y < 50; y++) {
+            if (terrain.get(x, y) == TERRAIN_MASK_WALL) {
+                walls.push({ x: x, y: y });
+            }
+        }
     }
-    let sources: Source[] = room.find(FIND_SOURCES);
 
-    return getBaseLayout(spawns[0].pos, sources, diamondDistances, squareDistances, mapSize);
+    const diamondDistances = getDiamondMapping(walls, /* mapSize= */ 50);
+    const squareDistances = getSquareMapping(walls, /* mapSize= */ 50);
+
+    let sources: Source[] = initialSpawn.room.find(FIND_SOURCES);
+
+    return getBaseLayout(initialSpawn.pos, sources, diamondDistances, squareDistances, /* mapSize= */ 50);
 }
 
 /**
