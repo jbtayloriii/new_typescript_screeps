@@ -1,5 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
 import { BaseLayoutMapObj } from './base_layout_map_obj';
+import { basePlanObjToBasePlanCoordString } from '../utils/string_utils';
 
 describe('new module', () => {
     test('No base modules added', () => {
@@ -21,20 +22,20 @@ describe('new module', () => {
 
     test('Added base modules', () => {
         const baseLayoutMapObj = new BaseLayoutMapObj(5);
-        baseLayoutMapObj.addBuilding(1, { x: 1, y: 1 }, "road");
-        baseLayoutMapObj.addBuilding(1, { x: 2, y: 1 }, "road");
-        baseLayoutMapObj.addBuilding(4, { x: 3, y: 3 }, "storage");
+        baseLayoutMapObj.addBuilding(1, { x: 1, y: 1 }, STRUCTURE_ROAD);
+        baseLayoutMapObj.addBuilding(1, { x: 2, y: 1 }, STRUCTURE_ROAD);
+        baseLayoutMapObj.addBuilding(4, { x: 3, y: 3 }, STRUCTURE_STORAGE);
 
         const serializedMap = baseLayoutMapObj.toSerializedMap();
 
         const levelOnePlans = serializedMap.get(1);
         expect(levelOnePlans).toHaveLength(2);
-        expect(levelOnePlans).toContain("1_1_road");
-        expect(levelOnePlans).toContain("2_1_road");
+        expect(levelOnePlans).toContain(basePlanObjToBasePlanCoordString({ x: 1, y: 1 }, STRUCTURE_ROAD));
+        expect(levelOnePlans).toContain(basePlanObjToBasePlanCoordString({ x: 2, y: 1 }, STRUCTURE_ROAD));
 
         const levelFourPlans = serializedMap.get(4);
         expect(levelFourPlans).toHaveLength(1);
-        expect(levelFourPlans).toContain("3_3_storage");
+        expect(levelFourPlans).toContain(basePlanObjToBasePlanCoordString({ x: 3, y: 3 }, STRUCTURE_STORAGE));
     });
 
     test('Adding to level too low', () => {

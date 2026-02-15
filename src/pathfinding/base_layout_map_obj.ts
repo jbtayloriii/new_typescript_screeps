@@ -1,6 +1,5 @@
 import { BaseLayoutMap, BasePlanningCoordinateString, Coordinate } from "global_types";
-import { typeToSymbol } from "../utils/map_utils";
-import { PositionToBasePlan } from "../utils/string_utils";
+import { buildableStructureToChar, basePlanObjToBasePlanCoordString } from "../utils/string_utils";
 
 const _EMPTY_SPOT_CHAR = '.'
 
@@ -22,7 +21,7 @@ export class BaseLayoutMapObj {
     }
 
     public isOpenOrType(coord: Coordinate, buildingType: BuildableStructureConstant): boolean {
-        if (typeToSymbol(buildingType) === this.internalArray[coord.y][coord.x]) {
+        if (buildableStructureToChar(buildingType) === this.internalArray[coord.y][coord.x]) {
             return true;
         }
         return this.isOpen(coord);
@@ -30,7 +29,7 @@ export class BaseLayoutMapObj {
 
     public addBuilding(level: number, coord: Coordinate, buildingType: BuildableStructureConstant) {
         // Allow setting the same building in multiple times
-        const typeSymbol = typeToSymbol(buildingType);
+        const typeSymbol = buildableStructureToChar(buildingType);
         if (typeSymbol === this.internalArray[coord.y][coord.x]) {
             return;
         }
@@ -41,7 +40,7 @@ export class BaseLayoutMapObj {
         if (level < 1 || level > 8) {
             throw new Error(`Attempting to add a base plan building at level ${level}`);
         }
-        this.internalMap.get(level)!.push(PositionToBasePlan(coord, buildingType));
+        this.internalMap.get(level)!.push(basePlanObjToBasePlanCoordString(coord, buildingType));
         this.internalArray[coord.y][coord.x] = typeSymbol;
         this.costMatrix.set(coord.x, coord.y, buildingType === STRUCTURE_ROAD ? 1 : buildingType === STRUCTURE_SPAWN ? 1 : 0xff);
     }

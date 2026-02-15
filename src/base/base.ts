@@ -8,8 +8,9 @@ import { EntityHandler } from "entity_handler";
 import { Task, TaskType } from "tasks/task";
 import { TaskFactory } from "tasks/task_factory";
 import { BasicHarvestTaskState } from "tasks/basic_harvest_task";
-import { CoordinateToCoordString } from "utils/string_utils";
+import { coordinateToCoordString } from "utils/string_utils";
 import { getBaseLayoutForSpawn } from "pathfinding/base_layout_utils";
+import { BasePlanningCoordinateString } from "global_types";
 
 export class Base {
   private room: Room;
@@ -29,7 +30,9 @@ export class Base {
       const baseLayoutMap = getBaseLayoutForSpawn(initialSpawn);
 
       Memory.bases_v3[initialSpawn.room.name] = {
-        initialSpawn: CoordinateToCoordString(initialSpawn.pos),
+        currentControllerLevelPlan: 0,
+        lastBaseLayoutPlanTick: 0,
+        initialSpawn: coordinateToCoordString(initialSpawn.pos),
         baseLayout: baseLayoutMap,
       };
     }
@@ -43,6 +46,33 @@ export class Base {
   }
 
   public plan(entityHandler: EntityHandler): void {
+    // Re-plan construction on controller level up
+    const controllerLevel = this.room.controller ? this.room.controller.level : 0;
+    if (controllerLevel > this.baseMemory.currentControllerLevelPlan) {
+      this.baseMemory.lastBaseLayoutPlanTick = 0;
+    }
+
+
+    // Every 100 steps, remap base layout to construction sites.
+    if (Game.time - this.baseMemory.lastBaseLayoutPlanTick >= 100) {
+      const layoutCoords: BasePlanningCoordinateString[] = [];
+      const levelLayouts = this.baseMemory.baseLayout.forEach((v, k) => {
+        if (k > this.baseMemory.currentControllerLevelPlan && k <= controllerLevel) {
+          layoutCoords.push(...this.baseMemory.baseLayout.get(k)!);
+        }
+      });
+
+      for (let i = 0; i < layoutCoords.length; i++) {
+
+      }
+
+      this.baseMemory.currentControllerLevelPlan = controllerLevel;
+    }
+
+
+
+    // Plan tasks
+    // TODO: break into separate method, maybe
     if (this.room.controller && this.room.controller.level == 1) {
       let hasHarvestTask = false;
       let hasUpgradeTask = false;
@@ -63,7 +93,7 @@ export class Base {
       }
 
     }
-    // TODO: implement
+    // TODO: implement for more levels
   }
 
   processResourceRequests(creepHandlers: CreepHandler[]): void {

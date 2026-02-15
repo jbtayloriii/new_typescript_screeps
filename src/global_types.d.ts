@@ -15,6 +15,7 @@ type BasePlanningCoordinateString = string;
 type Coordinate = { x: number, y: number };
 type LayoutCoordinate = { x: number, y: number, type: BuildableStructureConstant };
 
+// Maps a controller level to a number of planned construction coordinates
 type BaseLayoutMap = Map<number, BasePlanningCoordinateString[]>;
 
 declare global {
@@ -30,7 +31,16 @@ declare global {
   }
 
   interface BaseMemory {
+    // Holds the current level of controller that base layout construction has been planned
+    currentControllerLevelPlan: number
+
+    // Holds the last time the base layout has been converted to construction plans, or 0 if it has never been done
+    lastBaseLayoutPlanTick: number;
+
+    // Holds the coordinate string of the initial spawn for a base
     initialSpawn: CoordinateString;
+
+    // Holds the computed base layout, mapped to different controller levels
     baseLayout: BaseLayoutMap;
   }
 
