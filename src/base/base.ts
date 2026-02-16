@@ -8,7 +8,7 @@ import { EntityHandler } from "entity_handler";
 import { Task, TaskType } from "tasks/task";
 import { TaskFactory } from "tasks/task_factory";
 import { BasicHarvestTaskState } from "tasks/basic_harvest_task";
-import { coordinateToCoordString } from "utils/string_utils";
+import { basePlanCoordToBuildingObj, coordinateToCoordString } from "utils/string_utils";
 import { getBaseLayoutForSpawn } from "pathfinding/base_layout_utils";
 import { BasePlanningCoordinateString } from "global_types";
 
@@ -55,6 +55,8 @@ export class Base {
 
     // Every 100 steps, remap base layout to construction sites.
     if (Game.time - this.baseMemory.lastBaseLayoutPlanTick >= 100) {
+      console.log(`Planning layout for base at ${this.room.name}`);
+
       const layoutCoords: BasePlanningCoordinateString[] = [];
       const levelLayouts = this.baseMemory.baseLayout.forEach((v, k) => {
         if (k > this.baseMemory.currentControllerLevelPlan && k <= controllerLevel) {
@@ -63,7 +65,8 @@ export class Base {
       });
 
       for (let i = 0; i < layoutCoords.length; i++) {
-
+        const coordObj = basePlanCoordToBuildingObj(layoutCoords[i]);
+        this.room.createConstructionSite(coordObj.coord.x, coordObj.coord.y, coordObj.structure);
       }
 
       this.baseMemory.currentControllerLevelPlan = controllerLevel;
@@ -117,11 +120,6 @@ export class Base {
     }
 
     const basePlanner = this.getBasePlanner(room);
-
-    if (Game.time % 100 == 0) {
-      Logger.info(`Planning construction for ${room.name}`);
-      basePlanner.planConstruction(room);
-    }
 
     const creepBlueprints = basePlanner.planCreepCreation(room, this.baseMemory, creepHandlers);
 

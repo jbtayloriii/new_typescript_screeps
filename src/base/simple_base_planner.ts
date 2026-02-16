@@ -6,12 +6,8 @@ import { BasicBuilderCreepBlueprint } from "../creeps/types/basic_builder_creep"
 import { BasicHarvesterCreepBlueprint } from "../creeps/types/basic_harvester_creep";
 import { BasicUpgraderCreepBlueprint } from "../creeps/types/basic_upgrader_creep";
 import { BasePlanner } from "./base_planner";
-import { ConstructionPlanner } from "./construction_planner";
 
 export class SimpleBasePlanner implements BasePlanner {
-  planConstruction(room: Room) {
-    ConstructionPlanner.plan(room);
-  }
 
   planCreepCreation(room: Room, baseMemory: BaseMemory, creeps: CreepHandler[]): CreepBlueprint[] {
     const spawns = room.find(FIND_MY_SPAWNS);
