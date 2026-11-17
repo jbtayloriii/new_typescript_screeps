@@ -4,14 +4,12 @@ import { readFile } from '../testing/file_utils';
 import { getDiamondMapping, getSquareMapping } from './map_plot_utils';
 import { Coordinate } from 'global_types';
 import { baseMapToString } from '../utils/map_utils';
-import { mockInstanceOf, mockStructure } from 'screeps-jest';
+import { mockInstanceOf } from 'screeps-jest';
 import { initRooms } from '../testing/mocks';
 
 describe('getBaseLayout', () => {
     test('fullMapGeneration', () => {
         const initialCoord: RoomPosition = mockInstanceOf<RoomPosition>({ roomName: "E23S15", x: 40, y: 40 });
-
-
         const { walls: terrainWalls, terrainLayout: terrainLayout } = getTerrainData('terrain');
 
         const rooms = ["E23S15", 'E22S15'];
@@ -44,8 +42,6 @@ describe('getBaseLayout', () => {
             50);
 
         const expected = baseMapToString(baseLayout, terrainWalls, mockSources, 50, 8);
-
-        console.log(expected);
 
         // TODO: finish this test
 

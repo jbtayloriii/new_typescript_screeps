@@ -5,6 +5,8 @@
   "main": "main.ts",
   "scripts": {
     "test": "jest",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm test",
     "dryrun": "rollup -c --bundleConfigAsCjs",
     "push-sim": "rollup -c --environment DEST:sim --bundleConfigAsCjs",
     "push-main": "rollup -c --environment DEST:main --bundleConfigAsCjs"
