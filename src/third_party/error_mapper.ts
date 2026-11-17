@@ -1,7 +1,9 @@
-import * as _ from 'lodash';
 
 // tslint:disable:no-conditional-assignment
 import { SourceMapConsumer } from "source-map";
+
+// The Screeps runtime provides lodash as a global `_`; declare it (type-only) rather than bundling lodash.
+declare const _: typeof import("lodash");
 
 export class ErrorMapper {
   // Cache consumer

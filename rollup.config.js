@@ -26,7 +26,11 @@ export default {
   plugins: [
     resolve(),
     commonjs(),
-    typescript({tsconfig: "./tsconfig.json"}),
+    typescript({
+      tsconfig: "./tsconfig.json",
+      // Explicit globs: rpt2's default "*.ts+(|x)" no longer matches under picomatch >= 2.3.2.
+      include: ["*.ts", "**/*.ts"]
+    }),
     screepsUpload({
       configFile: "./screeps.json",
       destination: dest})
