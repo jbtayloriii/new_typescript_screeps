@@ -1,13 +1,8 @@
 /dist
 /node_modules
 
-/package-lock.json
 /screeps.json
 /scripts/auth_codes.json
-
-# Yarn
-.yarn/*
-.pnp.*
 
 # VSCode
 .vscode/extensions.json

@@ -30,4 +30,4 @@ Within the game loop:
 
 Testing uses Jest:
 
-`yarn run jest`
+`npm test`

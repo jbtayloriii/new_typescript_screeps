@@ -4,10 +4,8 @@
 
 1. Install Homebrew
 
-2. Install Corepack: `npm install -g corepack`
+2. Install Node (includes npm): `brew install node`
 
-3. Enable corepack: `corepack enable`
+3. `cd` to this directory and run `npm install`.
 
-4. `cd` to this directory and `yarn init`, `yarn install`.
-
-5. Update types for VS Code: `yarn dlx @yarnpkg/sdks vscode`
+4. Useful scripts: `npm test`, `npm run dryrun` (build only), `npm run push-sim`, `npm run push-main`.
