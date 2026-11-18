@@ -28,7 +28,8 @@ declare global {
   type RoomName = string;
 
   interface Memory {
-    currentMemoryVersion: string;
+    // Version of the last migration applied; see memory/migrations.ts
+    memoryVersion: number;
     bases_v3: { [roomName: string]: BaseMemory };
     sources: { [sourceId: string]: SourceMemory };
     tasks: { [roomName: string]: TaskMemory[] };

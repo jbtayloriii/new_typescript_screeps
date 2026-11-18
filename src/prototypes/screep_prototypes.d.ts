@@ -13,9 +13,4 @@ declare global {
 
     serializeStr(): string;
   }
-
-  interface StructureTower {
-    repairStructures(): void;
-    attackEnemy(): boolean;
-  }
 }

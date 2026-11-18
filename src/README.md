@@ -42,6 +42,25 @@ The empire is split into these pieces:
   sources: a 3x3 core, star-shaped extension stamps, and roads/containers to sources. The layout
   is stored in `Memory.bases_v3[room].baseLayout` as `{ [level]: "x_y_structure"[] }`.
 
+## Snapshots and intents
+
+Decision logic is kept separate from the game API so it can be unit tested with plain data:
+
+```
+Room ──► buildRoomSnapshot ──► RoomSnapshot ──► decide (pure) ──► Intent[] ──► executeIntents ──► Game API
+```
+
+- **Snapshots** ([snapshot/](snapshot/)): `buildRoomSnapshot(room)` copies a room's state for this
+  tick (controller, sources, structures, construction sites, own and hostile creeps) into plain,
+  read-only objects. [snapshot/queries.ts](snapshot/queries.ts) has helpers like `getRange` and
+  `findClosestByRange`. Add fields to the snapshot as decision logic needs them.
+- **Intents** ([intents/](intents/)): plain descriptions of actions (`harvest`, `move`, `spawn`,
+  `towerAttack`, ...) that reference objects by ID or creep name. `executeIntents` is the only
+  code that calls the game's action APIs. `actOrApproach` returns the action if the creep is in
+  range, and otherwise a move toward the target.
+- **Decisions** are pure functions from snapshots to intents, such as `decideTowerIntents` in
+  [defense/tower_logic.ts](defense/tower_logic.ts).
+
 ## Tick flow ([main.ts](main.ts))
 
 On global reset (code upload or server restart):
@@ -64,8 +83,9 @@ Each tick:
 5. `processResourceRequests`: each base collects spawn requests from all of its tasks and sorts
    them by priority. Each idle spawn spawns the highest-priority request, and the new creep's
    memory records which task it belongs to.
-6. `run`: each base runs its tasks, which direct their creeps. Then it runs its towers (attack
-   hostiles, otherwise repair damaged structures under 10k hits).
+6. `run`: each base runs its tasks, which direct their creeps. Then it builds a room snapshot
+   and runs `decideTowerIntents`: each tower attacks the closest hostile, otherwise repairs the
+   closest structure missing at least 1k hits and under 10k hits.
 7. `cleanUp`: each base removes tasks whose `isDone()` is true, along with their memory.
 
 ## Memory
@@ -73,8 +93,9 @@ Each tick:
 Top-level `Memory` fields are typed in [global_types.d.ts](global_types.d.ts). Everything stored
 in Memory must survive `JSON.stringify` (no `Map`, `Set` or class instances).
 
-- `currentMemoryVersion`: bump `CURRENT_MEMORY_VERSION` in [memory_util.ts](memory_util.ts) and
-  add cleanup to `migrateMemory` when the schema changes.
+- `memoryVersion`: the last migration applied. To change the schema, append a migration with the
+  next version number to `MIGRATIONS` in [memory/migrations.ts](memory/migrations.ts). Migrations
+  run once each, in order, on global reset. Never edit one that has been deployed.
 - `bases_v3[roomName]`: base layout and construction planning state.
 - `sources[sourceId]`: source metadata, used by power harvesting.
 - `tasks[roomName]`: the state of each task in the room.
@@ -89,9 +110,18 @@ Tests use Jest with `screeps-jest`, which provides Screeps globals and constants
 PathFinder, so pathfinding-dependent code (like base layout planning) can be tested against real
 room terrain from [pathfinding/testdata/](pathfinding/testdata/).
 
+Test helpers:
+- `aRoom()` ([testing/builders/room_snapshot_builder.ts](testing/builders/room_snapshot_builder.ts)):
+  builds a `RoomSnapshot` with defaults, so a test only sets what it cares about, e.g.
+  `aRoom().withRcl(3).withTower(25, 25).withHostile(30, 30).build()`. Use it to test decisions.
+- `createTestMemory()` / `installTestMemory()` ([testing/memory.ts](testing/memory.ts)): a fresh,
+  migrated `Memory` object.
+- `screeps-jest` mocks (`mockInstanceOf`, `mockGlobal`, `mockStructure`) for testing adapters
+  that touch game objects, like `buildRoomSnapshot` and `executeIntents`. Mocks throw on unmocked
+  property access by default.
+
+Prefer testing decisions against snapshots. Only adapters should need game object mocks.
+
 - `npm test`: run tests
 - `npm run check`: typecheck and test
 - `npm run dryrun`: build `dist/main.js` without uploading
-
-Most code still reads `Game`/`Memory` directly and is untested. Making the decision logic
-testable is roadmap phase 1.

@@ -10,6 +10,9 @@ import { TaskFactory } from "tasks/task_factory";
 import { basePlanCoordToBuildingObj, coordinateToCoordString } from "utils/string_utils";
 import { getBaseLayoutForSpawn } from "pathfinding/base_layout_utils";
 import { getLayoutCoordsBetweenLevels } from "pathfinding/base_layout_map_obj";
+import { buildRoomSnapshot } from "snapshot/build_snapshot";
+import { decideTowerIntents } from "defense/tower_logic";
+import { executeIntents } from "intents/execute_intents";
 
 /** How often (in ticks) the base layout is re-applied as construction sites. */
 const LAYOUT_REPLAN_INTERVAL = 100;
@@ -156,18 +159,8 @@ export class Base {
       handler.handle(creepActions);
     });
 
-    this.runTowers(room);
-  }
-
-  private runTowers(room: Room): void {
-    const towers = room.find(FIND_MY_STRUCTURES, {
-      filter: { structureType: STRUCTURE_TOWER }
-    }) as StructureTower[];
-    for (const tower of towers) {
-      if (!tower.attackEnemy()) {
-        tower.repairStructures();
-      }
-    }
+    const snapshot = buildRoomSnapshot(room);
+    executeIntents(decideTowerIntents(snapshot));
   }
 
   private getEnergySources(room: Room): EnergySources {

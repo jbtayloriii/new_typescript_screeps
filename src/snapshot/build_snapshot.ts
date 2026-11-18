@@ -1,0 +1,137 @@
+import {
+    BodyPartCounts,
+    ConstructionSiteSnapshot,
+    ControllerSnapshot,
+    CreepSnapshotBase,
+    EnergyStore,
+    HostileCreepSnapshot,
+    MyCreepSnapshot,
+    Ownership,
+    Pos,
+    RoomSnapshot,
+    SourceSnapshot,
+    StructureSnapshot,
+} from "./types";
+
+/**
+ * Builds a plain-data snapshot of a room for the current tick.
+ *
+ * This is the only place that should read game objects for decision making. Keep it free of
+ * logic: just copy fields.
+ */
+export function buildRoomSnapshot(room: Room, tick: number = Game.time): RoomSnapshot {
+    return {
+        name: room.name,
+        tick: tick,
+        controller: room.controller ? toControllerSnapshot(room.controller) : null,
+        energyAvailable: room.energyAvailable,
+        energyCapacityAvailable: room.energyCapacityAvailable,
+        sources: room.find(FIND_SOURCES).map(toSourceSnapshot),
+        // The controller is a structure, but is exposed separately as `controller`.
+        structures: room.find(FIND_STRUCTURES)
+            .filter(s => s.structureType !== STRUCTURE_CONTROLLER)
+            .map(toStructureSnapshot),
+        constructionSites: room.find(FIND_MY_CONSTRUCTION_SITES).map(toConstructionSiteSnapshot),
+        creepsPresent: room.find(FIND_MY_CREEPS).map(toMyCreepSnapshot),
+        hostileCreeps: room.find(FIND_HOSTILE_CREEPS).map(toHostileCreepSnapshot),
+    };
+}
+
+function toPos(pos: RoomPosition): Pos {
+    return { x: pos.x, y: pos.y, roomName: pos.roomName };
+}
+
+function toControllerSnapshot(controller: StructureController): ControllerSnapshot {
+    return {
+        id: controller.id,
+        pos: toPos(controller.pos),
+        my: controller.my,
+        level: controller.level,
+        progress: controller.progress,
+        progressTotal: controller.progressTotal,
+        ticksToDowngrade: controller.ticksToDowngrade,
+    };
+}
+
+function toSourceSnapshot(source: Source): SourceSnapshot {
+    return {
+        id: source.id,
+        pos: toPos(source.pos),
+        energy: source.energy,
+        energyCapacity: source.energyCapacity,
+    };
+}
+
+function toStructureSnapshot(structure: AnyStructure): StructureSnapshot {
+    const snapshot: { -readonly [K in keyof StructureSnapshot]: StructureSnapshot[K] } = {
+        id: structure.id,
+        structureType: structure.structureType,
+        pos: toPos(structure.pos),
+        hits: structure.hits,
+        hitsMax: structure.hitsMax,
+        owner: getOwnership(structure),
+    };
+    if ("store" in structure) {
+        snapshot.store = toEnergyStore(structure.store as StoreDefinition);
+    }
+    if (structure.structureType === STRUCTURE_SPAWN) {
+        snapshot.spawning = structure.spawning !== null;
+    }
+    return snapshot;
+}
+
+function getOwnership(structure: AnyStructure): Ownership {
+    if (!("my" in structure) || structure.my === undefined) {
+        return 'none';
+    }
+    return structure.my ? 'me' : 'other';
+}
+
+function toEnergyStore(store: StoreDefinition): EnergyStore {
+    return {
+        energy: store[RESOURCE_ENERGY],
+        energyCapacity: store.getCapacity(RESOURCE_ENERGY) ?? 0,
+    };
+}
+
+function toConstructionSiteSnapshot(site: ConstructionSite): ConstructionSiteSnapshot {
+    return {
+        id: site.id,
+        structureType: site.structureType,
+        pos: toPos(site.pos),
+        progress: site.progress,
+        progressTotal: site.progressTotal,
+    };
+}
+
+function countActiveParts(body: BodyPartDefinition[]): BodyPartCounts {
+    const counts: Partial<Record<BodyPartConstant, number>> = {};
+    for (const part of body) {
+        if (part.hits > 0) {
+            counts[part.type] = (counts[part.type] ?? 0) + 1;
+        }
+    }
+    return counts;
+}
+
+function toCreepSnapshotBase(creep: Creep): CreepSnapshotBase {
+    return {
+        id: creep.id,
+        name: creep.name,
+        pos: toPos(creep.pos),
+        hits: creep.hits,
+        hitsMax: creep.hitsMax,
+        activeParts: countActiveParts(creep.body),
+        store: toEnergyStore(creep.store),
+        spawning: creep.spawning,
+        ticksToLive: creep.ticksToLive,
+    };
+}
+
+function toMyCreepSnapshot(creep: Creep): MyCreepSnapshot {
+    return { ...toCreepSnapshotBase(creep), memory: creep.memory };
+}
+
+function toHostileCreepSnapshot(creep: Creep): HostileCreepSnapshot {
+    return { ...toCreepSnapshotBase(creep), owner: creep.owner.username };
+}
