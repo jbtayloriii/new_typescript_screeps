@@ -13,8 +13,8 @@ export function baseMapToString(baseMap: BaseLayoutMap, walls: Coordinate[], sou
 
     sources.forEach(s => baseArr[s.pos.y][s.pos.x] = 'S');
 
-    baseMap.forEach((layoutCoords, lvl) => {
-        if (lvl > level) {
+    Object.entries(baseMap).forEach(([lvl, layoutCoords]) => {
+        if (Number(lvl) > level) {
             return;
         }
         layoutCoords.forEach(c => {

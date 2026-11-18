@@ -5,175 +5,175 @@ import { BasePlanner } from "./base_planner";
 import { SimpleBasePlanner } from "./simple_base_planner";
 import { BaseCreepActions, EnergySources } from "./base_creep_actions";
 import { EntityHandler } from "entity_handler";
-import { Task, TaskType } from "tasks/task";
+import { Task } from "tasks/task";
 import { TaskFactory } from "tasks/task_factory";
-import { BasicHarvestTaskState } from "tasks/basic_harvest_task";
 import { basePlanCoordToBuildingObj, coordinateToCoordString } from "utils/string_utils";
 import { getBaseLayoutForSpawn } from "pathfinding/base_layout_utils";
-import { BasePlanningCoordinateString } from "global_types";
+import { getLayoutCoordsBetweenLevels } from "pathfinding/base_layout_map_obj";
 
+/** How often (in ticks) the base layout is re-applied as construction sites. */
+const LAYOUT_REPLAN_INTERVAL = 100;
+
+/**
+ * A single owned room.
+ *
+ * Base instances live across ticks (in the global Headquarters), but game objects and Memory
+ * references do not: both are recreated every tick. So a Base only stores its room name and
+ * looks up the Room and its BaseMemory fresh on each access.
+ */
 export class Base {
-  private room: Room;
-  private baseMemory: BaseMemory;
+  private readonly roomName: RoomName;
   private tasks: Task[];
 
-  private constructor(room: Room, baseMemory: BaseMemory, tasks: Task[]) {
-    this.room = room;
-    this.baseMemory = baseMemory;
+  private constructor(roomName: RoomName, tasks: Task[]) {
+    this.roomName = roomName;
     this.tasks = tasks;
   }
 
   public static createBaseFromInitialSpawn(initialSpawn: StructureSpawn, tasks: Task[]) {
-    console.log(`Creating base at room ${initialSpawn.room.name} on tick ${Game.time}`);
+    const roomName = initialSpawn.room.name;
+    console.log(`Creating base at room ${roomName} on tick ${Game.time}`);
 
-    if (!(initialSpawn.room.name in Memory.bases_v3)) {
-      const baseLayoutMap = getBaseLayoutForSpawn(initialSpawn);
-
-      Memory.bases_v3[initialSpawn.room.name] = {
+    if (!(roomName in Memory.bases_v3)) {
+      Memory.bases_v3[roomName] = {
         currentControllerLevelPlan: 0,
         lastBaseLayoutPlanTick: 0,
         initialSpawn: coordinateToCoordString(initialSpawn.pos),
-        baseLayout: baseLayoutMap,
+        baseLayout: getBaseLayoutForSpawn(initialSpawn),
       };
     }
-    const baseMemory: BaseMemory = Memory.bases_v3[initialSpawn.room.name];
 
-    return new Base(initialSpawn.room, baseMemory, tasks);
+    return new Base(roomName, tasks);
   }
 
   public getRoomName(): RoomName {
-    return this.room.name;
+    return this.roomName;
+  }
+
+  /** Returns this tick's Room object, or undefined if the room is no longer visible. */
+  private getRoom(): Room | undefined {
+    return Game.rooms[this.roomName];
+  }
+
+  /** Returns this tick's BaseMemory object. */
+  private getBaseMemory(): BaseMemory {
+    return Memory.bases_v3[this.roomName];
   }
 
   public plan(entityHandler: EntityHandler): void {
+    const room = this.getRoom();
+    if (!room) {
+      return;
+    }
+    const baseMemory = this.getBaseMemory();
+
     // Re-plan construction on controller level up
-    const controllerLevel = this.room.controller ? this.room.controller.level : 0;
-    if (controllerLevel > this.baseMemory.currentControllerLevelPlan) {
-      this.baseMemory.lastBaseLayoutPlanTick = 0;
+    const controllerLevel = room.controller ? room.controller.level : 0;
+    if (controllerLevel > baseMemory.currentControllerLevelPlan) {
+      baseMemory.lastBaseLayoutPlanTick = 0;
     }
 
+    // Periodically re-apply all unlocked layout levels as construction sites. Re-applying
+    // everything (not just newly unlocked levels) retries sites that previously failed, e.g.
+    // from the construction site cap, and rebuilds destroyed structures. Sites that already
+    // exist just return an error code without costing intent CPU.
+    if (Game.time - baseMemory.lastBaseLayoutPlanTick >= LAYOUT_REPLAN_INTERVAL) {
+      console.log(`Planning layout for base at ${this.roomName}`);
 
-    // Every 100 steps, remap base layout to construction sites.
-    if (Game.time - this.baseMemory.lastBaseLayoutPlanTick >= 100) {
-      console.log(`Planning layout for base at ${this.room.name}`);
+      const layoutCoords = getLayoutCoordsBetweenLevels(
+        baseMemory.baseLayout, /* fromLevelExclusive= */ 0, controllerLevel);
 
-      const layoutCoords: BasePlanningCoordinateString[] = [];
-      const levelLayouts = this.baseMemory.baseLayout.forEach((v, k) => {
-        if (k > this.baseMemory.currentControllerLevelPlan && k <= controllerLevel) {
-          layoutCoords.push(...this.baseMemory.baseLayout.get(k)!);
-        }
-      });
-
-      for (let i = 0; i < layoutCoords.length; i++) {
-        const coordObj = basePlanCoordToBuildingObj(layoutCoords[i]);
-        this.room.createConstructionSite(coordObj.coord.x, coordObj.coord.y, coordObj.structure);
+      for (const layoutCoord of layoutCoords) {
+        const coordObj = basePlanCoordToBuildingObj(layoutCoord);
+        room.createConstructionSite(coordObj.coord.x, coordObj.coord.y, coordObj.structure);
       }
 
-      this.baseMemory.currentControllerLevelPlan = controllerLevel;
+      baseMemory.currentControllerLevelPlan = controllerLevel;
+      baseMemory.lastBaseLayoutPlanTick = Game.time;
     }
 
-
-
-    // Plan tasks
-    // TODO: break into separate method, maybe
-    if (this.room.controller && this.room.controller.level == 1) {
-      let hasHarvestTask = false;
-      let hasUpgradeTask = false;
-      this.tasks.forEach(task => {
-        if (task.getType() == TaskType.BASIC_HARVEST_TASK) {
-          hasHarvestTask = true;
-        }
-        if (task.getType() == TaskType.BASIC_UPGRADE_TASK) {
-          hasUpgradeTask = true;
-        }
-      });
-
-      if (!hasHarvestTask) {
-        this.tasks.push(TaskFactory.newTask(this.room, TaskType.BASIC_HARVEST_TASK, BasicHarvestTaskState.HARVESTING));
-      }
-      if (!hasUpgradeTask) {
-        // TODO: add upgrade task here
-      }
-
-    }
-    // TODO: implement for more levels
+    // TODO(roadmap phase 2): plan tasks here once tasks replace creep roles.
   }
 
   processResourceRequests(creepHandlers: CreepHandler[]): void {
-    if (!Game.rooms[this.room.name]) {
-      Logger.info(`Trying to plan base actions for nonexistent base: ${this.room.name}`);
+    const room = this.getRoom();
+    if (!room) {
+      Logger.info(`Trying to plan base actions for nonexistent base: ${this.roomName}`);
       return;
     }
-    const room = Game.rooms[this.room.name];
 
-    // TODO 2026: add task prioritizing here
-
-    // TODO: pass in
-    const spawns = room.find(FIND_MY_STRUCTURES, {
-      filter: { structureType: STRUCTURE_SPAWN },
-    }) as StructureSpawn[];
-
+    const spawns = room.find(FIND_MY_SPAWNS);
     const validSpawns = spawns.filter((spawn) => !spawn.spawning);
     if (validSpawns.length == 0) {
-      Logger.warning("No valid spawns, skipping process resource reqs");
       return;
     }
 
     const basePlanner = this.getBasePlanner(room);
+    const creepBlueprints = basePlanner.planCreepCreation(room, this.getBaseMemory(), creepHandlers);
 
-    const creepBlueprints = basePlanner.planCreepCreation(room, this.baseMemory, creepHandlers);
+    for (const spawn of validSpawns) {
+      if (creepBlueprints.length == 0) {
+        break;
+      }
+      const nextBlueprint = creepBlueprints[0];
+      const name = [
+        CreepType[nextBlueprint.getType()],
+        this.roomName,
+        Game.time,
+      ].join("_");
 
-    for (let spawn of validSpawns) {
-      if (creepBlueprints.length > 0) {
-        const nextBlueprint = creepBlueprints[0];
-        const name = [
-          CreepType[nextBlueprint.getType()],
-          this.room.name,
-          Game.time,
-        ].join("_");
-
-        const ret = spawn.spawnCreep(nextBlueprint.getBody(), name, {
-          memory: nextBlueprint.getInitialMemory(),
-        });
-        switch (ret) {
-          case OK:
-            creepBlueprints.shift();
-            break;
-          case ERR_NOT_ENOUGH_ENERGY:
-            Logger.warning(`Unable to spawn creep: room ${this.room.name}, body: ${nextBlueprint.getBody()}, type: ${nextBlueprint.getType()}`)
-        }
-        if (ret == OK) {
+      const ret = spawn.spawnCreep(nextBlueprint.getBody(), name, {
+        memory: nextBlueprint.getInitialMemory(),
+      });
+      switch (ret) {
+        case OK:
           creepBlueprints.shift();
-        }
+          break;
+        case ERR_NOT_ENOUGH_ENERGY:
+          Logger.warning(`Unable to spawn creep: room ${this.roomName}, body: ${nextBlueprint.getBody()}, type: ${nextBlueprint.getType()}`);
+          break;
       }
     }
   }
 
   private getBasePlanner(room: Room): BasePlanner {
-    if (room.controller && room.controller.level < 3) {
-      return new SimpleBasePlanner();
-    }
-
     // TODO: add more base planner types here
     return new SimpleBasePlanner();
   }
 
   run(creepHandlers: CreepHandler[]): void {
-    let creepActions: BaseCreepActions = {
-      baseRoomName: this.room.name,
-      energySources: this.getEnergySource(),
+    const room = this.getRoom();
+    if (!room) {
+      return;
     }
 
+    const creepActions: BaseCreepActions = {
+      baseRoomName: this.roomName,
+      energySources: this.getEnergySources(room),
+    };
 
     creepHandlers.forEach((handler) => {
       handler.handle(creepActions);
     });
+
+    this.runTowers(room);
   }
 
-  private getEnergySource(): EnergySources {
-    let storages = this.room.find(FIND_MY_STRUCTURES, { filter: (s) => { return s.structureType == STRUCTURE_STORAGE && s.store[RESOURCE_ENERGY] >= 100; } }) as StructureStorage[];
-    let containers = this.room.find(FIND_STRUCTURES, { filter: (s) => { return s.structureType == STRUCTURE_CONTAINER && s.store[RESOURCE_ENERGY] >= 100; } }) as StructureContainer[];
-    let sources = this.room.find(FIND_SOURCES);
+  private runTowers(room: Room): void {
+    const towers = room.find(FIND_MY_STRUCTURES, {
+      filter: { structureType: STRUCTURE_TOWER }
+    }) as StructureTower[];
+    for (const tower of towers) {
+      if (!tower.attackEnemy()) {
+        tower.repairStructures();
+      }
+    }
+  }
+
+  private getEnergySources(room: Room): EnergySources {
+    const storages = room.find(FIND_MY_STRUCTURES, { filter: (s) => s.structureType == STRUCTURE_STORAGE && s.store[RESOURCE_ENERGY] >= 100 }) as StructureStorage[];
+    const containers = room.find(FIND_STRUCTURES, { filter: (s) => s.structureType == STRUCTURE_CONTAINER && s.store[RESOURCE_ENERGY] >= 100 }) as StructureContainer[];
+    const sources = room.find(FIND_SOURCES);
 
     return {
       storage: storages.length > 0 ? storages[0] : null,
@@ -183,7 +183,6 @@ export class Base {
   }
 
   cleanUp(): void {
-
     // Remove dead tasks
     for (let i = this.tasks.length - 1; i >= 0; i--) {
       const task = this.tasks[i];

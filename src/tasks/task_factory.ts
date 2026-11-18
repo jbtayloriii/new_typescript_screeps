@@ -23,9 +23,13 @@ export class TaskFactory {
         if (!Memory.tasks[room.name]) {
             Memory.tasks[room.name] = [];
         }
+        if (Memory.nextTaskId === undefined) {
+            Memory.nextTaskId = 0;
+        }
 
+        // Use a global counter rather than the array length so names are never reused after removal.
         const taskMemory: TaskMemory = {
-            name: `${room.name}_${type}_${Memory.tasks[room.name].length}`,
+            name: `${room.name}_${type}_${Memory.nextTaskId++}`,
             roomName: room.name,
             taskType: type,
             currentState: startingState,
@@ -35,13 +39,16 @@ export class TaskFactory {
         return newTask;
     }
 
+    /** Removes the task's memory from its room's task list. Memory.tasks is keyed by room name. */
     public static removeTask(task: Task): boolean {
-        if (Memory.tasks[task.getMemory().name]) {
-            delete Memory.tasks[task.getMemory().name];
-            return true;
-        } else {
-            console.log(`Attempted to delete task without memory: ${task.getMemory().name}`);
+        const { name, roomName } = task.getMemory();
+        const roomTasks = Memory.tasks?.[roomName];
+        const index = roomTasks ? roomTasks.findIndex(t => t.name === name) : -1;
+        if (index < 0) {
+            console.log(`Attempted to delete task without memory: ${name}`);
             return false;
         }
+        roomTasks!.splice(index, 1);
+        return true;
     }
 }

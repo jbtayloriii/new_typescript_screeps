@@ -15,8 +15,14 @@ type BasePlanningCoordinateString = string;
 type Coordinate = { x: number, y: number };
 type LayoutCoordinate = { x: number, y: number, type: BuildableStructureConstant };
 
-// Maps a controller level to a number of planned construction coordinates
-type BaseLayoutMap = Map<number, BasePlanningCoordinateString[]>;
+/**
+ * Maps a controller level (1-8) to the planned construction coordinates unlocked at that level.
+ *
+ * This is a plain object rather than a Map because it is stored in Memory, which is
+ * JSON-serialized each tick (a Map would serialize to `{}`). Keys become strings after a
+ * round trip, but numeric indexing still works.
+ */
+type BaseLayoutMap = { [controllerLevel: number]: BasePlanningCoordinateString[] };
 
 declare global {
   type RoomName = string;
@@ -26,6 +32,8 @@ declare global {
     bases_v3: { [roomName: string]: BaseMemory };
     sources: { [sourceId: string]: SourceMemory };
     tasks: { [roomName: string]: TaskMemory[] };
+    // Monotonic counter used to generate unique task names
+    nextTaskId: number;
 
     log: LogMemory;
   }
@@ -100,13 +108,6 @@ declare global {
 
   interface RoomMemory {
     powerHarvestingMap: { [sourceId: Id<Source>]: RoomPosition };
-    _sourceToHarvestSpotMap: Map<
-      Id<Source>,
-      {
-        openSpots: number;
-        currentCreeps: Id<Creep>[];
-      }
-    >;
   }
 
   interface ObjectPositionMemory {

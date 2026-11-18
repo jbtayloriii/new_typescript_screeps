@@ -4,13 +4,13 @@ import { buildableStructureToChar, basePlanObjToBasePlanCoordString } from "../u
 const _EMPTY_SPOT_CHAR = '.'
 
 export class BaseLayoutMapObj {
-    private internalMap: BaseLayoutMap = new Map<number, BasePlanningCoordinateString[]>();
+    private internalMap: BaseLayoutMap = {};
     private internalArray: string[][];
     private costMatrix: CostMatrix;
 
     public constructor(mapSize: number) {
         for (let i = 1; i <= 8; i++) {
-            this.internalMap.set(i, [])
+            this.internalMap[i] = [];
         }
         this.internalArray = Array.from({ length: mapSize }, () => Array(mapSize).fill(_EMPTY_SPOT_CHAR));
         this.costMatrix = new PathFinder.CostMatrix();
@@ -40,7 +40,7 @@ export class BaseLayoutMapObj {
         if (level < 1 || level > 8) {
             throw new Error(`Attempting to add a base plan building at level ${level}`);
         }
-        this.internalMap.get(level)!.push(basePlanObjToBasePlanCoordString(coord, buildingType));
+        this.internalMap[level].push(basePlanObjToBasePlanCoordString(coord, buildingType));
         this.internalArray[coord.y][coord.x] = typeSymbol;
         this.costMatrix.set(coord.x, coord.y, buildingType === STRUCTURE_ROAD ? 1 : buildingType === STRUCTURE_SPAWN ? 1 : 0xff);
     }
@@ -53,4 +53,23 @@ export class BaseLayoutMapObj {
     public toSerializedMap(): BaseLayoutMap {
         return this.internalMap;
     }
+}
+
+/**
+ * Returns all planned coordinates for controller levels in the range (fromLevelExclusive, toLevelInclusive].
+ *
+ * Used to find which buildings have been unlocked since the last time construction was planned.
+ */
+export function getLayoutCoordsBetweenLevels(
+    layout: BaseLayoutMap,
+    fromLevelExclusive: number,
+    toLevelInclusive: number): BasePlanningCoordinateString[] {
+    const coords: BasePlanningCoordinateString[] = [];
+    for (let level = fromLevelExclusive + 1; level <= toLevelInclusive; level++) {
+        const levelCoords = layout[level];
+        if (levelCoords) {
+            coords.push(...levelCoords);
+        }
+    }
+    return coords;
 }

@@ -8,15 +8,6 @@ declare global {
     SayJobAction(action: string): void;
   }
 
-  interface Room {
-    getSourcesAndOpenSpots(): {
-      source: Source,
-      openSpots: number,
-    }[];
-    addCreepToSource(creep: Creep, source: Source): boolean;
-    removeCreepFromSource(creep: Creep, source: Source): boolean;
-  }
-
   interface RoomPosition {
     getWalkableNearbySpots(): RoomPosition[];
 
