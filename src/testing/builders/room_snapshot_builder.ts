@@ -1,10 +1,12 @@
 import {
     ConstructionSiteSnapshot,
     ControllerSnapshot,
+    EnergyStore,
     HostileCreepSnapshot,
     MyCreepSnapshot,
     Pos,
     RoomSnapshot,
+    RuinSnapshot,
     SourceSnapshot,
     StructureSnapshot,
 } from "snapshot/types";
@@ -33,6 +35,7 @@ export class RoomSnapshotBuilder {
         sources: SourceSnapshot[];
         structures: StructureSnapshot[];
         constructionSites: ConstructionSiteSnapshot[];
+        ruins: RuinSnapshot[];
         creepsPresent: MyCreepSnapshot[];
         hostileCreeps: HostileCreepSnapshot[];
     };
@@ -47,6 +50,7 @@ export class RoomSnapshotBuilder {
             sources: [],
             structures: [],
             constructionSites: [],
+            ruins: [],
             creepsPresent: [],
             hostileCreeps: [],
         };
@@ -111,7 +115,7 @@ export class RoomSnapshotBuilder {
         const { spawning = false, energy = 300, ...overrides } = opts;
         return this.withStructure(STRUCTURE_SPAWN, x, y, {
             spawning,
-            store: { energy, energyCapacity: 300 },
+            store: { energy, energyCapacity: 300, freeCapacity: 300 - energy },
             ...overrides,
         });
     }
@@ -119,7 +123,7 @@ export class RoomSnapshotBuilder {
     withTower(x: number, y: number, opts: { energy?: number } & Partial<StructureSnapshot> = {}): this {
         const { energy = 1000, ...overrides } = opts;
         return this.withStructure(STRUCTURE_TOWER, x, y, {
-            store: { energy, energyCapacity: 1000 },
+            store: { energy, energyCapacity: 1000, freeCapacity: 1000 - energy },
             ...overrides,
         });
     }
@@ -136,6 +140,15 @@ export class RoomSnapshotBuilder {
         return this;
     }
 
+    withRuin(x: number, y: number, energy: number): this {
+        this.snapshot.ruins.push({ id: newId('ruin'), pos: this.pos(x, y), energy });
+        return this;
+    }
+
+    /**
+     * Adds one of my creeps. Memory defaults to an orphan of this base; set `memory` to put it in
+     * a task. Use `energy(...)` to set its carried energy.
+     */
     withMyCreep(name: string, x: number, y: number, overrides: Partial<MyCreepSnapshot> = {}): this {
         this.snapshot.creepsPresent.push({
             id: newId('creep'),
@@ -144,10 +157,10 @@ export class RoomSnapshotBuilder {
             hits: 300,
             hitsMax: 300,
             activeParts: { [WORK]: 1, [CARRY]: 1, [MOVE]: 1 },
-            store: { energy: 0, energyCapacity: 50 },
+            store: { energy: 0, energyCapacity: 50, freeCapacity: 50 },
             spawning: false,
             ticksToLive: 1500,
-            memory: {} as CreepMemory,
+            memory: { taskName: '', baseRoomName: this.snapshot.name },
             ...overrides,
         });
         return this;
@@ -161,7 +174,7 @@ export class RoomSnapshotBuilder {
             hits: 300,
             hitsMax: 300,
             activeParts: { [ATTACK]: 1, [MOVE]: 1 },
-            store: { energy: 0, energyCapacity: 0 },
+            store: { energy: 0, energyCapacity: 0, freeCapacity: 0 },
             spawning: false,
             ticksToLive: 1500,
             owner: 'Invader',
@@ -176,8 +189,14 @@ export class RoomSnapshotBuilder {
             sources: [...this.snapshot.sources],
             structures: [...this.snapshot.structures],
             constructionSites: [...this.snapshot.constructionSites],
+            ruins: [...this.snapshot.ruins],
             creepsPresent: [...this.snapshot.creepsPresent],
             hostileCreeps: [...this.snapshot.hostileCreeps],
         };
     }
+}
+
+/** A creep or structure store holding `energy` out of `capacity`. */
+export function energy(amount: number, capacity: number = 50): EnergyStore {
+    return { energy: amount, energyCapacity: capacity, freeCapacity: capacity - amount };
 }

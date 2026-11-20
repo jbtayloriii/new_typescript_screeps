@@ -2,21 +2,15 @@ import { ErrorMapper } from "./third_party/error_mapper";
 import { Headquarters } from "./headquarters";
 import { MemoryUtil } from "./memory_util";
 import { Logger } from "logging/logger";
-
-import "./prototypes/creep_prototype";
-import "./prototypes/room_position_prototype";
-import { EntityHandler } from "entity_handler";
-import { TaskHandler } from "tasks/task_handler";
 import { maybeGeneratePixel } from "cpu";
-
+import { removeDeadCreepMemory } from "memory/creep_memory";
+import { createWorldSnapshot } from "snapshot/world";
 
 // Make sure to both initialize memory before looping over the HQ, but also to do so in the game loop
 console.log(`---Full object reset at ${Game.time}---`);
 MemoryUtil.initializeMemory();
 
-var globalHq = Headquarters.initialize();
-
-const taskHandler = new TaskHandler();
+const globalHq = Headquarters.initialize();
 
 export const loop = ErrorMapper.wrapLoop(() => {
   if (MemoryUtil.shouldInitializeMemory()) {
@@ -27,19 +21,10 @@ export const loop = ErrorMapper.wrapLoop(() => {
     Logger.info("Generated pixel");
   }
 
-  // Create handlers, update memory 
-  let entityHandler = EntityHandler.create(Game.creeps);
-  EntityHandler.updateGameMemory();
-  taskHandler.updateCreepToTasks(Game.creeps);
+  removeDeadCreepMemory(Memory, new Set(Object.keys(Game.creeps)));
 
-  // Create bases if necessary
-  globalHq.setUpBases(taskHandler);
-
-  // Handle base actions
-  globalHq.plan(entityHandler);
-  globalHq.processResourceRequests(entityHandler);
-  globalHq.run(entityHandler);
-  globalHq.cleanUp(entityHandler);
+  globalHq.setUpBases();
+  globalHq.run(createWorldSnapshot());
 
   // Logger.report();
 });

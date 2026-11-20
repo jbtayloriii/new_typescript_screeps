@@ -77,4 +77,19 @@ describe('executeIntents', () => {
         expect(results.map(r => r.code)).toEqual([ERR_NOT_FOUND, ERR_INVALID_TARGET, ERR_NOT_FOUND, ERR_NOT_FOUND]);
         expect(creep.harvest).not.toHaveBeenCalled();
     });
+
+    test('recycles at a spawn and merges memory patches', () => {
+        (objects[spawnId] as Record<string, unknown>).recycleCreep = jest.fn(() => OK);
+        const memory = { taskName: 'old', baseRoomName: 'W1N1', state: 1 } as CreepMemory;
+        (global as unknown as { Memory: Memory }).Memory = { creeps: { c1: memory } } as unknown as Memory;
+
+        const results = executeIntents([
+            { kind: 'recycle', spawnId, creepName: 'c1' },
+            { kind: 'setCreepMemory', creepName: 'c1', patch: { taskName: 'new', state: undefined } },
+            { kind: 'setCreepMemory', creepName: 'gone', patch: { taskName: 'new' } },
+        ]);
+
+        expect(results.map(r => r.code)).toEqual([OK, OK, ERR_NOT_FOUND]);
+        expect(memory).toEqual({ taskName: 'new', baseRoomName: 'W1N1' });
+    });
 });

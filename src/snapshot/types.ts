@@ -18,6 +18,8 @@ export interface EnergyStore {
     readonly energy: number;
     /** Total energy this object can hold. */
     readonly energyCapacity: number;
+    /** Energy that can still be added. Less than `energyCapacity - energy` if other resources are stored. */
+    readonly freeCapacity: number;
 }
 
 /** Who owns a structure. Neutral structures (roads, containers, walls) have no owner. */
@@ -51,6 +53,12 @@ export interface SourceSnapshot {
     readonly pos: Pos;
     readonly energy: number;
     readonly energyCapacity: number;
+}
+
+export interface RuinSnapshot {
+    readonly id: Id<Ruin>;
+    readonly pos: Pos;
+    readonly energy: number;
 }
 
 export interface ConstructionSiteSnapshot {
@@ -95,6 +103,7 @@ export interface RoomSnapshot {
     /** All visible structures in the room, including spawns, towers, roads and walls. */
     readonly structures: readonly StructureSnapshot[];
     readonly constructionSites: readonly ConstructionSiteSnapshot[];
+    readonly ruins: readonly RuinSnapshot[];
     /**
      * My creeps physically in this room this tick, from any base. This is about location only:
      * a task's creeps come from grouping `Game.creeps` by `memory.taskName`, not from this list.

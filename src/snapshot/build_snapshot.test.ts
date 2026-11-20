@@ -3,7 +3,7 @@ import { mockInstanceOf, mockStructure } from 'screeps-jest';
 import { buildRoomSnapshot } from './build_snapshot';
 
 const pos = (x: number, y: number) => ({ x, y, roomName: 'W1N1' });
-const store = (energy: number, capacity: number) => ({ [RESOURCE_ENERGY]: energy, getCapacity: () => capacity });
+const store = (energy: number, capacity: number) => ({ [RESOURCE_ENERGY]: energy, getCapacity: () => capacity, getFreeCapacity: () => capacity - energy });
 
 function mockRoom(found: { [findType: number]: unknown[] }, controller?: StructureController): Room {
     return mockInstanceOf<Room>({
@@ -55,8 +55,8 @@ describe('buildRoomSnapshot', () => {
         const snapshot = buildRoomSnapshot(mockRoom({ [FIND_STRUCTURES]: [spawn, enemyTower, road] }), 1);
 
         expect(snapshot.structures).toEqual([
-            { id: 'spawn', structureType: STRUCTURE_SPAWN, pos: pos(10, 10), hits: 5000, hitsMax: 5000, owner: 'me', store: { energy: 200, energyCapacity: 300 }, spawning: false },
-            { id: 'tower', structureType: STRUCTURE_TOWER, pos: pos(11, 11), hits: 3000, hitsMax: 3000, owner: 'other', store: { energy: 0, energyCapacity: 1000 } },
+            { id: 'spawn', structureType: STRUCTURE_SPAWN, pos: pos(10, 10), hits: 5000, hitsMax: 5000, owner: 'me', store: { energy: 200, energyCapacity: 300, freeCapacity: 100 }, spawning: false },
+            { id: 'tower', structureType: STRUCTURE_TOWER, pos: pos(11, 11), hits: 3000, hitsMax: 3000, owner: 'other', store: { energy: 0, energyCapacity: 1000, freeCapacity: 1000 } },
             { id: 'road', structureType: STRUCTURE_ROAD, pos: pos(12, 12), hits: 100, hitsMax: 5000, owner: 'none' },
         ]);
     });
@@ -93,13 +93,19 @@ describe('buildRoomSnapshot', () => {
         expect(snapshot.creepsPresent).toEqual([{
             id: 'mine', name: 'Harvester1', pos: pos(7, 7), hits: 300, hitsMax: 300,
             activeParts: { [WORK]: 1, [CARRY]: 1, [MOVE]: 1 },
-            store: { energy: 25, energyCapacity: 50 }, spawning: false, ticksToLive: 1200, memory,
+            store: { energy: 25, energyCapacity: 50, freeCapacity: 25 }, spawning: false, ticksToLive: 1200, memory,
         }]);
         expect(snapshot.hostileCreeps).toEqual([{
             id: 'bad', name: 'Invader1', pos: pos(8, 8), hits: 100, hitsMax: 200,
             activeParts: { [ATTACK]: 1 },
-            store: { energy: 0, energyCapacity: 0 }, spawning: false, ticksToLive: 500, owner: 'Invader',
+            store: { energy: 0, energyCapacity: 0, freeCapacity: 0 }, spawning: false, ticksToLive: 500, owner: 'Invader',
         }]);
+    });
+
+    test('maps ruins with their energy', () => {
+        const ruin = mockInstanceOf<Ruin>({ id: 'ruin' as Id<Ruin>, pos: pos(9, 9), store: { [RESOURCE_ENERGY]: 75 } });
+        const snapshot = buildRoomSnapshot(mockRoom({ [FIND_RUINS]: [ruin] }), 1);
+        expect(snapshot.ruins).toEqual([{ id: 'ruin', pos: pos(9, 9), energy: 75 }]);
     });
 
     test('produces JSON-safe data', () => {

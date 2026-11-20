@@ -87,39 +87,41 @@ access through a small module so tests can use a fake.
 - Deferred to phase 2: typed Memory accessors. Add them for task memory once the task
   interface exists, rather than guessing their shape now.
 
-### Phase 2: Switch to tasks
-- [ ] New `Task` interface (`getSpawnRequests` / `decide` / `isDone`) with serializable state.
-      Tasks must not keep game objects or Memory references across ticks (e.g. the current
-      `BasicUpgradeTask` keeps a `StructureController`).
-- [ ] Load tasks from Memory on global reset.
-- [ ] One-way creep → task link: `creep.memory.taskName` is the only saved link, and task memory
-      never lists creeps. Each tick, group `Game.creeps` by `taskName` (all rooms, not only
-      creeps physically in the base) and give each task its creeps. Unit-test the grouping as a
-      pure function. Cases to cover:
-      - A creep that is still spawning counts toward its task right away, so the task doesn't
-        request a duplicate.
-      - Dead creeps simply drop out; nothing to clean up.
-      - Orphaned creeps (a `taskName` that matches no task) are reassigned to a compatible task
-        in their base, or recycled at a spawn.
-      - Moving a creep to another task is a single write to `memory.taskName`.
-- [ ] Port harvest, upgrade, build and repair to tasks, with unit tests for each state machine and
-      its spawn requests.
-- [ ] Spawn queue with priorities, and body sizing based on available and capacity energy.
-- [ ] Route every game action in `Base` through intents. Each base tick becomes: build one
-      snapshot → collect intents from pure steps → call `executeIntents` once:
-      - `planConstruction(snapshot, baseMemory)` → `createConstructionSite` intents (replaces
-        the direct calls in `Base.plan`).
-      - `planSpawns(snapshot, tasks)` → `spawn` intents (replaces the direct `spawnCreep` in
-        `Base.processResourceRequests`).
-      - `task.decide(snapshot)` → creep intents.
-      - `decideTowerIntents(snapshot)` stays a base-level step, not a task (towers don't own or
-        spawn creeps).
-      This leaves `Base` putting the steps together and gives one place to log failed intents,
-      measure CPU, and resolve conflicts (e.g. two intents for the same creep).
-- [ ] Delete `creeps/types/*`, `CreepHandler`, `CreepHandlerFactory`, `EntityHandler`,
-      `SimpleBasePlanner` (this also removes the circular imports Rollup warns about).
-- [ ] Fix `returnResourceToStructure`, which picks a new target every tick instead of keeping
-      the saved one.
+### Phase 2: Switch to tasks ✅
+- [x] `TaskDefinition` interface (`getSpawnRequests` / `decide` / `isDone`), all pure, over
+      serializable `TaskMemory`. Definitions are stateless and looked up by type in a registry,
+      so tasks hold no game objects or Memory references across ticks.
+- [x] Load tasks from Memory on global reset. With stateless definitions there is nothing to
+      rebuild: `Memory.tasks` is read each tick.
+- [x] One-way creep → task link: `creep.memory.taskName` (plus `baseRoomName` for the owning
+      base) is the only saved link. Each tick, creeps are grouped by base, then by task, from all
+      rooms. Tested cases:
+      - Spawning creeps count toward their task right away.
+      - Dead creeps drop out (their memory is deleted each tick).
+      - Orphans fill the highest-priority open spawn request their body can handle, else join
+        the upgrade task, else are recycled at a spawn.
+      - Moving a creep to another task is one `setCreepMemory` intent.
+- [x] Harvest (one task per source), upgrade, build and repair tasks on a shared
+      gather → work loop, with tests for each task's spawn requests, decisions and `isDone`.
+- [x] Spawn queue with priorities. Bodies are sized to energy capacity, or to the energy
+      available now for urgent requests (the first harvester of each source). The top request
+      blocks lower ones until it's affordable.
+- [x] Every game action in `Base` goes through intents, with one `executeIntents` call per base
+      tick: `reconcileTasks` → `decideBaseIntents` (orphans → spawns → tasks → towers →
+      construction) → execute. New intent kinds: `setCreepMemory` and `recycle`. Failed intents
+      are logged as one summary line per base per tick.
+- [x] Deleted the role system (`creeps/`, `CreepHandler*`, `EntityHandler`, `SimpleBasePlanner`,
+      base planner stubs), the old task classes, the power-harvester memory (`Memory.sources`,
+      `MemoryCache`) and the unused prototypes. Rollup's circular-import warnings are gone.
+- [x] Energy delivery keeps its saved target while it has room (the old
+      `returnResourceToStructure` re-picked every tick).
+- [x] Migration 2: existing creeps become orphans of their base (from `owningRoomId`) and are
+      adopted into tasks on the first tick; old task memory and power-harvesting memory are
+      dropped.
+- [x] Construction skips spots already built or with a site, so it no longer issues failing
+      intents every replan.
+- Changed from the old behavior: 2 harvesters per source instead of 1 in total; tasks run in
+      the base's room only (remote work comes with phase 4 directives).
 
 ### Phase 3: Full economy automation
 - [ ] Base planner that sets up tasks for each RCL: static miners and containers, haulers,

@@ -9,6 +9,7 @@ import {
     Ownership,
     Pos,
     RoomSnapshot,
+    RuinSnapshot,
     SourceSnapshot,
     StructureSnapshot,
 } from "./types";
@@ -32,6 +33,7 @@ export function buildRoomSnapshot(room: Room, tick: number = Game.time): RoomSna
             .filter(s => s.structureType !== STRUCTURE_CONTROLLER)
             .map(toStructureSnapshot),
         constructionSites: room.find(FIND_MY_CONSTRUCTION_SITES).map(toConstructionSiteSnapshot),
+        ruins: room.find(FIND_RUINS).map(toRuinSnapshot),
         creepsPresent: room.find(FIND_MY_CREEPS).map(toMyCreepSnapshot),
         hostileCreeps: room.find(FIND_HOSTILE_CREEPS).map(toHostileCreepSnapshot),
     };
@@ -91,7 +93,12 @@ function toEnergyStore(store: StoreDefinition): EnergyStore {
     return {
         energy: store[RESOURCE_ENERGY],
         energyCapacity: store.getCapacity(RESOURCE_ENERGY) ?? 0,
+        freeCapacity: store.getFreeCapacity(RESOURCE_ENERGY) ?? 0,
     };
+}
+
+function toRuinSnapshot(ruin: Ruin): RuinSnapshot {
+    return { id: ruin.id, pos: toPos(ruin.pos), energy: ruin.store[RESOURCE_ENERGY] };
 }
 
 function toConstructionSiteSnapshot(site: ConstructionSite): ConstructionSiteSnapshot {
@@ -128,7 +135,7 @@ function toCreepSnapshotBase(creep: Creep): CreepSnapshotBase {
     };
 }
 
-function toMyCreepSnapshot(creep: Creep): MyCreepSnapshot {
+export function toMyCreepSnapshot(creep: Creep): MyCreepSnapshot {
     return { ...toCreepSnapshotBase(creep), memory: creep.memory };
 }
 

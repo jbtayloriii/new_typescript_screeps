@@ -15,7 +15,6 @@ describe('migrateMemory', () => {
 
         expect(memory.memoryVersion).toBe(CURRENT_MEMORY_VERSION);
         expect(memory.bases_v3).toEqual({});
-        expect(memory.sources).toEqual({});
         expect(memory.tasks).toEqual({});
         expect(memory.nextTaskId).toBe(0);
         expect(memory.log.infoMessages).toEqual([]);
@@ -51,6 +50,8 @@ describe('migrateMemory', () => {
 });
 
 describe('migration 1 (legacy string versions)', () => {
+    const migration1 = MIGRATIONS.slice(0, 1);
+
     test('keeps data from legacy version 2.5', () => {
         const memory = {
             currentMemoryVersion: '2.5',
@@ -58,7 +59,7 @@ describe('migration 1 (legacy string versions)', () => {
             tasks: { W1N1: [] },
         } as unknown as Memory;
 
-        migrateMemory(memory);
+        migrateMemory(memory, migration1);
 
         expect(memory.bases_v3).toEqual({ W1N1: { currentControllerLevelPlan: 2 } });
         expect(memory).not.toHaveProperty('currentMemoryVersion');
@@ -69,16 +70,53 @@ describe('migration 1 (legacy string versions)', () => {
             currentMemoryVersion: '2.4',
             bases_v3: { W1N1: { baseLayout: {} } },
             tasks: { W1N1: [{ name: 'W1N1_1_0' }] },
-            rooms: { W1N1: { _sourceToHarvestSpotMap: {}, powerHarvestingMap: {} } },
+            rooms: { W1N1: { _sourceToHarvestSpotMap: {}, other: 1 } },
             sources: { abc: { id: 'abc' } },
         } as unknown as Memory;
 
-        migrateMemory(memory);
+        migrateMemory(memory, migration1);
 
         expect(memory.bases_v3).toEqual({});
         expect(memory.tasks).toEqual({});
-        expect(memory.rooms.W1N1).toEqual({ powerHarvestingMap: {} });
-        expect(Object.keys(memory.sources)).toEqual(['abc']);
+        expect(memory.rooms.W1N1).toEqual({ other: 1 });
+        expect(memory).toHaveProperty('sources', { abc: { id: 'abc' } });
         expect(memory).not.toHaveProperty('currentMemoryVersion');
+    });
+});
+
+describe('migration 2 (roles to tasks)', () => {
+    function memoryAtVersion1(extra: object): Memory {
+        return { ...createTestMemory(), memoryVersion: 1, ...extra } as Memory;
+    }
+
+    test('turns role creeps into orphans of their base', () => {
+        const memory = memoryAtVersion1({
+            creeps: {
+                h1: { owningRoomId: 'W1N1', creepType: 0, taskName: 'TODO: remove', currentState: 1, links: {} },
+                lost: { creepType: 2 },
+            },
+        });
+
+        migrateMemory(memory);
+
+        expect(memory.creeps).toEqual({
+            h1: { taskName: '', baseRoomName: 'W1N1' },
+            lost: { taskName: '', baseRoomName: '' },
+        });
+    });
+
+    test('drops old tasks, sources and power-harvesting memory', () => {
+        const memory = memoryAtVersion1({
+            tasks: { W1N1: [{ name: 'old', taskType: 1, currentState: 0 }] },
+            sources: { abc: {} },
+            rooms: { W1N1: { powerHarvestingMap: {} } },
+        });
+
+        migrateMemory(memory);
+
+        expect(memory.tasks).toEqual({});
+        expect(memory).not.toHaveProperty('sources');
+        expect(memory.rooms.W1N1).toEqual({});
+        expect(memory.memoryVersion).toBe(2);
     });
 });

@@ -43,6 +43,19 @@ export function executeIntent(intent: Intent): IntentReturnCode {
             if (!spawn) return ERR_NOT_FOUND;
             return spawn.spawnCreep(intent.body, intent.name, { memory: intent.memory });
         }
+        case 'recycle': {
+            const spawn = Game.getObjectById(intent.spawnId);
+            if (!spawn) return ERR_NOT_FOUND;
+            const creep = Game.creeps[intent.creepName];
+            if (!creep) return ERR_INVALID_TARGET;
+            return spawn.recycleCreep(creep);
+        }
+        case 'setCreepMemory': {
+            const memory = Memory.creeps[intent.creepName];
+            if (!memory) return ERR_NOT_FOUND;
+            applyMemoryPatch(memory, intent.patch);
+            return OK;
+        }
         case 'towerAttack':
             return withTowerAndTarget(intent.towerId, intent.targetId, (tw, t) => tw.attack(t));
         case 'towerHeal':
@@ -53,6 +66,17 @@ export function executeIntent(intent: Intent): IntentReturnCode {
             const room = Game.rooms[intent.pos.roomName];
             if (!room) return ERR_NOT_FOUND;
             return room.createConstructionSite(intent.pos.x, intent.pos.y, intent.structureType);
+        }
+    }
+}
+
+function applyMemoryPatch(memory: CreepMemory, patch: Partial<CreepMemory>): void {
+    const target = memory as unknown as Record<string, unknown>;
+    for (const [key, value] of Object.entries(patch)) {
+        if (value === undefined) {
+            delete target[key];
+        } else {
+            target[key] = value;
         }
     }
 }

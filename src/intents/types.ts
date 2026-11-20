@@ -52,7 +52,23 @@ export type CreateConstructionSiteIntent = {
     structureType: BuildableStructureConstant;
 };
 
-export type Intent = CreepIntent | SpawnIntent | TowerIntent | CreateConstructionSiteIntent;
+/** Recycles a creep at an adjacent spawn, returning some of its energy cost. */
+export type RecycleIntent = { kind: 'recycle'; spawnId: Id<StructureSpawn>; creepName: string };
+
+/**
+ * Merges `patch` into a creep's memory. A key set to undefined is deleted. This is how
+ * decision logic changes creep state (e.g. task assignment or state machine transitions)
+ * without touching Memory directly.
+ */
+export type SetCreepMemoryIntent = { kind: 'setCreepMemory'; creepName: string; patch: Partial<CreepMemory> };
+
+export type Intent =
+    | CreepIntent
+    | SpawnIntent
+    | RecycleIntent
+    | TowerIntent
+    | CreateConstructionSiteIntent
+    | SetCreepMemoryIntent;
 
 /** Return codes of the actions intents map to (upgradeController can also return ERR_ACCESS_DENIED). */
 export type IntentReturnCode = ScreepsReturnCode | ERR_ACCESS_DENIED;

@@ -34,6 +34,29 @@ export const MIGRATIONS: readonly Migration[] = [
             delete legacy.currentMemoryVersion;
         },
     },
+    {
+        version: 2,
+        description: "Replace creep roles with tasks: reset creep memory to { taskName, baseRoomName }, "
+            + "drop old task memory and power-harvesting memory.",
+        migrate: (memory) => {
+            for (const name in memory.creeps ?? {}) {
+                const old = memory.creeps[name] as unknown as Record<string, unknown>;
+                // An empty taskName makes every existing creep an orphan, so its base adopts it
+                // into a task on the next tick.
+                memory.creeps[name] = {
+                    taskName: '',
+                    baseRoomName: typeof old.owningRoomId === 'string' ? old.owningRoomId : '',
+                };
+            }
+            const legacy = memory as unknown as Record<string, unknown>;
+            // Old-format task memory (taskType/currentState) can't be read by the new tasks.
+            legacy.tasks = {};
+            delete legacy.sources;
+            for (const roomName in memory.rooms ?? {}) {
+                delete (memory.rooms[roomName] as unknown as Record<string, unknown>).powerHarvestingMap;
+            }
+        },
+    },
 ];
 
 export const CURRENT_MEMORY_VERSION: number = MIGRATIONS[MIGRATIONS.length - 1].version;
@@ -65,7 +88,6 @@ function initializeDefaults(memory: Memory): void {
     memory.creeps ??= {};
     memory.rooms ??= {};
     memory.bases_v3 ??= {};
-    memory.sources ??= {};
     memory.tasks ??= {};
     memory.nextTaskId ??= 0;
     memory.log ??= {
