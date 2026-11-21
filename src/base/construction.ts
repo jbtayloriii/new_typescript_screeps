@@ -7,13 +7,20 @@ import { basePlanCoordToBuildingObj } from "utils/string_utils";
 export const LAYOUT_REPLAN_INTERVAL = 25;
 
 /**
- * At most this many construction sites per room, so energy goes into finishing a few sites
- * rather than spreading across many. Also keeps well under the game's 100-site limit.
+ * At most this many construction sites per room for each structure type and everything more
+ * important than it (see `planConstruction`), so energy goes into finishing a few sites rather
+ * than spreading across many. Also keeps well under the game's 100-site limit.
  */
 export const MAX_SITES_PER_ROOM = 5;
 
 /** The controller container is placed from this RCL (when containers unlock). */
 export const CONTROLLER_CONTAINER_RCL = 2;
+
+/**
+ * Roads are placed from this RCL. Before it, energy is better spent reaching the next RCL and on
+ * extensions than on roads (which also need upkeep).
+ */
+export const ROAD_MIN_RCL = 3;
 
 /** Build order: earlier structure types are placed first. Unlisted types go last. */
 export const BUILD_PRIORITY: readonly BuildableStructureConstant[] = [
@@ -35,8 +42,9 @@ export const BUILD_PRIORITY: readonly BuildableStructureConstant[] = [
     STRUCTURE_RAMPART,
 ];
 
-function priorityOf(structure: BuildableStructureConstant): number {
-    const index = BUILD_PRIORITY.indexOf(structure);
+/** A structure type's place in BUILD_PRIORITY (lower is more important). */
+export function priorityOf(structure: StructureConstant): number {
+    const index = BUILD_PRIORITY.indexOf(structure as BuildableStructureConstant);
     return index < 0 ? BUILD_PRIORITY.length : index;
 }
 
@@ -49,9 +57,12 @@ export interface ConstructionPlan {
 /**
  * Every LAYOUT_REPLAN_INTERVAL ticks, and right after a controller level-up, places construction
  * sites for unbuilt structures from every unlocked layout level (plus the controller container),
- * in BUILD_PRIORITY order, up to MAX_SITES_PER_ROOM sites at a time. Re-applying all levels
- * retries failed sites and rebuilds destroyed structures. Spots that already have the structure
- * or a site are skipped.
+ * in BUILD_PRIORITY order. Re-applying all levels retries failed sites and rebuilds destroyed
+ * structures. Spots that already have the structure or a site are skipped.
+ *
+ * The site cap is per priority tier: a structure is placed only while fewer than
+ * MAX_SITES_PER_ROOM sites exist for it and everything more important. So, for example, road
+ * sites placed at RCL 1 never stop extensions being placed at RCL 2.
  */
 export function planConstruction(home: RoomSnapshot, base: Readonly<BaseMemory>): ConstructionPlan {
     const level = home.controller?.level ?? 0;
@@ -60,11 +71,6 @@ export function planConstruction(home: RoomSnapshot, base: Readonly<BaseMemory>)
         return { intents: [], memoryUpdate: {} };
     }
     const memoryUpdate = { currentControllerLevelPlan: level, lastBaseLayoutPlanTick: home.tick };
-
-    const slots = MAX_SITES_PER_ROOM - home.constructionSites.length;
-    if (slots <= 0) {
-        return { intents: [], memoryUpdate };
-    }
 
     const occupied = new Set<string>([
         ...home.structures.map(s => `${s.pos.x}_${s.pos.y}_${s.structureType}`),
@@ -76,14 +82,26 @@ export function planConstruction(home: RoomSnapshot, base: Readonly<BaseMemory>)
         planned.push({ coord: base.controllerContainer, structure: STRUCTURE_CONTAINER });
     }
 
-    const intents = planned
+    const candidates = planned
         .filter(({ coord, structure }) => !occupied.has(`${coord.x}_${coord.y}_${structure}`))
-        .sort((a, b) => priorityOf(a.structure) - priorityOf(b.structure))
-        .slice(0, slots)
-        .map(({ coord, structure }): CreateConstructionSiteIntent => ({
+        .filter(({ structure }) => structure !== STRUCTURE_ROAD || level >= ROAD_MIN_RCL)
+        .sort((a, b) => priorityOf(a.structure) - priorityOf(b.structure));
+
+    // Priorities of all sites: existing ones, plus ones placed below as we go.
+    const sitePriorities = home.constructionSites.map(s => priorityOf(s.structureType));
+    const intents: CreateConstructionSiteIntent[] = [];
+    for (const { coord, structure } of candidates) {
+        const priority = priorityOf(structure);
+        const asImportant = sitePriorities.filter(p => p <= priority).length;
+        if (asImportant >= MAX_SITES_PER_ROOM) {
+            continue;
+        }
+        sitePriorities.push(priority);
+        intents.push({
             kind: 'createConstructionSite',
             pos: { x: coord.x, y: coord.y, roomName: home.name },
             structureType: structure,
-        }));
+        });
+    }
     return { intents, memoryUpdate };
 }

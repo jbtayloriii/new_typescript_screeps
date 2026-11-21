@@ -202,6 +202,21 @@ describe('buildNearest', () => {
         });
     });
 
+    test('builds the most important site first, even if a less important one is closer', () => {
+        const room = aRoom()
+            .withConstructionSite(STRUCTURE_ROAD, 11, 11)
+            .withConstructionSite(STRUCTURE_EXTENSION, 40, 40)
+            .withMyCreep('c', 10, 10, { memory: mem() }).build();
+        expect(buildNearest(room.creepsPresent[0], room).memory).toEqual({ targetId: room.constructionSites[1].id });
+    });
+
+    test('drops a remembered site when a more important one appears', () => {
+        const room = aRoom().withConstructionSite(STRUCTURE_ROAD, 11, 11).withConstructionSite(STRUCTURE_EXTENSION, 40, 40).build();
+        const [road, extension] = room.constructionSites;
+        const creep = { ...aRoom().withMyCreep('c', 10, 10).build().creepsPresent[0], memory: mem({ targetId: road.id }) };
+        expect(buildNearest(creep, room).memory).toEqual({ targetId: extension.id });
+    });
+
     test('keeps the remembered site', () => {
         const room = aRoom().withConstructionSite(STRUCTURE_ROAD, 40, 40).withConstructionSite(STRUCTURE_ROAD, 12, 12).build();
         const far = room.constructionSites[0];

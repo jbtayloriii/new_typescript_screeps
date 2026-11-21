@@ -163,9 +163,12 @@ base room.
 - [x] Builders: 1–3 from the remaining construction progress (1 per 5000).
 
 **4. Construction order and limits**
-- [x] At most 5 sites per room; placed in priority order (spawn → extensions → towers →
-      containers → storage → … → roads → walls/ramparts). Replans every 25 ticks (was 100), since
-      only a few sites are placed at a time.
+- [x] Sites placed in priority order (spawn → extensions → towers → containers → storage → … →
+      roads → walls/ramparts), at most 5 per priority tier: a site counts against a structure's
+      cap only if it's at least as important, so road sites placed at RCL 1 can't block
+      extensions at RCL 2. Builders build the most important site first (closest among equals),
+      and switch when a more important one appears. Roads are placed only from RCL 3 (energy
+      goes to extensions and upgrading first). Replans every 25 ticks (was 100).
 
 **5. Defense**
 - [x] Towers: healers first, then attackers, then others; heal my damaged creeps; repair only

@@ -53,7 +53,7 @@ The empire is split into these pieces:
   | `mine` (one per source) | harvesters (at most 2, never more than the source's open tiles), then 1 miner (`5×WORK + MOVE`) once affordable, replaced early | see "Mining" below |
   | `haul` (once a source has a container or a miner) | sized to those sources × path distance | collect from source containers and dropped energy; deliver |
   | `upgrade` | WORK parts sized to spare income (+ storage bonus), at least 1 | gather energy, upgrade the controller |
-  | `build` (while there are sites) | 1–3, by remaining work | gather energy, build the closest site; done when none are left |
+  | `build` (while there are sites) | 1–3, by remaining work | gather energy, build the most important site (build priority order), closest among equals; done when none are left |
   | `repair` | 1 | repair critical structures, then damaged ones, then the weakest wall/rampart below its RCL target; else upgrade |
   | `scout` (routine, from RCL 2) | one `[MOVE]`, only while a neighbor's intel is stale | visit the adjacent room with the oldest intel |
   | `scout` (per scout directive) | one `[MOVE]` | go to the directive's room until it's been seen |
@@ -191,7 +191,9 @@ Each tick:
       5. Every 25 ticks, and right after a controller level-up, place construction sites for
          unbuilt structures from every unlocked layout level (plus the controller container), in
          build priority order (spawn → extensions → towers → containers → storage → … → roads →
-         walls/ramparts), at most 5 sites per room at a time.
+         walls/ramparts), with roads only from RCL 3. At most 5 sites at a time for each
+         structure type and everything more important than it, so less important sites never
+         block more important ones.
    3. **Execute** all intents with a single `executeIntents` call, and save the base's memory
       changes.
 

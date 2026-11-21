@@ -3,6 +3,7 @@ import { CreepIntent, Intent } from "intents/types";
 import { findClosestByRange, getRange } from "snapshot/queries";
 import { MyCreepSnapshot, RoomSnapshot, SourceSnapshot, StructureSnapshot } from "snapshot/types";
 import { needsRepair } from "defense/repair_targets";
+import { priorityOf } from "base/construction";
 
 /**
  * Shared creep behaviors for tasks. Each behavior is a pure function of a creep and the room it
@@ -226,10 +227,18 @@ export const deliverEnergy: Behavior = (creep, room) => {
     };
 };
 
-/** Builds the remembered construction site, or the closest one. Upgrades if there are none. */
+/**
+ * Builds the most important construction site (by `BUILD_PRIORITY`: spawn, extensions, towers,
+ * ...), the closest one among equals. Keeps its remembered site unless a more important one
+ * appears. Upgrades if there are none.
+ */
 export const buildNearest: Behavior = (creep, room) => {
-    const site = room.constructionSites.find(s => s.id === creep.memory.targetId)
-        ?? findClosestByRange(creep.pos, room.constructionSites);
+    const sites = room.constructionSites;
+    const top = Math.min(...sites.map(s => priorityOf(s.structureType)));
+    const mostImportant = sites.filter(s => priorityOf(s.structureType) === top);
+    // Keep the remembered site unless something more important has appeared.
+    const site = mostImportant.find(s => s.id === creep.memory.targetId)
+        ?? findClosestByRange(creep.pos, mostImportant);
     if (!site) {
         return upgradeController(creep, room);
     }

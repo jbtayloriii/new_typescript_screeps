@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { LAYOUT_REPLAN_INTERVAL, MAX_SITES_PER_ROOM, planConstruction } from './construction';
+import { LAYOUT_REPLAN_INTERVAL, MAX_SITES_PER_ROOM, planConstruction, ROAD_MIN_RCL } from './construction';
 import { aRoom } from 'testing/builders/room_snapshot_builder';
 import { basePlanObjToBasePlanCoordString } from 'utils/string_utils';
 
@@ -47,23 +47,47 @@ describe('planConstruction', () => {
     });
 
     test('a different structure on the same spot does not block a planned one', () => {
-        const room = aRoom().withRcl(2).withTick(5000).withSpawn(10, 10)
+        const room = aRoom().withRcl(3).withTick(5000).withSpawn(10, 10)
             .withStructure(STRUCTURE_ROAD, 12, 12, { owner: 'none' }).build();
         expect(planConstruction(room, baseMemory()).intents.map(i => i.structureType))
-            .toEqual([STRUCTURE_EXTENSION, STRUCTURE_ROAD]);
+            .toEqual([STRUCTURE_EXTENSION, STRUCTURE_TOWER, STRUCTURE_ROAD]);
     });
 
-    test('caps the number of sites per room', () => {
-        const layout = { 2: Array.from({ length: 10 }, (_, i) => coord(20 + i, 20, STRUCTURE_EXTENSION)) };
-        const room = aRoom().withRcl(2).withTick(5000).withConstructionSite(STRUCTURE_ROAD, 1, 1).build();
-        expect(planConstruction(room, baseMemory({ baseLayout: layout })).intents).toHaveLength(MAX_SITES_PER_ROOM - 1);
+    test(`places no roads before RCL ${ROAD_MIN_RCL}`, () => {
+        const layout = { 1: [coord(5, 5, STRUCTURE_ROAD)], 2: [coord(20, 20, STRUCTURE_EXTENSION), coord(6, 6, STRUCTURE_ROAD)] };
+        const placed = (rcl: number) => planConstruction(aRoom().withRcl(rcl).withTick(5000).build(), baseMemory({ baseLayout: layout }))
+            .intents.map(i => i.structureType);
+        expect(placed(1)).toEqual([]);
+        expect(placed(ROAD_MIN_RCL - 1)).toEqual([STRUCTURE_EXTENSION]);
+        expect(placed(ROAD_MIN_RCL)).toEqual([STRUCTURE_EXTENSION, STRUCTURE_ROAD, STRUCTURE_ROAD]);
+    });
 
-        const full = aRoom().withRcl(2).withTick(5000);
-        for (let i = 0; i < MAX_SITES_PER_ROOM; i++) full.withConstructionSite(STRUCTURE_ROAD, 1, i);
-        const plan = planConstruction(full.build(), baseMemory({ baseLayout: layout }));
-        expect(plan.intents).toEqual([]);
-        // Still records the plan, so it isn't retried every tick
+    test('caps sites per priority tier: lower-priority sites never block more important ones', () => {
+        const layout = {
+            2: [
+                ...Array.from({ length: 10 }, (_, i) => coord(20 + i, 20, STRUCTURE_EXTENSION)),
+                coord(5, 5, STRUCTURE_ROAD),
+            ],
+        };
+        // Old road sites fill the cap, but extensions are still placed (up to the cap).
+        const roads = aRoom().withRcl(2).withTick(5000);
+        for (let i = 0; i < MAX_SITES_PER_ROOM; i++) roads.withConstructionSite(STRUCTURE_ROAD, 1, i);
+        const plan = planConstruction(roads.build(), baseMemory({ baseLayout: layout }));
+        expect(plan.intents.map(i => i.structureType)).toEqual(Array(MAX_SITES_PER_ROOM).fill(STRUCTURE_EXTENSION));
         expect(plan.memoryUpdate.lastBaseLayoutPlanTick).toBe(5000);
+
+        // An existing extension site counts against the extensions' cap, and every site
+        // (all at least as important as a road) blocks the new road.
+        const oneExtension = aRoom().withRcl(2).withTick(5000).withConstructionSite(STRUCTURE_EXTENSION, 40, 40).build();
+        expect(planConstruction(oneExtension, baseMemory({ baseLayout: layout })).intents.map(i => i.structureType))
+            .toEqual(Array(MAX_SITES_PER_ROOM - 1).fill(STRUCTURE_EXTENSION));
+    });
+
+    test('places lower-priority sites when the more important ones leave room', () => {
+        const layout = { 2: [coord(20, 20, STRUCTURE_EXTENSION), coord(5, 5, STRUCTURE_ROAD), coord(6, 6, STRUCTURE_ROAD)] };
+        const room = aRoom().withRcl(3).withTick(5000).build();
+        expect(planConstruction(room, baseMemory({ baseLayout: layout })).intents.map(i => i.structureType))
+            .toEqual([STRUCTURE_EXTENSION, STRUCTURE_ROAD, STRUCTURE_ROAD]);
     });
 
     test('adds the controller container from RCL 2', () => {
