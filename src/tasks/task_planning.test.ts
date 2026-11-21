@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { chooseMiningMode, findContainerTile, planTasks, PlanTasksInput } from './task_planning';
+import { findContainerTile, planTasks, PlanTasksInput } from './task_planning';
 import { aRoom, RoomSnapshotBuilder } from 'testing/builders/room_snapshot_builder';
 import { aBaseMemory } from 'testing/builders/context';
 import { worldOf } from 'testing/builders/world';
@@ -26,35 +26,6 @@ function input(builder: RoomSnapshotBuilder, tasks: TaskMemory[] = [], overrides
 const creepsIn = (taskName: string, count: number): [string, MyCreepSnapshot[]] =>
     [taskName, aRoom().withMyCreep('c', 1, 1).build().creepsPresent.flatMap(c => Array(count).fill(c))];
 
-describe('chooseMiningMode', () => {
-    const mine = (name: string): TaskMemory => ({ name, roomName: 'W1N1', type: 'mine', sourceId: 's' as Id<Source> });
-
-    test('harvests until the room can afford a full miner', () => {
-        expect(chooseMiningMode(aRoom().withEnergy(300, 300).build(), [], new Map())).toBe('harvest');
-        expect(chooseMiningMode(aRoom().withEnergy(MINER_COST, MINER_COST).build(), [], new Map())).toBe('static');
-    });
-
-    test('stays static while a miner lives, even with little energy', () => {
-        const home = aRoom().withEnergy(0, 800).build();
-        expect(chooseMiningMode(home, [mine('m')], new Map([creepsIn('m', 1)]))).toBe('static');
-    });
-
-    test('falls back to harvesting on collapse: no miners and not enough energy for one', () => {
-        const home = aRoom().withEnergy(MINER_COST - 1, 800).build();
-        expect(chooseMiningMode(home, [mine('m')], new Map([creepsIn('m', 0)]))).toBe('harvest');
-    });
-
-    test('an already static base stays static if its capacity drops, while a miner lives', () => {
-        const home = aRoom().withEnergy(0, 300).build();
-        expect(chooseMiningMode(home, [mine('m')], new Map([creepsIn('m', 1)]))).toBe('static');
-    });
-
-    test('with no miners but enough energy, stays static (the miner spawns right away)', () => {
-        const home = aRoom().withEnergy(MINER_COST, 800).build();
-        expect(chooseMiningMode(home, [mine('m')], new Map())).toBe('static');
-    });
-});
-
 describe('findContainerTile', () => {
     test('finds the planned container next to the source', () => {
         const layout = {
@@ -70,13 +41,14 @@ describe('findContainerTile', () => {
 });
 
 describe('planTasks', () => {
-    test('a new low-capacity base gets harvest per source, upgrade, build (with sites) and repair', () => {
-        const i = input(aRoom().withRcl(1).withSource(10, 10).withSource(40, 40).withConstructionSite(STRUCTURE_ROAD, 5, 5));
+    test('a new base gets a mine task per source (with its container tile), upgrade, build (with sites) and repair', () => {
+        const baseMemory = aBaseMemory({ baseLayout: { 2: [basePlanObjToBasePlanCoordString({ x: 11, y: 11 }, STRUCTURE_CONTAINER)] } });
+        const i = input(aRoom().withRcl(1).withSource(10, 10).withSource(40, 40).withConstructionSite(STRUCTURE_ROAD, 5, 5), [], { baseMemory });
         expect(planTasks(i)).toEqual({
             remove: [],
             create: [
-                { type: 'harvest', sourceId: i.home.sources[0].id },
-                { type: 'harvest', sourceId: i.home.sources[1].id },
+                { type: 'mine', sourceId: i.home.sources[0].id, containerTile: { x: 11, y: 11 } },
+                { type: 'mine', sourceId: i.home.sources[1].id, containerTile: undefined },
                 { type: 'upgrade' },
                 { type: 'build' },
                 { type: 'repair' },
@@ -84,41 +56,26 @@ describe('planTasks', () => {
         });
     });
 
-    test('switches harvest to mine tasks (with container tiles) and adds a haul task once a miner is affordable', () => {
-        const builder = aRoom().withRcl(2).withEnergy(MINER_COST, MINER_COST).withSource(20, 20);
-        const sourceId = builder.build().sources[0].id;
+    test('adds a haul task once a source needs hauling: its container exists, or a miner works it', () => {
+        const sourceId = 'src1' as Id<Source>;
+        const base = () => aRoom().withRcl(2).withSource(20, 20, { id: sourceId });
         const tasks: TaskMemory[] = [
-            { name: 'h', roomName: 'W1N1', type: 'harvest', sourceId },
+            { name: 'm', roomName: 'W1N1', type: 'mine', sourceId, containerTile: { x: 21, y: 21 } },
             { name: 'u', roomName: 'W1N1', type: 'upgrade' },
             { name: 'r', roomName: 'W1N1', type: 'repair' },
             { name: 's', roomName: 'W1N1', type: 'scout' },
         ];
-        const baseMemory = aBaseMemory({ baseLayout: { 2: [basePlanObjToBasePlanCoordString({ x: 21, y: 21 }, STRUCTURE_CONTAINER)] } });
-
-        expect(planTasks(input(builder, tasks, { baseMemory }))).toEqual({
-            remove: ['h'],
-            create: [{ type: 'mine', sourceId, containerTile: { x: 21, y: 21 } }, { type: 'haul' }],
-        });
-    });
-
-    test('on collapse, switches mine tasks back to harvest but keeps the haul task', () => {
-        const builder = aRoom().withRcl(3).withEnergy(100, 800).withSource(20, 20);
-        const sourceId = builder.build().sources[0].id;
-        const tasks: TaskMemory[] = [
-            { name: 'm', roomName: 'W1N1', type: 'mine', sourceId },
-            { name: 'haul', roomName: 'W1N1', type: 'haul' },
-            { name: 'u', roomName: 'W1N1', type: 'upgrade' },
-            { name: 'r', roomName: 'W1N1', type: 'repair' },
-            { name: 's', roomName: 'W1N1', type: 'scout' },
-        ];
-        expect(planTasks(input(builder, tasks))).toEqual({ remove: ['m'], create: [{ type: 'harvest', sourceId }] });
+        expect(planTasks(input(base(), tasks)).create).toEqual([]);
+        expect(planTasks(input(base().withStructure(STRUCTURE_CONTAINER, 21, 21, { owner: 'none' }), tasks)).create).toEqual([{ type: 'haul' }]);
+        const miner = { memory: { taskName: 'm', baseRoomName: 'W1N1' }, activeParts: { [WORK]: 5, [MOVE]: 1 } };
+        expect(planTasks(input(base().withMyCreep('miner', 21, 21, miner), tasks)).create).toEqual([{ type: 'haul' }]);
     });
 
     test('creates nothing that already exists', () => {
         const builder = aRoom().withRcl(1).withSource(10, 10).withConstructionSite(STRUCTURE_ROAD, 5, 5);
         const sourceId = builder.build().sources[0].id;
         const existing: TaskMemory[] = [
-            { name: 'h', roomName: 'W1N1', type: 'harvest', sourceId },
+            { name: 'h', roomName: 'W1N1', type: 'mine', sourceId },
             { name: 'u', roomName: 'W1N1', type: 'upgrade' },
             { name: 'b', roomName: 'W1N1', type: 'build' },
             { name: 'r', roomName: 'W1N1', type: 'repair' },

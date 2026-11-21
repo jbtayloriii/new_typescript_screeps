@@ -97,6 +97,7 @@ export class RoomSnapshotBuilder {
             pos: this.pos(x, y),
             energy: 3000,
             energyCapacity: 3000,
+            openSpots: 8,
             ...overrides,
         });
         return this;

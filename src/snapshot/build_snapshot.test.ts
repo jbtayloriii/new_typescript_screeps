@@ -1,6 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
 import { mockInstanceOf, mockStructure } from 'screeps-jest';
-import { buildRoomSnapshot } from './build_snapshot';
+import { buildRoomSnapshot, countOpenSpots } from './build_snapshot';
 
 const pos = (x: number, y: number) => ({ x, y, roomName: 'W1N1' });
 const store = (energy: number, capacity: number) => ({ [RESOURCE_ENERGY]: energy, getCapacity: () => capacity, getFreeCapacity: () => capacity - energy });
@@ -12,6 +12,8 @@ function mockRoom(found: { [findType: number]: unknown[] }, controller?: Structu
         energyCapacityAvailable: 300,
         controller,
         find: ((type: number) => found[type] ?? []) as Room['find'],
+        // A wall column at x = 4, next to the test source at (5, 5)
+        getTerrain: () => ({ get: (x: number) => x === 4 ? TERRAIN_MASK_WALL : 0 }),
     });
 }
 
@@ -72,7 +74,7 @@ describe('buildRoomSnapshot', () => {
 
         const snapshot = buildRoomSnapshot(mockRoom({ [FIND_SOURCES]: [source], [FIND_MY_CONSTRUCTION_SITES]: [site] }), 1);
 
-        expect(snapshot.sources).toEqual([{ id: 'src', pos: pos(5, 5), energy: 1000, energyCapacity: 3000 }]);
+        expect(snapshot.sources).toEqual([{ id: 'src', pos: pos(5, 5), energy: 1000, energyCapacity: 3000, openSpots: 5 }]);
         expect(snapshot.constructionSites).toEqual([
             { id: 'site', structureType: STRUCTURE_EXTENSION, pos: pos(6, 6), progress: 5, progressTotal: 3000 },
         ]);
@@ -129,4 +131,11 @@ describe('buildRoomSnapshot', () => {
         const snapshot = buildRoomSnapshot(mockRoom({ [FIND_SOURCES]: [source] }), 1);
         expect(JSON.parse(JSON.stringify(snapshot))).toEqual(snapshot);
     });
+
+    test('countOpenSpots skips walls, the center and tiles outside the room', () => {
+        expect(countOpenSpots({ x: 10, y: 10 }, () => false)).toBe(8);
+        expect(countOpenSpots({ x: 0, y: 0 }, () => false)).toBe(3);
+        expect(countOpenSpots({ x: 10, y: 10 }, (x, y) => !(x === 11 && y === 11))).toBe(1);
+    });
 });
+

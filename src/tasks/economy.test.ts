@@ -10,7 +10,7 @@ const creep = (parts: Partial<Record<BodyPartConstant, number>>, extra: Partial<
 describe('computeEconomy', () => {
     const tasks: TaskMemory[] = [
         { name: 'm', roomName: 'W1N1', type: 'mine', sourceId: 'a' as Id<Source> },
-        { name: 'h', roomName: 'W1N1', type: 'harvest', sourceId: 'b' as Id<Source> },
+        { name: 'h', roomName: 'W1N1', type: 'mine', sourceId: 'b' as Id<Source> },
         { name: 'u', roomName: 'W1N1', type: 'upgrade' },
     ];
 

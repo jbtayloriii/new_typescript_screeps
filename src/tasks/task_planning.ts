@@ -3,9 +3,9 @@ import { getRange } from "snapshot/queries";
 import { MyCreepSnapshot, Pos, RoomSnapshot } from "snapshot/types";
 import { WorldSnapshot } from "snapshot/world";
 import { basePlanCoordToBuildingObj } from "utils/string_utils";
-import { MINER_COST } from "./mine_task";
+import { needsHauling } from "./mine_task";
 import { Directive } from "directives/types";
-import { TaskMemory, TaskSpec } from "./types";
+import { MineTaskMemory, TaskMemory, TaskSpec } from "./types";
 
 export interface PlanTasksInput {
     readonly world: WorldSnapshot;
@@ -24,30 +24,6 @@ export interface TaskChanges {
     readonly create: readonly TaskSpec[];
 }
 
-/**
- * How the base mines its own sources:
- * - 'static' (mine + haul tasks) once the room can afford a full miner.
- * - 'harvest' (walking harvesters) while bootstrapping, and on collapse: no living miner and not
- *   enough energy to spawn one. Haulers alone don't count, since they can't produce energy.
- * A base already mining statically stays static until collapse, even if its capacity drops (e.g.
- * extensions destroyed): leaving early would orphan miners that no other task can use. Whether
- * containers exist is deliberately not part of this either, so losing one never flips modes.
- */
-export function chooseMiningMode(
-    home: RoomSnapshot,
-    tasks: readonly TaskMemory[],
-    creepsByTask: ReadonlyMap<string, readonly MyCreepSnapshot[]>): 'harvest' | 'static' {
-    const alreadyStatic = tasks.some(t => t.type === 'mine');
-    if (!alreadyStatic && home.energyCapacityAvailable < MINER_COST) {
-        return 'harvest';
-    }
-    const livingMiners = tasks
-        .filter(t => t.type === 'mine')
-        .reduce((sum, t) => sum + (creepsByTask.get(t.name)?.length ?? 0), 0);
-    const collapsed = livingMiners === 0 && home.energyAvailable < MINER_COST;
-    return collapsed ? 'harvest' : 'static';
-}
-
 /** The base layout's planned container next to a source (where its miner should stand). */
 export function findContainerTile(baseLayout: BaseMemory['baseLayout'], source: Pos): { x: number, y: number } | undefined {
     for (const coords of Object.values(baseLayout)) {
@@ -63,8 +39,9 @@ export function findContainerTile(baseLayout: BaseMemory['baseLayout'], source: 
 
 /**
  * Decides which tasks the base should add or drop:
- * - Per source: a mine task in static mode, or a harvest task in harvest mode (dropping the other).
- * - A haul task once there are mine tasks (kept afterwards, so existing haulers keep working).
+ * - A mine task per source (it adapts from harvesters to a static miner by itself).
+ * - A haul task once any source needs hauling: it has a container, or a miner works it (kept
+ *   afterwards, so existing haulers keep working).
  * - Upgrade while the controller is mine; build while there are sites; repair always.
  * - A routine scout from RCL 2.
  * - One task per active directive assigned to the base; tasks whose directive ended are dropped.
@@ -75,24 +52,14 @@ export function planTasks(input: PlanTasksInput): TaskChanges {
     const remove: string[] = [];
     const create: TaskSpec[] = [];
     const has = (type: TaskMemory['type']) => tasks.some(t => t.type === type);
-    const mode = chooseMiningMode(home, tasks, input.creepsByTask);
 
     for (const source of home.sources) {
-        const forSource = (type: 'mine' | 'harvest') =>
-            tasks.find(t => t.type === type && t.sourceId === source.id);
-        const keep = mode === 'static' ? 'mine' : 'harvest';
-        const drop = mode === 'static' ? 'harvest' : 'mine';
-        const old = forSource(drop);
-        if (old) {
-            remove.push(old.name);
-        }
-        if (!forSource(keep)) {
-            create.push(keep === 'mine'
-                ? { type: 'mine', sourceId: source.id, containerTile: findContainerTile(input.baseMemory.baseLayout, source.pos) }
-                : { type: 'harvest', sourceId: source.id });
+        if (!tasks.some(t => t.type === 'mine' && t.sourceId === source.id)) {
+            create.push({ type: 'mine', sourceId: source.id, containerTile: findContainerTile(input.baseMemory.baseLayout, source.pos) });
         }
     }
-    if (mode === 'static' && !has('haul')) {
+    const mines = tasks.filter((t): t is MineTaskMemory => t.type === 'mine');
+    if (!has('haul') && mines.some(t => needsHauling(t, home))) {
         create.push({ type: 'haul' });
     }
     if (home.controller?.my && !has('upgrade')) {

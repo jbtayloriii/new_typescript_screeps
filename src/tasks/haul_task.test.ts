@@ -10,30 +10,43 @@ const hauler = (extra: Partial<CreepMemory> = {}) =>
 const task = { name: 'haul', roomName: 'W1N1', type: 'haul' as const };
 
 describe('desiredHaulerCount', () => {
-    test('scales with mine count and distance, and with hauler size', () => {
-        const home = aRoom().withEnergy(800, 800).build();
-        const mine = (id: string): TaskMemory => ({ name: id, roomName: 'W1N1', type: 'mine', sourceId: id as Id<Source> });
+    // Two sources whose containers exist, so both need hauling.
+    const home = aRoom().withEnergy(800, 800)
+        .withSource(10, 10, { id: 'a' as Id<Source> }).withSource(40, 40, { id: 'b' as Id<Source> })
+        .withStructure(STRUCTURE_CONTAINER, 11, 11, { owner: 'none' })
+        .withStructure(STRUCTURE_CONTAINER, 41, 41, { owner: 'none' })
+        .build();
+    const mine = (id: string, x: number): TaskMemory =>
+        ({ name: id, roomName: 'W1N1', type: 'mine', sourceId: id as Id<Source>, containerTile: { x, y: x } });
+
+    test('scales with the sources that need hauling, their distance, and hauler size', () => {
         const ctx = (distance: number, capacity = 800) => aTaskContext({ ...home, energyCapacityAvailable: capacity }, {
-            baseTasks: [mine('a'), mine('b')],
+            baseTasks: [mine('a', 11), mine('b', 41)],
             baseMemory: aBaseMemory({ sourceDistances: { a: distance, b: distance } }),
         });
         // 800 capacity → 8 CARRY per hauler. Distance 20: (2×20+4)×10/50 = 9 CARRY per source → 18 → 3 haulers.
         expect(desiredHaulerCount(ctx(20))).toBe(3);
         expect(desiredHaulerCount(ctx(5))).toBe(1);
-        // Capped at 2 per mine + 1
+        // Capped at 2 per source + 1
         expect(desiredHaulerCount(ctx(20, 200))).toBe(5);
     });
 
-    test('is zero without mine tasks', () => {
+    test('ignores sources whose harvesters still walk their energy home', () => {
+        const noContainers = aRoom().withEnergy(800, 800).withSource(10, 10, { id: 'a' as Id<Source> }).build();
+        expect(desiredHaulerCount(aTaskContext(noContainers, { baseTasks: [mine('a', 11)] }))).toBe(0);
         expect(desiredHaulerCount(aTaskContext(aRoom().build()))).toBe(0);
     });
 });
 
 describe('haulTask.getSpawnRequests', () => {
     test('the first hauler is urgent and high priority', () => {
-        const home = aRoom().withEnergy(800, 800).build();
-        const ctx = aTaskContext(home, { baseTasks: [{ name: 'm', roomName: 'W1N1', type: 'mine', sourceId: 's' as Id<Source> }] });
+        const ctx = aTaskContext(home(), { baseTasks: [{ name: 'm', roomName: 'W1N1', type: 'mine', sourceId: 'a' as Id<Source>, containerTile: { x: 11, y: 11 } }] });
         expect(haulTask.getSpawnRequests(task, ctx)[0]).toMatchObject({ priority: FIRST_HAULER_PRIORITY, urgent: true });
+
+        function home() {
+            return aRoom().withEnergy(800, 800).withSource(10, 10, { id: 'a' as Id<Source> })
+                .withStructure(STRUCTURE_CONTAINER, 11, 11, { owner: 'none' }).build();
+        }
     });
 });
 

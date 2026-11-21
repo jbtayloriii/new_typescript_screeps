@@ -134,20 +134,24 @@ base room.
       the mine task. A missing container (with no site) gets a site from the mine task right away.
 - [x] Replacement miners spawn early (`ticksToLive` < spawn time + walk time, using the measured
       path length). The replacement mines from beside the tile while the old miner holds it.
-- [x] Mode switching (`chooseMiningMode`): harvest → mine once a 550-energy miner is affordable;
-      mine → harvest only on collapse. **Changed from the plan:** collapse is "no living *miner*
-      and not enough energy for one" (haulers alone can't produce energy, so counting them could
-      deadlock). Also, a base already mining statically stays static if its capacity drops, so
-      miners are never orphaned and recycled.
-- [x] `harvest` stays as the bootstrap; `droppedResources` added to the snapshot.
+- [x] ~~Mode switching between separate `harvest` and `mine` tasks.~~ **Replaced (after phase 4):**
+      one `mine` task per source for its whole life. It runs harvesters (never more than the
+      source's open tiles) until a 550-energy miner is affordable, then the miner, and releases the
+      harvesters to become haulers. Once the source's container exists and the base has a hauler,
+      a harvester parks on the container and keeps harvesting into it. On collapse (nobody at the
+      source, not enough energy for a miner) it requests one urgent harvester. This removed the
+      task churn at the switch, and the crowding when sources have few open tiles.
+- [x] `droppedResources` and source `openSpots` added to the snapshot. Workers only harvest at a
+      source with a free tile (creeps next to it or heading there take tiles), otherwise wait.
 
 **2. Hauling**
 - [x] `haul` task: collects from mine containers and dropped energy (claim-aware, so haulers
       spread out), delivers to spawns/extensions → towers → controller container → storage.
 - [x] Hauler count from measured spawn → source path lengths (`base/survey.ts`, saved in
       `BaseMemory.sourceDistances`), capped at 2 per mine + 1.
-- [x] Leftover harvesters fill haul requests at the switch. Adoption now checks the request's
-      minimal body, so a small harvester can't be adopted as a miner.
+- [x] The haul task starts once any source has a container or a miner, and only counts those
+      sources. Released harvesters fill haul requests. Adoption checks the request's minimal
+      body, so a small harvester can't be adopted as a miner.
 
 **3. Size everything else to income**
 - [x] `computeEconomy`: income from miners/harvesters/remote miners, upkeep of non-upgraders.

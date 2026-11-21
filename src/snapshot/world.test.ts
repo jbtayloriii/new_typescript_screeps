@@ -5,6 +5,7 @@ import { createWorldSnapshot } from './world';
 function mockRoom(name: string): Room {
     return mockInstanceOf<Room>({
         name, energyAvailable: 0, energyCapacityAvailable: 0, controller: undefined, find: () => [],
+        getTerrain: () => ({ get: () => 0 }),
     });
 }
 

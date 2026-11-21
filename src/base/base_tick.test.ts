@@ -22,7 +22,7 @@ describe('reconcileTasks', () => {
     test('creates the starting tasks for a new base', () => {
         const changes = reconcileTasks(input(aRoom().withRcl(1).withSource(20, 20).withSpawn(10, 10), []));
         expect(changes.remove).toEqual([]);
-        expect(changes.create.map(s => s.type)).toEqual(['harvest', 'upgrade', 'repair']);
+        expect(changes.create.map(s => s.type)).toEqual(['mine', 'upgrade', 'repair']);
     });
 
     test('removes finished and unknown tasks', () => {
@@ -39,7 +39,7 @@ describe('reconcileTasks', () => {
 
 describe('decideBaseIntents', () => {
     const tasks = (sourceId: Id<Source>): TaskMemory[] => [
-        { name: 'h', roomName: 'W1N1', type: 'harvest', sourceId },
+        { name: 'h', roomName: 'W1N1', type: 'mine', sourceId },
         { name: 'u', roomName: 'W1N1', type: 'upgrade' },
     ];
 
@@ -84,30 +84,35 @@ describe('decideBaseIntents', () => {
     });
 });
 
-describe('switching to static mining', () => {
-    test('harvesters become haulers and a miner spawns', () => {
-        const builder = aRoom().withRcl(2).withEnergy(550, 550).withSource(20, 20).withSpawn(10, 10, { energy: 300 })
-            .withMyCreep('h1', 19, 19, member('h'));
-        const sourceId = builder.build().sources[0].id;
+describe('a source growing from harvesters to a miner', () => {
+    const miner = { memory: { taskName: 'm', baseRoomName: 'W1N1' }, activeParts: { [WORK]: 5, [MOVE]: 1 } };
+
+    test('once a miner is affordable it spawns; once it works, the harvester is released and becomes a hauler', () => {
+        const sourceId = 'src1' as Id<Source>;
+        const builder = () => aRoom().withRcl(2).withEnergy(550, 550).withSource(20, 20, { id: sourceId }).withSpawn(10, 10, { energy: 300 })
+            .withMyCreep('h1', 19, 19, member('m'));
         const tasks: TaskMemory[] = [
-            { name: 'h', roomName: 'W1N1', type: 'harvest', sourceId },
-            { name: 'u', roomName: 'W1N1', type: 'upgrade' },
-        ];
-        const i = input(builder, tasks);
-
-        const changes = reconcileTasks(i);
-        expect(changes.remove).toEqual(['h']);
-        expect(changes.create.map(s => s.type)).toEqual(expect.arrayContaining(['mine', 'haul']));
-
-        // After the changes are applied: the harvester is an orphan and fills the haul request.
-        const after: TaskMemory[] = [
             { name: 'm', roomName: 'W1N1', type: 'mine', sourceId },
-            { name: 'haul', roomName: 'W1N1', type: 'haul' },
             { name: 'u', roomName: 'W1N1', type: 'upgrade' },
         ];
-        const plan = decideBaseIntents({ ...i, tasks: after });
-        expect(plan.intents).toContainEqual(expect.objectContaining({ kind: 'setCreepMemory', creepName: 'h1', patch: expect.objectContaining({ taskName: 'haul' }) }));
-        expect(plan.intents).toContainEqual(expect.objectContaining({ kind: 'spawn', memory: expect.objectContaining({ taskName: 'm' }) }));
+
+        // 1. The harvester keeps working while the miner spawns.
+        const first = decideBaseIntents(input(builder(), tasks));
+        expect(first.intents).toContainEqual(expect.objectContaining({ kind: 'spawn', body: [WORK, WORK, WORK, WORK, WORK, MOVE], memory: expect.objectContaining({ taskName: 'm' }) }));
+        expect(first.intents).toContainEqual({ kind: 'harvest', creepName: 'h1', targetId: sourceId });
+
+        // 2. The miner works: the harvester is released, and a haul task is needed.
+        const withMiner = input(builder().withMyCreep('miner', 21, 21, miner), tasks);
+        expect(decideBaseIntents(withMiner).intents).toContainEqual({ kind: 'setCreepMemory', creepName: 'h1', patch: { taskName: '' } });
+        expect(reconcileTasks(withMiner).create).toContainEqual({ type: 'haul' });
+
+        // 3. The released harvester is adopted as a hauler.
+        const released = input(aRoom().withRcl(2).withEnergy(550, 550).withSource(20, 20, { id: sourceId }).withSpawn(10, 10, { energy: 300 })
+            .withMyCreep('h1', 19, 19, member('')).withMyCreep('miner', 21, 21, miner),
+            [...tasks, { name: 'haul', roomName: 'W1N1', type: 'haul' }]);
+        expect(decideBaseIntents(released).intents).toContainEqual(expect.objectContaining({
+            kind: 'setCreepMemory', creepName: 'h1', patch: expect.objectContaining({ taskName: 'haul' }),
+        }));
     });
 });
 

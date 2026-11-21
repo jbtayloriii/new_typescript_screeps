@@ -14,7 +14,7 @@ import { DirectiveMap } from "directives/types";
  * `memory.taskName` matches.
  */
 
-export type TaskType = 'harvest' | 'mine' | 'haul' | 'upgrade' | 'build' | 'repair' | 'scout' | 'remoteMine' | 'claim';
+export type TaskType = 'mine' | 'haul' | 'upgrade' | 'build' | 'repair' | 'scout' | 'remoteMine' | 'claim';
 
 interface TaskMemoryBase {
     /** Unique name, e.g. "W1N1_harvest_3". Creeps refer to their task by this name. */
@@ -23,16 +23,14 @@ interface TaskMemoryBase {
     readonly roomName: RoomName;
 }
 
-export interface HarvestTaskMemory extends TaskMemoryBase {
-    readonly type: 'harvest';
-    readonly sourceId: Id<Source>;
-}
-
-/** Static mining: one miner parked next to a source (on its container tile, if known). */
+/**
+ * One of the base's own sources: harvesters while the base is small, then a static miner (see
+ * `tasks/mine_task.ts`). Replaced the separate 'harvest' task type; old ones are dropped as unknown.
+ */
 export interface MineTaskMemory extends TaskMemoryBase {
     readonly type: 'mine';
     readonly sourceId: Id<Source>;
-    /** Where the miner stands and the source's container goes. In the source's room. */
+    /** Where the miner (or parked harvester) stands and the source's container goes. In the source's room. */
     readonly containerTile?: { readonly x: number; readonly y: number };
 }
 
@@ -79,7 +77,6 @@ export interface RepairTaskMemory extends TaskMemoryBase {
 }
 
 export type TaskMemory =
-    | HarvestTaskMemory
     | MineTaskMemory
     | HaulTaskMemory
     | UpgradeTaskMemory
@@ -121,7 +118,7 @@ export interface SpawnRequest {
 
 /** Base-wide economy numbers, computed once per tick (see `tasks/economy.ts`). */
 export interface EconomySummary {
-    /** 'static' once the base runs mine + haul tasks; 'harvest' while bootstrapping. */
+    /** 'static' once a miner (no CARRY) works one of the base's sources; 'harvest' before that. */
     readonly mode: 'harvest' | 'static';
     /** Estimated energy brought in per tick. */
     readonly incomePerTick: number;

@@ -42,12 +42,14 @@ export function computeEconomy(
     for (const task of tasks) {
         const creeps = creepsByTask.get(task.name) ?? [];
         switch (task.type) {
-            case 'mine':
-                income += Math.min(OWNED_SOURCE_ENERGY_PER_TICK, HARVEST_POWER * work(creeps));
+            case 'mine': {
+                // Miners harvest all the time; harvesters (with CARRY) spend about half their time walking.
+                const miners = creeps.filter(c => (c.activeParts[CARRY] ?? 0) === 0);
+                const harvesters = creeps.filter(c => (c.activeParts[CARRY] ?? 0) > 0);
+                income += Math.min(OWNED_SOURCE_ENERGY_PER_TICK,
+                    HARVEST_POWER * (work(miners) + work(harvesters) * HARVESTER_DUTY_CYCLE));
                 break;
-            case 'harvest':
-                income += Math.min(OWNED_SOURCE_ENERGY_PER_TICK, HARVEST_POWER * work(creeps) * HARVESTER_DUTY_CYCLE);
-                break;
+            }
             case 'remoteMine':
                 for (const miner of creeps.filter(c => c.memory.role === 'miner')) {
                     income += Math.min(REMOTE_SOURCE_ENERGY_PER_TICK, HARVEST_POWER * work([miner]));
@@ -59,7 +61,8 @@ export function computeEconomy(
         }
     }
     return {
-        mode: tasks.some(t => t.type === 'mine') ? 'static' : 'harvest',
+        mode: tasks.some(t => t.type === 'mine'
+            && (creepsByTask.get(t.name) ?? []).some(c => (c.activeParts[CARRY] ?? 0) === 0)) ? 'static' : 'harvest',
         incomePerTick: income,
         upkeepPerTick: upkeep,
     };

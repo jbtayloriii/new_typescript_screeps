@@ -46,7 +46,7 @@ function contextFor(input: BaseTickInput, economy: EconomySummary, creeps: reado
 
 /**
  * Decides which tasks to remove and create: finished or unknown tasks go, then `planTasks` adds
- * missing ones and switches mining modes (see `chooseMiningMode`).
+ * missing ones (see `planTasks`).
  */
 export function reconcileTasks(input: BaseTickInput): TaskChanges {
     const { byTask } = groupCreepsByTask(input.creeps, input.tasks.map(t => t.name));

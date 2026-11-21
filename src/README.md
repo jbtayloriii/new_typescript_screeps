@@ -50,9 +50,8 @@ The empire is split into these pieces:
 
   | Task | Creeps | What they do |
   |---|---|---|
-  | `harvest` (one per source, bootstrap) | 2, first one urgent | harvest their source, deliver energy; upgrade if everything is full |
-  | `mine` (one per source, static) | 1 miner (`5×WORK + MOVE`), replaced early before it dies | stand on the source's container tile and harvest; drop mine without a container, and place its site right away |
-  | `haul` | sized to mine count × path distance | collect from mine containers and dropped energy; deliver |
+  | `mine` (one per source) | harvesters (at most 2, never more than the source's open tiles), then 1 miner (`5×WORK + MOVE`) once affordable, replaced early | see "Mining" below |
+  | `haul` (once a source has a container or a miner) | sized to those sources × path distance | collect from source containers and dropped energy; deliver |
   | `upgrade` | WORK parts sized to spare income (+ storage bonus), at least 1 | gather energy, upgrade the controller |
   | `build` (while there are sites) | 1–3, by remaining work | gather energy, build the closest site; done when none are left |
   | `repair` | 1 | repair critical structures, then damaged ones, then the weakest wall/rampart below its RCL target; else upgrade |
@@ -62,16 +61,23 @@ The empire is split into these pieces:
   | `claim` (one per claim directive) | a claimer, then 2 pioneers | claim the controller, then build the first spawn |
 
   "Gather energy" means: ruins, then storage, then the controller container, then other
-  containers, then harvesting the least crowded source. "Deliver" means: spawns and extensions,
+  containers, then harvesting the source with the most free tiles. A source's tiles are taken by
+  creeps next to it or heading to it; if every source is full, the creep waits rather than
+  crowding in. "Deliver" means: spawns and extensions,
   then towers, then the controller container, then storage.
 
-  **Mining modes** (`chooseMiningMode` in [tasks/task_planning.ts](tasks/task_planning.ts)): a
-  base starts with `harvest` tasks and switches each source to a `mine` task (plus one `haul`
-  task) once it can afford a full miner (550 energy). Leftover harvesters are adopted as haulers.
-  It only goes back to `harvest` on collapse: no living miner and not enough energy for one.
-  Containers aren't part of the decision, so losing one never flips modes.
+  **Mining** ([tasks/mine_task.ts](tasks/mine_task.ts)): each source has one `mine` task for its
+  whole life, which adapts as the base grows:
+  - Before a miner is affordable (< 550 energy capacity): harvesters that harvest and walk the
+    energy back. Once the source's container exists (placed from RCL 2) and the base has a
+    hauler, one harvester parks on the container and keeps harvesting: when it's full, the extra
+    drops into the container under it.
+  - Once a miner is affordable: one miner on the container tile (drop mining without one). When
+    the miner is working, the task releases its harvesters, which are adopted as haulers.
+  - On collapse (nobody at the source and not enough energy for a miner): one urgent harvester
+    to recover with.
 
-  **Remote rooms** ([tasks/remote_selection.ts](tasks/remote_selection.ts)): in static mode with
+  **Remote rooms** ([tasks/remote_selection.ts](tasks/remote_selection.ts)): once a miner works one of the base's sources, with
   ≥ 800 energy capacity (2 rooms from 1300), the empire planner picks adjacent rooms from intel
   that are unowned, not reserved by others, without source keepers and without recent hostiles,
   and creates automatic remote-mining directives for them. Manual remote directives count

@@ -66,11 +66,17 @@ export class Headquarters {
     this.bases.forEach((base, roomName) => base.tick(world, byBase.get(roomName) ?? []));
   }
 
+  /** True once a miner (a mine task creep without CARRY) works one of the base's sources. */
+  private hasMiner(world: WorldSnapshot, roomName: RoomName): boolean {
+    const mineTasks = new Set((Memory.tasks[roomName] ?? []).filter(t => t.type === 'mine').map(t => t.name));
+    return world.myCreeps.some(c => mineTasks.has(c.memory.taskName) && (c.activeParts[CARRY] ?? 0) === 0);
+  }
+
   private summarizeBases(world: WorldSnapshot): BaseSummary[] {
     return [...this.bases.keys()].map(roomName => ({
       roomName,
       energyCapacity: world.getRoom(roomName)?.energyCapacityAvailable ?? 0,
-      staticMining: (Memory.tasks[roomName] ?? []).some(t => t.type === 'mine'),
+      staticMining: this.hasMiner(world, roomName),
     }));
   }
 

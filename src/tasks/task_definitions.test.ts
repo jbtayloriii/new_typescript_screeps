@@ -1,7 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
 import { aRoom, energy, RoomSnapshotBuilder } from 'testing/builders/room_snapshot_builder';
 import { aTaskContext } from 'testing/builders/context';
-import { harvestTask, HARVESTERS_PER_SOURCE, HARVEST_PRIORITY } from './harvest_task';
 import { upgradeTask, MAX_UPGRADERS, FIRST_UPGRADER_PRIORITY } from './upgrade_task';
 import { buildTask, BUILD_PRIORITY } from './build_task';
 import { repairTask, REPAIR_PRIORITY } from './repair_task';
@@ -15,44 +14,6 @@ function ctx(builder: RoomSnapshotBuilder): TaskContext {
 
 const member = (taskName: string, extra: Partial<CreepMemory> = {}) =>
     ({ memory: { taskName, baseRoomName: 'W1N1', ...extra } });
-
-describe('harvestTask', () => {
-    const room = () => aRoom().withSource(20, 20).withSpawn(10, 10, { energy: 0 });
-    const task = (sourceId: Id<Source>) => ({ name: 'h', roomName: 'W1N1', type: 'harvest' as const, sourceId });
-
-    test('requests harvesters up to the per-source limit, the first urgent', () => {
-        const c = ctx(room());
-        const requests = harvestTask.getSpawnRequests(task(c.home.sources[0].id), c);
-
-        expect(requests).toHaveLength(HARVESTERS_PER_SOURCE);
-        expect(requests[0]).toMatchObject({ taskName: 'h', priority: HARVEST_PRIORITY, urgent: true });
-        expect(requests[1]).toMatchObject({ urgent: false });
-        expect(requests[1].priority).toBeLessThan(requests[0].priority);
-    });
-
-    test('counts existing creeps, including spawning ones', () => {
-        const c = ctx(room().withMyCreep('a', 1, 1, member('h')).withMyCreep('b', 1, 1, { ...member('h'), spawning: true }));
-        expect(harvestTask.getSpawnRequests(task(c.home.sources[0].id), c)).toEqual([]);
-    });
-
-    test('harvests its own source, then delivers to the spawn', () => {
-        const c = ctx(room()
-            .withMyCreep('gatherer', 19, 19, member('h', { state: WorkerState.GATHERING }))
-            .withMyCreep('carrier', 11, 11, { ...member('h', { state: WorkerState.WORKING }), store: energy(50) }));
-        const t = task(c.home.sources[0].id);
-
-        const intents = harvestTask.decide(t, c);
-
-        expect(intents).toContainEqual({ kind: 'harvest', creepName: 'gatherer', targetId: t.sourceId });
-        expect(intents).toContainEqual({ kind: 'transfer', creepName: 'carrier', targetId: c.home.structures[0].id, resource: RESOURCE_ENERGY });
-    });
-
-    test('is done only when its source is gone', () => {
-        const c = ctx(room());
-        expect(harvestTask.isDone(task(c.home.sources[0].id), c)).toBe(false);
-        expect(harvestTask.isDone(task('missing' as Id<Source>), c)).toBe(true);
-    });
-});
 
 describe('upgradeTask', () => {
     const task = { name: 'u', roomName: 'W1N1', type: 'upgrade' as const };

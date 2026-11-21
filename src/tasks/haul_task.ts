@@ -3,9 +3,9 @@ import { MyCreepSnapshot, Pos } from "snapshot/types";
 import { buildBody } from "spawning/body";
 import { actOrApproach } from "intents/helpers";
 import { Behavior, deliverEnergy, isControllerContainer, runWorker, WorkerState } from "./behaviors";
-import { DEFAULT_SOURCE_DISTANCE } from "./mine_task";
+import { DEFAULT_SOURCE_DISTANCE, needsHauling } from "./mine_task";
 import { OWNED_SOURCE_ENERGY_PER_TICK } from "./economy";
-import { BodyPattern, HaulTaskMemory, SpawnRequest, TaskContext, TaskDefinition } from "./types";
+import { BodyPattern, HaulTaskMemory, MineTaskMemory, SpawnRequest, TaskContext, TaskDefinition } from "./types";
 
 export const HAULER_BODY: BodyPattern = { pattern: [CARRY, MOVE], maxRepeats: 16 };
 
@@ -24,15 +24,14 @@ const TRIP_OVERHEAD_TICKS = 4;
  * one round trip, divided by one hauler's capacity (sized to the room's energy capacity).
  */
 export function desiredHaulerCount(ctx: TaskContext): number {
-    const mines = ctx.baseTasks.filter(t => t.type === 'mine');
+    // Only sources whose energy waits to be collected: harvesters still walking theirs home don't count.
+    const mines = ctx.baseTasks.filter((t): t is MineTaskMemory => t.type === 'mine' && needsHauling(t, ctx.home));
     if (mines.length === 0) {
         return 0;
     }
     let carryNeeded = 0;
     for (const mine of mines) {
-        const distance = mine.type === 'mine'
-            ? ctx.baseMemory.sourceDistances?.[mine.sourceId] ?? DEFAULT_SOURCE_DISTANCE
-            : DEFAULT_SOURCE_DISTANCE;
+        const distance = ctx.baseMemory.sourceDistances?.[mine.sourceId] ?? DEFAULT_SOURCE_DISTANCE;
         const roundTrip = 2 * distance + TRIP_OVERHEAD_TICKS;
         carryNeeded += Math.ceil(roundTrip * OWNED_SOURCE_ENERGY_PER_TICK / CARRY_CAPACITY);
     }

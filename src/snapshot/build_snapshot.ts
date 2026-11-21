@@ -28,7 +28,7 @@ export function buildRoomSnapshot(room: Room, tick: number = Game.time): RoomSna
         controller: room.controller ? toControllerSnapshot(room.controller) : null,
         energyAvailable: room.energyAvailable,
         energyCapacityAvailable: room.energyCapacityAvailable,
-        sources: room.find(FIND_SOURCES).map(toSourceSnapshot),
+        sources: room.find(FIND_SOURCES).map(source => toSourceSnapshot(source, room.getTerrain())),
         // The controller is a structure, but is exposed separately as `controller`.
         structures: room.find(FIND_STRUCTURES)
             .filter(s => s.structureType !== STRUCTURE_CONTROLLER)
@@ -68,13 +68,27 @@ function toDroppedResourceSnapshot(resource: Resource): DroppedResourceSnapshot 
     return { id: resource.id, pos: toPos(resource.pos), resourceType: resource.resourceType, amount: resource.amount };
 }
 
-function toSourceSnapshot(source: Source): SourceSnapshot {
+function toSourceSnapshot(source: Source, terrain: RoomTerrain): SourceSnapshot {
     return {
         id: source.id,
         pos: toPos(source.pos),
         energy: source.energy,
         energyCapacity: source.energyCapacity,
+        openSpots: countOpenSpots(source.pos, (x, y) => terrain.get(x, y) === TERRAIN_MASK_WALL),
     };
+}
+
+/** Non-wall tiles around a position, inside the room. */
+export function countOpenSpots(pos: { x: number, y: number }, isWall: (x: number, y: number) => boolean): number {
+    let open = 0;
+    for (let y = pos.y - 1; y <= pos.y + 1; y++) {
+        for (let x = pos.x - 1; x <= pos.x + 1; x++) {
+            if ((x !== pos.x || y !== pos.y) && x >= 0 && y >= 0 && x <= 49 && y <= 49 && !isWall(x, y)) {
+                open++;
+            }
+        }
+    }
+    return open;
 }
 
 function toStructureSnapshot(structure: AnyStructure): StructureSnapshot {

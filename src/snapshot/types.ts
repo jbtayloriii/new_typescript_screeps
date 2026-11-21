@@ -62,6 +62,8 @@ export interface SourceSnapshot {
     readonly pos: Pos;
     readonly energy: number;
     readonly energyCapacity: number;
+    /** Walkable tiles next to the source: how many creeps can harvest it at once. */
+    readonly openSpots: number;
 }
 
 export interface RuinSnapshot {

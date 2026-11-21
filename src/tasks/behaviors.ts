@@ -96,7 +96,8 @@ function rememberTarget(creep: MyCreepSnapshot, targetId: Id<_HasId>): Partial<C
  * Gets energy.
  * - With `fromStores`, first withdraws from ruins, then storage, then containers.
  * - Otherwise harvests: from `sourceId` if given, else the remembered source, else the source
- *   with the fewest other creeps assigned (ties broken by range).
+ *   with the most free tiles (ties broken by range). Sources whose tiles are all taken are
+ *   skipped, so creeps wait instead of crowding a source (see `freeSpots`).
  */
 export function gatherEnergy(opts: { fromStores: boolean, sourceId?: Id<Source> }): Behavior {
     return (creep, room) => {
@@ -156,18 +157,30 @@ function chooseSource(creep: MyCreepSnapshot, room: RoomSnapshot, sourceId?: Id<
         return remembered;
     }
 
-    const withEnergy = room.sources.filter(s => s.energy > 0);
     let best: SourceSnapshot | null = null;
-    let bestScore: [number, number] = [Infinity, Infinity];
-    for (const source of withEnergy) {
-        const assigned = room.creepsPresent.filter(c => c.name !== creep.name && c.memory.targetId === source.id).length;
-        const score: [number, number] = [assigned, getRange(creep.pos, source.pos)];
-        if (score[0] < bestScore[0] || (score[0] === bestScore[0] && score[1] < bestScore[1])) {
+    let bestScore: [number, number] = [-Infinity, Infinity];
+    for (const source of room.sources.filter(s => s.energy > 0)) {
+        const free = freeSpots(source, room, creep.name);
+        if (free <= 0) {
+            continue;
+        }
+        const score: [number, number] = [free, getRange(creep.pos, source.pos)];
+        if (score[0] > bestScore[0] || (score[0] === bestScore[0] && score[1] < bestScore[1])) {
             best = source;
             bestScore = score;
         }
     }
     return best;
+}
+
+/**
+ * A source's open tiles minus the creeps (other than `exceptCreep`) using it: standing next to
+ * it, or heading there (`memory.targetId`).
+ */
+export function freeSpots(source: SourceSnapshot, room: RoomSnapshot, exceptCreep?: string): number {
+    const users = room.creepsPresent.filter(c => c.name !== exceptCreep
+        && (c.memory.targetId === source.id || getRange(c.pos, source.pos) <= 1));
+    return source.openSpots - users.length;
 }
 
 /** Upgrades the room's controller if it's mine. */

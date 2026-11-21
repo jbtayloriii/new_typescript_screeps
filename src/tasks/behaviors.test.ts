@@ -90,18 +90,24 @@ describe('gatherEnergy', () => {
             .toEqual({ kind: 'move', creepName: 'c', target: far.pos, range: 1 });
     });
 
-    test('picks the least crowded source, then the closest', () => {
-        const room = aRoom().withSource(12, 10).withSource(30, 30)
-            .withMyCreep('c', 10, 10, { memory: mem() })
-            .withMyCreep('other', 13, 10, { memory: mem({ targetId: 'placeholder' as Id<Source> }) })
-            .build();
-        // Put "other" on the close source, so "c" should pick the far one.
-        const crowded = { ...room, creepsPresent: [room.creepsPresent[0], { ...room.creepsPresent[1], memory: mem({ targetId: room.sources[0].id }) }] };
+    test('picks the source with the most free tiles, then the closest', () => {
+        const room = aRoom().withSource(12, 10).withSource(30, 30).withMyCreep('c', 10, 10, { memory: mem() }).build();
+        expect(gatherEnergy({ fromStores: false })(room.creepsPresent[0], room).memory).toEqual({ targetId: room.sources[0].id });
 
-        expect(gatherEnergy({ fromStores: false })(crowded.creepsPresent[0], crowded).memory)
-            .toEqual({ targetId: room.sources[1].id });
-        expect(gatherEnergy({ fromStores: false })(room.creepsPresent[0], room).memory)
-            .toEqual({ targetId: room.sources[0].id });
+        // Another creep next to the close source takes one of its tiles
+        const crowded = aRoom().withSource(12, 10).withSource(30, 30)
+            .withMyCreep('c', 10, 10, { memory: mem() }).withMyCreep('other', 13, 10, { memory: mem() }).build();
+        expect(gatherEnergy({ fromStores: false })(crowded.creepsPresent[0], crowded).memory).toEqual({ targetId: crowded.sources[1].id });
+    });
+
+    test('waits rather than crowding sources whose tiles are all taken', () => {
+        const builder = aRoom().withSource(12, 10, { openSpots: 1 }).withSource(30, 30, { openSpots: 1 })
+            .withMyCreep('c', 10, 10, { memory: mem() })
+            .withMyCreep('atFirst', 13, 10, { memory: mem() });
+        const second = builder.build().sources[1].id;
+        const room = builder.withMyCreep('headingToSecond', 20, 20, { memory: mem({ targetId: second }) }).build();
+
+        expect(gatherEnergy({ fromStores: false })(room.creepsPresent[0], room)).toEqual({});
     });
 
     test('keeps a remembered source without rewriting memory', () => {

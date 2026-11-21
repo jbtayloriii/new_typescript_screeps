@@ -1,6 +1,5 @@
 import { buildTask } from "./build_task";
 import { claimTask } from "./claim_task";
-import { harvestTask } from "./harvest_task";
 import { haulTask } from "./haul_task";
 import { mineTask } from "./mine_task";
 import { remoteMineTask } from "./remote_mine_task";
@@ -13,7 +12,6 @@ type TaskDefinitions = { [K in TaskType]: TaskDefinition<Extract<TaskMemory, { t
 
 /** Maps each task type to its behavior. Add new task types here. */
 const TASK_DEFINITIONS: TaskDefinitions = {
-    harvest: harvestTask,
     mine: mineTask,
     haul: haulTask,
     upgrade: upgradeTask,
