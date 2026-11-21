@@ -244,7 +244,8 @@ base room.
 
 ### Phase 6: Observability (can be done at any point)
 - [ ] Per-tick CPU and stats recorded in Memory.
-- [ ] Room visuals for active directives, tasks and spawn queue (building on `visuals/`).
+- [ ] Room visuals (HUD panels for tasks, spawn queue, economy, alerts; creep overlays; toggled
+      with `cmd.visuals`). Design in [VISUALS.md](VISUALS.md).
 - [ ] Use `Logger` consistently in place of `console.log`; enable daily `Logger.report()`.
 
 ### Later / optional
