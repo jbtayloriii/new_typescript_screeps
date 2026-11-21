@@ -9,7 +9,8 @@ import { bodyCost, buildBody } from "./body";
  *
  * Bodies are sized to the room's full energy capacity, or to the energy available now for
  * `urgent` requests. If the top request can't be afforded yet, spawning waits for it instead
- * of spending energy on lower-priority requests.
+ * of spending energy on lower-priority requests. Requests the room can never afford (more than
+ * its full capacity) are skipped, so they don't block the queue.
  */
 export function planSpawns(home: RoomSnapshot, requests: readonly SpawnRequest[]): SpawnIntent[] {
     const idleSpawns = getMyStructures(home, STRUCTURE_SPAWN).filter(s => !s.spawning);
@@ -18,7 +19,10 @@ export function planSpawns(home: RoomSnapshot, requests: readonly SpawnRequest[]
     let energy = home.energyAvailable;
 
     for (const spawn of idleSpawns) {
-        const request = queue.shift();
+        let request = queue.shift();
+        while (request && !buildBody(request.body, home.energyCapacityAvailable)) {
+            request = queue.shift();
+        }
         if (!request) {
             break;
         }
@@ -33,7 +37,7 @@ export function planSpawns(home: RoomSnapshot, requests: readonly SpawnRequest[]
             spawnId: spawn.id as Id<StructureSpawn>,
             body,
             name: `${request.taskName}_${home.tick}_${intents.length}`,
-            memory: { taskName: request.taskName, baseRoomName: home.name },
+            memory: { ...request.memory, taskName: request.taskName, baseRoomName: home.name },
         });
     }
     return intents;

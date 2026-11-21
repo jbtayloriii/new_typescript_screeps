@@ -64,10 +64,10 @@ describe('assignOrphans', () => {
         const byTask = new Map([['upgrade', []]]);
         const none = () => [];
 
-        expect(assignOrphans([orphanA], byTask, none, 'upgrade').assignments.map(a => a.taskName)).toEqual(['upgrade']);
+        expect(assignOrphans([orphanA], byTask, none, { taskName: 'upgrade', canTake: () => true }).assignments.map(a => a.taskName)).toEqual(['upgrade']);
         expect(assignOrphans([orphanA], byTask, none).unassigned).toEqual([orphanA]);
         // A fallback that doesn't exist is ignored
-        expect(assignOrphans([orphanA], byTask, none, 'missing').unassigned).toEqual([orphanA]);
+        expect(assignOrphans([orphanA], byTask, none, { taskName: 'missing', canTake: () => true }).unassigned).toEqual([orphanA]);
     });
 
     test('skips requests the creep body cannot fill', () => {
@@ -79,7 +79,7 @@ describe('assignOrphans', () => {
 
     test('does not modify the input groups', () => {
         const byTask = new Map<string, MyCreepSnapshot[]>([['upgrade', []]]);
-        assignOrphans([orphanA], byTask, () => [], 'upgrade');
+        assignOrphans([orphanA], byTask, () => [], { taskName: 'upgrade', canTake: () => true });
         expect(byTask.get('upgrade')).toEqual([]);
     });
 });
@@ -100,5 +100,33 @@ describe('decideRecycle', () => {
     test('does nothing without a spawn', () => {
         const room = aRoom().withMyCreep('c', 11, 11).build();
         expect(decideRecycle(room.creepsPresent[0], room)).toEqual([]);
+    });
+});
+
+describe('minimal bodies and request memory', () => {
+    test('a small harvester can fill a hauler request but not a miner request', () => {
+        const [harvester] = aRoom().withMyCreep('h', 1, 1).build().creepsPresent;
+        const miner: SpawnRequest = { taskName: 'mine', priority: 105, body: { base: [WORK, WORK, WORK, WORK, WORK, MOVE], pattern: [], maxRepeats: 0 } };
+        const hauler: SpawnRequest = { taskName: 'haul', priority: 100, body: { pattern: [CARRY, MOVE], maxRepeats: 10 } };
+        expect(canFillRequest(harvester, miner)).toBe(false);
+        expect(canFillRequest(harvester, hauler)).toBe(true);
+
+        const result = assignOrphans([harvester], new Map([['mine', []], ['haul', []]]), () => [miner, hauler]);
+        expect(result.assignments.map(a => a.taskName)).toEqual(['haul']);
+    });
+
+    test("adopted creeps get the request's initial memory", () => {
+        const [orphan] = aRoom().withMyCreep('o', 1, 1).build().creepsPresent;
+        const request: SpawnRequest = { taskName: 'rm', priority: 1, body: WCM, memory: { role: 'miner', targetId: 's' as Id<Source> } };
+        const result = assignOrphans([orphan], new Map([['rm', []]]), () => [request]);
+        expect(result.assignments[0].patch).toEqual({
+            taskName: 'rm', state: undefined, targetId: 's', role: 'miner', targetRoom: undefined,
+        });
+    });
+
+    test('the fallback only takes creeps it can use', () => {
+        const [mover] = aRoom().withMyCreep('m', 1, 1, { activeParts: { [MOVE]: 1 } }).build().creepsPresent;
+        const fallback = { taskName: 'upgrade', canTake: (c: MyCreepSnapshot) => (c.activeParts[WORK] ?? 0) > 0 };
+        expect(assignOrphans([mover], new Map([['upgrade', []]]), () => [], fallback).unassigned).toEqual([mover]);
     });
 });

@@ -6,6 +6,7 @@ import { MyCreepSnapshot } from "snapshot/types";
 import { WorldSnapshot } from "snapshot/world";
 import { TaskStore } from "tasks/task_store";
 import { decideBaseIntents, reconcileTasks } from "./base_tick";
+import { surveyBase } from "./survey";
 
 /**
  * A single owned room.
@@ -46,22 +47,33 @@ export class Base {
   public tick(world: WorldSnapshot, creeps: readonly MyCreepSnapshot[]): void {
     const home = world.getRoom(this.roomName);
     const baseMemory = Memory.bases_v3[this.roomName];
-    if (!home || !baseMemory) {
+    const room = Game.rooms[this.roomName];
+    if (!home || !baseMemory || !room) {
       return;
     }
+    surveyBase(room, baseMemory);
+
+    const shared = { world, home, baseMemory, creeps, intel: Memory.intel, unavailableRooms: this.roomsUsedByOtherBases() };
 
     // Remove finished tasks and create missing ones before deciding anything else.
     const store = new TaskStore(Memory);
-    const changes = reconcileTasks({ world, home, tasks: store.getTasks(this.roomName), creeps });
+    const changes = reconcileTasks({ ...shared, tasks: store.getTasks(this.roomName) });
     changes.remove.forEach(name => store.removeTask(this.roomName, name));
     changes.create.forEach(spec => store.createTask(this.roomName, spec));
 
-    const plan = decideBaseIntents({ world, home, baseMemory, tasks: store.getTasks(this.roomName), creeps });
+    const plan = decideBaseIntents({ ...shared, tasks: store.getTasks(this.roomName) });
     Object.assign(baseMemory, plan.baseMemoryUpdate);
 
     const failures = summarizeFailures(executeIntents(plan.intents));
     if (failures) {
       console.log(`[${this.roomName}] intent failures: ${failures}`);
     }
+  }
+
+  /** Other bases' rooms and their remote rooms. */
+  private roomsUsedByOtherBases(): RoomName[] {
+    return Object.entries(Memory.tasks)
+      .filter(([baseRoom]) => baseRoom !== this.roomName)
+      .flatMap(([baseRoom, tasks]) => [baseRoom, ...tasks.flatMap(t => t.type === 'remoteMine' ? [t.targetRoom] : [])]);
   }
 }

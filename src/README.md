@@ -37,23 +37,60 @@ The empire is split into these pieces:
   tasks never store their creeps. Each tick, [tasks/creep_assignment.ts](tasks/creep_assignment.ts)
   groups the base's creeps by `taskName` and gives each task its list, including creeps still
   spawning. Dead creeps simply drop out. **Orphans** (a `taskName` that matches no task, e.g.
-  after a task finishes) fill the highest-priority open spawn request their body can handle,
-  otherwise join the upgrade task, otherwise are recycled at a spawn.
+  after a task finishes) fill the highest-priority open spawn request whose *minimal* body they
+  have (so a 1-`WORK` harvester can become a hauler, but not a miner), taking that request's
+  initial memory. Otherwise creeps with `WORK` and `CARRY` join the upgrade task, and the rest
+  are recycled at a spawn.
 
-  Current task types (all use the gather → work loop in [tasks/behaviors.ts](tasks/behaviors.ts):
-  gather energy until full, then work until empty):
+  Every task gets a `TaskContext`: the world and home room snapshots, its creeps, the base's
+  memory and other tasks, an economy summary ([tasks/economy.ts](tasks/economy.ts)) and room
+  intel.
 
-  | Task | Creeps | Gathers from | Work |
-  |---|---|---|---|
-  | `harvest` (one per source) | 2, first one urgent | its source | deliver to spawns/extensions, then towers, then storage; upgrade if all are full |
-  | `upgrade` | 3 | ruins, storage, containers, then sources | upgrade the controller |
-  | `build` (while there are sites) | 1 | same | build the closest site; done when none are left |
-  | `repair` | 1 | same | repair critical (≤100 hits), then damaged (≤10k hits) structures; else upgrade |
+  Current task types:
+
+  | Task | Creeps | What they do |
+  |---|---|---|
+  | `harvest` (one per source, bootstrap) | 2, first one urgent | harvest their source, deliver energy; upgrade if everything is full |
+  | `mine` (one per source, static) | 1 miner (`5×WORK + MOVE`), replaced early before it dies | stand on the source's container tile and harvest; drop mine without a container, and place its site right away |
+  | `haul` | sized to mine count × path distance | collect from mine containers and dropped energy; deliver |
+  | `upgrade` | WORK parts sized to spare income (+ storage bonus), at least 1 | gather energy, upgrade the controller |
+  | `build` (while there are sites) | 1–3, by remaining work | gather energy, build the closest site; done when none are left |
+  | `repair` | 1 | repair critical structures, then damaged ones, then the weakest wall/rampart below its RCL target; else upgrade |
+  | `scout` (from RCL 2) | one `[MOVE]`, only while a neighbor's intel is stale | visit the adjacent room with the oldest intel |
+  | `remoteMine` (one per remote room) | a 3-`WORK` miner per source, haulers | drop mine the remote room's sources, haul the energy home; retreat while hostiles are around |
+
+  "Gather energy" means: ruins, then storage, then the controller container, then other
+  containers, then harvesting the least crowded source. "Deliver" means: spawns and extensions,
+  then towers, then the controller container, then storage.
+
+  **Mining modes** (`chooseMiningMode` in [tasks/task_planning.ts](tasks/task_planning.ts)): a
+  base starts with `harvest` tasks and switches each source to a `mine` task (plus one `haul`
+  task) once it can afford a full miner (550 energy). Leftover harvesters are adopted as haulers.
+  It only goes back to `harvest` on collapse: no living miner and not enough energy for one.
+  Containers aren't part of the decision, so losing one never flips modes.
+
+  **Remote rooms** ([tasks/remote_selection.ts](tasks/remote_selection.ts)): in static mode with
+  ≥ 800 energy capacity (2 rooms from 1300), the base picks adjacent rooms from intel that are
+  unowned, not reserved by others, without source keepers and without recent hostiles.
 
 - **Spawning** ([spawning/](spawning/)): `planSpawns` gives idle spawns the highest-priority
-  requests from all tasks. Bodies repeat the request's pattern, sized to the room's full energy
-  capacity, or to the energy available now for urgent requests. If the top request isn't
-  affordable yet, spawning waits rather than spending energy on lower-priority requests.
+  requests from all tasks. A body is a fixed `base` (e.g. a miner's 5 `WORK` + `MOVE`) plus a
+  repeated pattern, sized to the room's full energy capacity, or to the energy available now for
+  urgent requests. If the top request isn't affordable yet, spawning waits rather than spending
+  energy on lower-priority requests. Requests the room can never afford are skipped.
+
+- **Room intel** ([intel/](intel/)): `Headquarters` records every visible room into
+  `Memory.intel` at most every 25 ticks (sources, controller owner/reservation, keeper lairs,
+  hostiles and when they were last seen), so decisions can use rooms without vision.
+
+- **Defense** ([defense/](defense/)): towers attack healers first, then attackers; heal my damaged
+  creeps; and, keeping 500 energy in reserve, repair damaged structures and then the weakest
+  wall/rampart below its RCL target. Safe mode activates when dangerous hostiles reach a spawn or
+  the controller and the towers can't cope.
+
+- **Base survey** ([base/survey.ts](base/survey.ts)): measures things that need game APIs once and
+  saves them in `BaseMemory`: path lengths from the spawn to each source (for hauler counts and
+  miner replacement timing) and the controller container's tile.
 
 - **Base layout planning** ([pathfinding/](pathfinding/)): When a base is first created, it
   computes a full layout for controller levels 1–8 from the initial spawn position, terrain and
@@ -95,18 +132,20 @@ Each tick:
 1. Re-initialize memory if the version changed. If the CPU bucket is full, generate a pixel.
 2. Delete memory of dead creeps.
 3. `setUpBases`: create a `Base` for any newly owned room with a spawn.
-4. Build the `WorldSnapshot`, group creeps by base, and run each base's tick:
+4. Build the `WorldSnapshot`, record intel for visible rooms that need it, group creeps by base,
+   and run each base's tick (after surveying anything missing from its memory):
    1. **Reconcile tasks** (`reconcileTasks`): remove finished or unknown tasks, then create the
-      ones the base needs but doesn't have (a harvest task per source, upgrade, build while
-      there are construction sites, repair).
+      ones the base needs but doesn't have, switching mining modes and adding remote rooms (see
+      `planTasks`).
    2. **Decide** (`decideBaseIntents`), collecting intents from each step:
       1. Assign orphaned creeps to tasks, or recycle them.
       2. Spawn creeps for the highest-priority open requests.
       3. Each task directs its creeps.
-      4. Each tower attacks the closest hostile, otherwise repairs the closest structure missing
-         at least 1k hits and under 10k hits.
-      5. Every 100 ticks, and right after a controller level-up, place construction sites for
-         every unlocked layout level that isn't already built or placed.
+      4. Safe mode if the base is overrun; towers attack, heal and repair.
+      5. Every 25 ticks, and right after a controller level-up, place construction sites for
+         unbuilt structures from every unlocked layout level (plus the controller container), in
+         build priority order (spawn → extensions → towers → containers → storage → … → roads →
+         walls/ramparts), at most 5 sites per room at a time.
    3. **Execute** all intents with a single `executeIntents` call, and save the base's memory
       changes.
 
@@ -118,11 +157,14 @@ in Memory must survive `JSON.stringify` (no `Map`, `Set` or class instances).
 - `memoryVersion`: the last migration applied. To change the schema, append a migration with the
   next version number to `MIGRATIONS` in [memory/migrations.ts](memory/migrations.ts). Migrations
   run once each, in order, on global reset. Never edit one that has been deployed.
-- `bases_v3[roomName]`: base layout and construction planning state.
+- `bases_v3[roomName]`: base layout and construction planning state, plus survey results
+  (`sourceDistances`, `controllerContainer`).
 - `tasks[baseRoomName]`: the saved state of each of the base's tasks.
 - `nextTaskId`: counter for unique task names.
 - `creeps[name]`: `taskName` (its task), `baseRoomName` (its base), and task state: `state`
-  (gathering/working) and `targetId` (what it's currently working on).
+  (gathering/working), `targetId` (what it's currently working on), `role` (miner/hauler, for
+  remote mining) and `targetRoom` (for scouts).
+- `intel[roomName]`: what we know about rooms we've seen (see [intel/types.ts](intel/types.ts)).
 - `log`: buffered log lines for `Logger`.
 
 ## Testing
@@ -136,8 +178,10 @@ Test helpers:
 - `aRoom()` ([testing/builders/room_snapshot_builder.ts](testing/builders/room_snapshot_builder.ts)):
   builds a `RoomSnapshot` with defaults, so a test only sets what it cares about, e.g.
   `aRoom().withRcl(3).withTower(25, 25).withHostile(30, 30).build()`. Use it to test decisions.
-  `energy(amount, capacity)` builds stores, and `worldOf(rooms)`
+  `energy(amount, capacity)` builds stores, and `worldOf(rooms, { exits })`
   ([testing/builders/world.ts](testing/builders/world.ts)) wraps rooms in a `WorldSnapshot`.
+  `aTaskContext(home, ...)` and `aBaseMemory(...)` ([testing/builders/context.ts](testing/builders/context.ts))
+  build task contexts with defaults.
 - `createTestMemory()` / `installTestMemory()` ([testing/memory.ts](testing/memory.ts)): a fresh,
   migrated `Memory` object.
 - `screeps-jest` mocks (`mockInstanceOf`, `mockGlobal`, `mockStructure`) for testing adapters

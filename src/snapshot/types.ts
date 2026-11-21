@@ -46,6 +46,15 @@ export interface ControllerSnapshot {
     readonly progress: number;
     readonly progressTotal: number;
     readonly ticksToDowngrade: number;
+    /** Username of the owner, if the controller is owned. */
+    readonly owner?: string;
+    /** Present while someone has reserved the controller. */
+    readonly reservation?: { readonly username: string; readonly ticksToEnd: number };
+    /** Ticks of safe mode left, if active. */
+    readonly safeMode?: number;
+    readonly safeModeAvailable: number;
+    /** Ticks until safe mode can be activated again, if on cooldown. */
+    readonly safeModeCooldown?: number;
 }
 
 export interface SourceSnapshot {
@@ -59,6 +68,13 @@ export interface RuinSnapshot {
     readonly id: Id<Ruin>;
     readonly pos: Pos;
     readonly energy: number;
+}
+
+export interface DroppedResourceSnapshot {
+    readonly id: Id<Resource>;
+    readonly pos: Pos;
+    readonly resourceType: ResourceConstant;
+    readonly amount: number;
 }
 
 export interface ConstructionSiteSnapshot {
@@ -104,6 +120,7 @@ export interface RoomSnapshot {
     readonly structures: readonly StructureSnapshot[];
     readonly constructionSites: readonly ConstructionSiteSnapshot[];
     readonly ruins: readonly RuinSnapshot[];
+    readonly droppedResources: readonly DroppedResourceSnapshot[];
     /**
      * My creeps physically in this room this tick, from any base. This is about location only:
      * a task's creeps come from grouping `Game.creeps` by `memory.taskName`, not from this list.

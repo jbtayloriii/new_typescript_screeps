@@ -3,6 +3,7 @@ import { Logger } from "logging/logger";
 import { executeIntents } from "intents/execute_intents";
 import { MyCreepSnapshot } from "snapshot/types";
 import { WorldSnapshot } from "snapshot/world";
+import { recordIntel, roomsNeedingIntel } from "intel/record_intel";
 
 /** Top-level singleton: creates a Base for each owned room and runs each base every tick. */
 export class Headquarters {
@@ -29,6 +30,11 @@ export class Headquarters {
   }
 
   public run(world: WorldSnapshot): void {
+    // Record intel first, so this tick's decisions (e.g. a scout picking its next room) see it.
+    for (const roomName of roomsNeedingIntel(world, Memory.intel)) {
+      Memory.intel[roomName] = recordIntel(world.getRoom(roomName)!, Memory.intel[roomName]);
+    }
+
     const { byBase, rehomed } = groupCreepsByBase(world.myCreeps, [...this.bases.keys()]);
     executeIntents(rehomed.map(({ creep, baseRoomName }) =>
       ({ kind: 'setCreepMemory', creepName: creep.name, patch: { baseRoomName } })));

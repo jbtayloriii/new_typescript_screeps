@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { bodyCost, buildBody } from './body';
+import { bodyCost, buildBody, minimalBody, spawnTicks, ticksPerTile } from './body';
 
 const WCM = { pattern: [WORK, CARRY, MOVE], maxRepeats: 3 };
 
@@ -26,5 +26,33 @@ describe('buildBody', () => {
 
     test('returns null when not even one repeat is affordable', () => {
         expect(buildBody(WCM, 199)).toBeNull();
+    });
+});
+
+describe('bodies with a base', () => {
+    const MINER = { base: [WORK, WORK, WORK, WORK, WORK, MOVE], pattern: [MOVE], maxRepeats: 2 };
+
+    test('the base is required, repeats are optional', () => {
+        expect(buildBody(MINER, 549)).toBeNull();
+        expect(buildBody(MINER, 550)).toEqual([WORK, WORK, WORK, WORK, WORK, MOVE]);
+        expect(buildBody(MINER, 10000)).toEqual([WORK, WORK, WORK, WORK, WORK, MOVE, MOVE, MOVE]);
+        expect(buildBody({ base: [MOVE], pattern: [], maxRepeats: 0 }, 50)).toEqual([MOVE]);
+    });
+
+    test('minimalBody is the base, or one repeat without a base', () => {
+        expect(minimalBody(MINER)).toEqual(MINER.base);
+        expect(minimalBody(WCM)).toEqual(WCM.pattern);
+    });
+});
+
+describe('movement and spawn time', () => {
+    test('ticksPerTile from fatigue on plains', () => {
+        expect(ticksPerTile({ [WORK]: 5, [MOVE]: 1 })).toBe(5);
+        expect(ticksPerTile({ [CARRY]: 2, [MOVE]: 2 })).toBe(1);
+        expect(ticksPerTile({ [WORK]: 1 })).toBe(Infinity);
+    });
+
+    test('spawnTicks is 3 per part', () => {
+        expect(spawnTicks(6)).toBe(18);
     });
 });

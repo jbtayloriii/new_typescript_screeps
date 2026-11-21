@@ -92,4 +92,10 @@ describe('executeIntents', () => {
         expect(results.map(r => r.code)).toEqual([OK, OK, ERR_NOT_FOUND]);
         expect(memory).toEqual({ taskName: 'new', baseRoomName: 'W1N1' });
     });
+
+    test('activates safe mode', () => {
+        objects['ctrl'] = mockInstanceOf<StructureController>({ id: 'ctrl', activateSafeMode: () => OK });
+        expect(executeIntents([{ kind: 'activateSafeMode', controllerId: 'ctrl' as Id<StructureController> }])[0].code).toBe(OK);
+        expect((objects['ctrl'] as StructureController).activateSafeMode).toHaveBeenCalled();
+    });
 });

@@ -1,6 +1,7 @@
 import { Intent } from "intents/types";
 import { MyCreepSnapshot, RoomSnapshot } from "snapshot/types";
 import { WorldSnapshot } from "snapshot/world";
+import { IntelMap } from "intel/types";
 
 /**
  * A task is a single goal (harvest a source, upgrade the controller, ...) that owns some
@@ -12,7 +13,7 @@ import { WorldSnapshot } from "snapshot/world";
  * `memory.taskName` matches.
  */
 
-export type TaskType = 'harvest' | 'upgrade' | 'build' | 'repair';
+export type TaskType = 'harvest' | 'mine' | 'haul' | 'upgrade' | 'build' | 'repair' | 'scout' | 'remoteMine';
 
 interface TaskMemoryBase {
     /** Unique name, e.g. "W1N1_harvest_3". Creeps refer to their task by this name. */
@@ -24,6 +25,30 @@ interface TaskMemoryBase {
 export interface HarvestTaskMemory extends TaskMemoryBase {
     readonly type: 'harvest';
     readonly sourceId: Id<Source>;
+}
+
+/** Static mining: one miner parked next to a source (on its container tile, if known). */
+export interface MineTaskMemory extends TaskMemoryBase {
+    readonly type: 'mine';
+    readonly sourceId: Id<Source>;
+    /** Where the miner stands and the source's container goes. In the source's room. */
+    readonly containerTile?: { readonly x: number; readonly y: number };
+}
+
+/** Carries energy from mine containers and dropped energy to where the base needs it. */
+export interface HaulTaskMemory extends TaskMemoryBase {
+    readonly type: 'haul';
+}
+
+/** Visits adjacent rooms to keep room intel fresh. */
+export interface ScoutTaskMemory extends TaskMemoryBase {
+    readonly type: 'scout';
+}
+
+/** Mines an adjacent room's sources and hauls the energy home. */
+export interface RemoteMineTaskMemory extends TaskMemoryBase {
+    readonly type: 'remoteMine';
+    readonly targetRoom: RoomName;
 }
 
 export interface UpgradeTaskMemory extends TaskMemoryBase {
@@ -38,15 +63,28 @@ export interface RepairTaskMemory extends TaskMemoryBase {
     readonly type: 'repair';
 }
 
-export type TaskMemory = HarvestTaskMemory | UpgradeTaskMemory | BuildTaskMemory | RepairTaskMemory;
+export type TaskMemory =
+    | HarvestTaskMemory
+    | MineTaskMemory
+    | HaulTaskMemory
+    | UpgradeTaskMemory
+    | BuildTaskMemory
+    | RepairTaskMemory
+    | ScoutTaskMemory
+    | RemoteMineTaskMemory;
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 
 /** What's needed to create a task; the name and room are filled in when it is saved. */
 export type TaskSpec = DistributiveOmit<TaskMemory, 'name' | 'roomName'>;
 
-/** A repeating body pattern, e.g. [WORK, CARRY, MOVE] repeated up to 3 times. */
+/**
+ * A body: `base` parts once, then `pattern` repeated up to `maxRepeats` times as energy allows.
+ * E.g. [WORK, CARRY, MOVE] repeated up to 3 times, or a miner's fixed 5×WORK + MOVE base with
+ * extra MOVE parts when affordable.
+ */
 export interface BodyPattern {
+    readonly base?: readonly BodyPartConstant[];
     readonly pattern: readonly BodyPartConstant[];
     readonly maxRepeats: number;
 }
@@ -61,6 +99,18 @@ export interface SpawnRequest {
      * creeps the base can't recover without (e.g. the first harvester).
      */
     readonly urgent?: boolean;
+    /** Extra initial memory for the creep (e.g. its role or assigned source). */
+    readonly memory?: Partial<CreepMemory>;
+}
+
+/** Base-wide economy numbers, computed once per tick (see `tasks/economy.ts`). */
+export interface EconomySummary {
+    /** 'static' once the base runs mine + haul tasks; 'harvest' while bootstrapping. */
+    readonly mode: 'harvest' | 'static';
+    /** Estimated energy brought in per tick. */
+    readonly incomePerTick: number;
+    /** Energy per tick spent replacing the base's non-upgrader creeps. */
+    readonly upkeepPerTick: number;
 }
 
 export interface TaskContext {
@@ -69,6 +119,11 @@ export interface TaskContext {
     readonly home: RoomSnapshot;
     /** This task's creeps (including ones still spawning), wherever they are. */
     readonly creeps: readonly MyCreepSnapshot[];
+    readonly baseMemory: Readonly<BaseMemory>;
+    /** All of the base's tasks, including this one. */
+    readonly baseTasks: readonly TaskMemory[];
+    readonly economy: EconomySummary;
+    readonly intel: IntelMap;
 }
 
 /** The behavior of one task type. All functions are pure: they read state and return decisions. */

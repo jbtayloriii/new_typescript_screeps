@@ -2,6 +2,7 @@ import { actOrApproach } from "intents/helpers";
 import { CreepIntent, Intent } from "intents/types";
 import { findClosestByRange, getRange } from "snapshot/queries";
 import { MyCreepSnapshot, RoomSnapshot, SourceSnapshot, StructureSnapshot } from "snapshot/types";
+import { needsRepair } from "defense/repair_targets";
 
 /**
  * Shared creep behaviors for tasks. Each behavior is a pure function of a creep and the room it
@@ -24,17 +25,25 @@ export type Behavior = (creep: MyCreepSnapshot, room: RoomSnapshot) => CreepStep
 /** Stores must hold at least this much energy before creeps withdraw from them. */
 export const MIN_STORE_WITHDRAW_ENERGY = 100;
 
-/** Repairers only repair structures at or below this many hits. */
-export const REPAIR_HITS_CUTOFF = 10000;
-
 /** Structures at or below this many hits are repaired first. */
 export const CRITICAL_REPAIR_HITS = 100;
 
+/** A container within this range of the controller is the upgraders' container. */
+export const CONTROLLER_CONTAINER_RANGE = 3;
+
+/** True for the container upgraders draw from (near the controller). */
+export function isControllerContainer(structure: StructureSnapshot, room: RoomSnapshot): boolean {
+    return structure.structureType === STRUCTURE_CONTAINER
+        && room.controller !== null
+        && getRange(structure.pos, room.controller.pos) <= CONTROLLER_CONTAINER_RANGE;
+}
+
 /** Where delivered energy goes, highest priority tier first. */
-const DELIVERY_TIERS: readonly (readonly StructureConstant[])[] = [
-    [STRUCTURE_SPAWN, STRUCTURE_EXTENSION],
-    [STRUCTURE_TOWER],
-    [STRUCTURE_STORAGE],
+const DELIVERY_TIERS: readonly ((s: StructureSnapshot, room: RoomSnapshot) => boolean)[] = [
+    s => s.owner === 'me' && (s.structureType === STRUCTURE_SPAWN || s.structureType === STRUCTURE_EXTENSION),
+    s => s.owner === 'me' && s.structureType === STRUCTURE_TOWER,
+    (s, room) => isControllerContainer(s, room),
+    s => s.owner === 'me' && s.structureType === STRUCTURE_STORAGE,
 ];
 
 /**
@@ -118,10 +127,10 @@ export function gatherEnergy(opts: { fromStores: boolean, sourceId?: Id<Source> 
 
 function withdrawFromStores(creep: MyCreepSnapshot, room: RoomSnapshot): CreepStep | null {
     const ruin = findClosestByRange(creep.pos, room.ruins.filter(r => r.energy > 0));
-    const storage = room.structures.find(s =>
-        s.structureType === STRUCTURE_STORAGE && s.owner === 'me' && (s.store?.energy ?? 0) >= MIN_STORE_WITHDRAW_ENERGY);
-    const container = findClosestByRange(creep.pos, room.structures.filter(s =>
-        s.structureType === STRUCTURE_CONTAINER && (s.store?.energy ?? 0) >= MIN_STORE_WITHDRAW_ENERGY));
+    const hasEnergy = (s: StructureSnapshot) => (s.store?.energy ?? 0) >= MIN_STORE_WITHDRAW_ENERGY;
+    const storage = room.structures.find(s => s.structureType === STRUCTURE_STORAGE && s.owner === 'me' && hasEnergy(s));
+    const containers = room.structures.filter(s => s.structureType === STRUCTURE_CONTAINER && hasEnergy(s));
+    const container = containers.find(s => isControllerContainer(s, room)) ?? findClosestByRange(creep.pos, containers);
 
     const target = ruin ?? storage ?? container;
     if (!target) {
@@ -172,26 +181,26 @@ export const upgradeController: Behavior = (creep, room) => {
     };
 };
 
-function canReceiveEnergy(structure: StructureSnapshot): boolean {
-    return structure.owner === 'me'
-        && (structure.store?.freeCapacity ?? 0) > 0
-        && DELIVERY_TIERS.some(tier => tier.includes(structure.structureType));
+function hasRoom(structure: StructureSnapshot): boolean {
+    return (structure.store?.freeCapacity ?? 0) > 0;
 }
 
 /**
- * Delivers energy to spawns and extensions, then towers, then storage, keeping the remembered
- * target while it still has room. Upgrades the controller if nothing needs energy.
+ * Delivers energy to spawns and extensions, then towers, then the controller container, then
+ * storage, keeping the remembered target while it still has room. If nothing needs energy,
+ * creeps with WORK parts upgrade the controller; others wait.
  */
 export const deliverEnergy: Behavior = (creep, room) => {
-    let target = room.structures.find(s => s.id === creep.memory.targetId && canReceiveEnergy(s)) ?? null;
+    let target = room.structures.find(s =>
+        s.id === creep.memory.targetId && hasRoom(s) && DELIVERY_TIERS.some(tier => tier(s, room))) ?? null;
     for (const tier of DELIVERY_TIERS) {
         if (target) {
             break;
         }
-        target = findClosestByRange(creep.pos, room.structures.filter(s => tier.includes(s.structureType) && canReceiveEnergy(s)));
+        target = findClosestByRange(creep.pos, room.structures.filter(s => tier(s, room) && hasRoom(s)));
     }
     if (!target) {
-        return upgradeController(creep, room);
+        return (creep.activeParts[WORK] ?? 0) > 0 ? upgradeController(creep, room) : {};
     }
     return {
         action: actOrApproach(creep.pos, target.pos, {
@@ -217,19 +226,25 @@ export const buildNearest: Behavior = (creep, room) => {
     };
 };
 
-function needsRepair(structure: StructureSnapshot): boolean {
-    return structure.owner !== 'other' && structure.hits < structure.hitsMax && structure.hits <= REPAIR_HITS_CUTOFF;
+function isWall(structure: StructureSnapshot): boolean {
+    return structure.structureType === STRUCTURE_WALL || structure.structureType === STRUCTURE_RAMPART;
 }
 
 /**
- * Repairs the remembered structure while it still needs it; otherwise the closest critically
- * damaged structure, then the closest damaged one. Upgrades if nothing needs repair.
+ * Repairs the remembered structure while it still needs it (the memory is cleared each time the
+ * creep refills, so it never sticks to one wall for long). Otherwise, in order: the closest
+ * critically damaged structure, the closest damaged non-wall structure, then the weakest wall or
+ * rampart below its RCL target (see `defense/repair_targets.ts`). Upgrades if nothing needs repair.
  */
 export const repairNearest: Behavior = (creep, room) => {
-    const damaged = room.structures.filter(needsRepair);
+    const rcl = room.controller?.level ?? 0;
+    const damaged = room.structures.filter(s => needsRepair(s, rcl));
+    const walls = damaged.filter(isWall);
+    const weakestWall = walls.reduce<StructureSnapshot | null>((weakest, s) => !weakest || s.hits < weakest.hits ? s : weakest, null);
     const target = damaged.find(s => s.id === creep.memory.targetId)
         ?? findClosestByRange(creep.pos, damaged.filter(s => s.hits <= CRITICAL_REPAIR_HITS))
-        ?? findClosestByRange(creep.pos, damaged);
+        ?? findClosestByRange(creep.pos, damaged.filter(s => !isWall(s)))
+        ?? weakestWall;
     if (!target) {
         return upgradeController(creep, room);
     }

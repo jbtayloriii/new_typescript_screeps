@@ -5,6 +5,7 @@ import {
     HostileCreepSnapshot,
     MyCreepSnapshot,
     Pos,
+    DroppedResourceSnapshot,
     RoomSnapshot,
     RuinSnapshot,
     SourceSnapshot,
@@ -36,6 +37,7 @@ export class RoomSnapshotBuilder {
         structures: StructureSnapshot[];
         constructionSites: ConstructionSiteSnapshot[];
         ruins: RuinSnapshot[];
+        droppedResources: DroppedResourceSnapshot[];
         creepsPresent: MyCreepSnapshot[];
         hostileCreeps: HostileCreepSnapshot[];
     };
@@ -51,6 +53,7 @@ export class RoomSnapshotBuilder {
             structures: [],
             constructionSites: [],
             ruins: [],
+            droppedResources: [],
             creepsPresent: [],
             hostileCreeps: [],
         };
@@ -81,6 +84,8 @@ export class RoomSnapshotBuilder {
             progress: 0,
             progressTotal: 1000,
             ticksToDowngrade: 20000,
+            owner: 'me',
+            safeModeAvailable: 1,
             ...overrides,
         };
         return this;
@@ -140,6 +145,12 @@ export class RoomSnapshotBuilder {
         return this;
     }
 
+    /** Adds dropped energy (or another resource) on the ground. */
+    withDrop(x: number, y: number, amount: number, resourceType: ResourceConstant = RESOURCE_ENERGY): this {
+        this.snapshot.droppedResources.push({ id: newId('drop'), pos: this.pos(x, y), resourceType, amount });
+        return this;
+    }
+
     withRuin(x: number, y: number, energy: number): this {
         this.snapshot.ruins.push({ id: newId('ruin'), pos: this.pos(x, y), energy });
         return this;
@@ -190,6 +201,7 @@ export class RoomSnapshotBuilder {
             structures: [...this.snapshot.structures],
             constructionSites: [...this.snapshot.constructionSites],
             ruins: [...this.snapshot.ruins],
+            droppedResources: [...this.snapshot.droppedResources],
             creepsPresent: [...this.snapshot.creepsPresent],
             hostileCreeps: [...this.snapshot.hostileCreeps],
         };

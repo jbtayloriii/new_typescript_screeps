@@ -62,7 +62,10 @@ export type RecycleIntent = { kind: 'recycle'; spawnId: Id<StructureSpawn>; cree
  */
 export type SetCreepMemoryIntent = { kind: 'setCreepMemory'; creepName: string; patch: Partial<CreepMemory> };
 
+export type ActivateSafeModeIntent = { kind: 'activateSafeMode'; controllerId: Id<StructureController> };
+
 export type Intent =
+    | ActivateSafeModeIntent
     | CreepIntent
     | SpawnIntent
     | RecycleIntent

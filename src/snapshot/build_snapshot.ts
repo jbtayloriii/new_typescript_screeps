@@ -3,6 +3,7 @@ import {
     ConstructionSiteSnapshot,
     ControllerSnapshot,
     CreepSnapshotBase,
+    DroppedResourceSnapshot,
     EnergyStore,
     HostileCreepSnapshot,
     MyCreepSnapshot,
@@ -34,6 +35,7 @@ export function buildRoomSnapshot(room: Room, tick: number = Game.time): RoomSna
             .map(toStructureSnapshot),
         constructionSites: room.find(FIND_MY_CONSTRUCTION_SITES).map(toConstructionSiteSnapshot),
         ruins: room.find(FIND_RUINS).map(toRuinSnapshot),
+        droppedResources: room.find(FIND_DROPPED_RESOURCES).map(toDroppedResourceSnapshot),
         creepsPresent: room.find(FIND_MY_CREEPS).map(toMyCreepSnapshot),
         hostileCreeps: room.find(FIND_HOSTILE_CREEPS).map(toHostileCreepSnapshot),
     };
@@ -52,7 +54,18 @@ function toControllerSnapshot(controller: StructureController): ControllerSnapsh
         progress: controller.progress,
         progressTotal: controller.progressTotal,
         ticksToDowngrade: controller.ticksToDowngrade,
+        owner: controller.owner?.username,
+        reservation: controller.reservation
+            ? { username: controller.reservation.username, ticksToEnd: controller.reservation.ticksToEnd }
+            : undefined,
+        safeMode: controller.safeMode,
+        safeModeAvailable: controller.safeModeAvailable,
+        safeModeCooldown: controller.safeModeCooldown,
     };
+}
+
+function toDroppedResourceSnapshot(resource: Resource): DroppedResourceSnapshot {
+    return { id: resource.id, pos: toPos(resource.pos), resourceType: resource.resourceType, amount: resource.amount };
 }
 
 function toSourceSnapshot(source: Source): SourceSnapshot {

@@ -90,6 +90,7 @@ function initializeDefaults(memory: Memory): void {
     memory.bases_v3 ??= {};
     memory.tasks ??= {};
     memory.nextTaskId ??= 0;
+    memory.intel ??= {};
     memory.log ??= {
         lastReportedDate: -1,
         infoMessages: [],

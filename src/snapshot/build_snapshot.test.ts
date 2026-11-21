@@ -21,6 +21,8 @@ describe('buildRoomSnapshot', () => {
             id: 'ctrl' as Id<StructureController>,
             pos: pos(20, 20),
             my: true, level: 3, progress: 10, progressTotal: 100, ticksToDowngrade: 5000,
+            owner: { username: 'me' }, reservation: undefined,
+            safeMode: undefined, safeModeAvailable: 2, safeModeCooldown: 100,
         });
         const snapshot = buildRoomSnapshot(mockRoom({ [FIND_STRUCTURES]: [controller] }, controller), 42);
 
@@ -30,6 +32,7 @@ describe('buildRoomSnapshot', () => {
         expect(snapshot.energyCapacityAvailable).toBe(300);
         expect(snapshot.controller).toEqual({
             id: 'ctrl', pos: pos(20, 20), my: true, level: 3, progress: 10, progressTotal: 100, ticksToDowngrade: 5000,
+            owner: 'me', reservation: undefined, safeMode: undefined, safeModeAvailable: 2, safeModeCooldown: 100,
         });
         // The controller is not duplicated in structures
         expect(snapshot.structures).toEqual([]);
@@ -106,6 +109,19 @@ describe('buildRoomSnapshot', () => {
         const ruin = mockInstanceOf<Ruin>({ id: 'ruin' as Id<Ruin>, pos: pos(9, 9), store: { [RESOURCE_ENERGY]: 75 } });
         const snapshot = buildRoomSnapshot(mockRoom({ [FIND_RUINS]: [ruin] }), 1);
         expect(snapshot.ruins).toEqual([{ id: 'ruin', pos: pos(9, 9), energy: 75 }]);
+    });
+
+    test('copies reservations and dropped resources', () => {
+        const controller = mockStructure(STRUCTURE_CONTROLLER, {
+            id: 'ctrl' as Id<StructureController>, pos: pos(20, 20), my: false, level: 0, progress: 0, progressTotal: 0,
+            ticksToDowngrade: 0, owner: undefined, reservation: { username: 'them', ticksToEnd: 1234 },
+            safeMode: undefined, safeModeAvailable: 0, safeModeCooldown: undefined,
+        });
+        const drop = mockInstanceOf<Resource>({ id: 'drop' as Id<Resource>, pos: pos(3, 3), resourceType: RESOURCE_ENERGY, amount: 120 });
+        const snapshot = buildRoomSnapshot(mockRoom({ [FIND_DROPPED_RESOURCES]: [drop] }, controller), 1);
+
+        expect(snapshot.controller).toMatchObject({ owner: undefined, reservation: { username: 'them', ticksToEnd: 1234 } });
+        expect(snapshot.droppedResources).toEqual([{ id: 'drop', pos: pos(3, 3), resourceType: RESOURCE_ENERGY, amount: 120 }]);
     });
 
     test('produces JSON-safe data', () => {

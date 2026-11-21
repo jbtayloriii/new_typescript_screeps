@@ -1,4 +1,5 @@
 import { TaskMemory } from "tasks/types";
+import { RoomIntel } from "intel/types";
 
 /** A string that is of type "x_y", e.g. "33_4" */
 type CoordinateString = string;
@@ -28,6 +29,8 @@ declare global {
     tasks: { [roomName: string]: TaskMemory[] };
     // Monotonic counter used to generate unique task names
     nextTaskId: number;
+    // What we know about rooms we've seen. See intel/types.ts.
+    intel: { [roomName: string]: RoomIntel };
 
     log: LogMemory;
   }
@@ -44,6 +47,12 @@ declare global {
 
     // Holds the computed base layout, mapped to different controller levels
     baseLayout: BaseLayoutMap;
+
+    // Path length from the initial spawn to each source, filled in by base/survey.ts
+    sourceDistances?: { [sourceId: string]: number };
+
+    // Tile for the container upgraders draw from, filled in by base/survey.ts
+    controllerContainer?: Coordinate;
   }
 
   interface CreepMemory {
@@ -61,6 +70,12 @@ declare global {
 
     /** The object the creep is currently working on, if its task remembers one. */
     targetId?: Id<_HasId>;
+
+    /** The creep's job within a task with several kinds of creeps (e.g. remote mining). */
+    role?: 'miner' | 'hauler';
+
+    /** The room the creep is heading to, for tasks that move between rooms. */
+    targetRoom?: RoomName;
   }
 
   interface LogMemory {

@@ -121,15 +121,90 @@ access through a small module so tests can use a fake.
 - [x] Construction skips spots already built or with a site, so it no longer issues failing
       intents every replan.
 - Changed from the old behavior: 2 harvesters per source instead of 1 in total; tasks run in
-      the base's room only (remote work comes with phase 4 directives).
+      the base's room only (remote work comes with phase 3 scouting and remote mining).
 
-### Phase 3: Full economy automation
-- [ ] Base planner that sets up tasks for each RCL: static miners and containers, haulers,
-      builders paced by the number of construction sites, upgraders sized to energy income.
-- [ ] Construction placement respects the construction-site cap and builds in priority order.
-- [ ] Defense: tower targeting and repair thresholds as pure functions; safe mode when the base
-      is under threat.
-- [ ] Remove `Base`'s remaining direct `room.find` calls in favor of the snapshot.
+### Phase 3: Full economy automation ✅ (except remote roads and reservers)
+Goal: the economy runs efficiently at every RCL with no manual tuning, then grows beyond the
+base room.
+
+**1. Static mining**
+- [x] `mine` task per source: one miner (`5×WORK + MOVE`, plus up to 2 extra `MOVE` when
+      affordable) on the container tile the base layout plans next to the source.
+- [x] The container is an optimization: without it the miner drop mines. Losing it never removes
+      the mine task. A missing container (with no site) gets a site from the mine task right away.
+- [x] Replacement miners spawn early (`ticksToLive` < spawn time + walk time, using the measured
+      path length). The replacement mines from beside the tile while the old miner holds it.
+- [x] Mode switching (`chooseMiningMode`): harvest → mine once a 550-energy miner is affordable;
+      mine → harvest only on collapse. **Changed from the plan:** collapse is "no living *miner*
+      and not enough energy for one" (haulers alone can't produce energy, so counting them could
+      deadlock). Also, a base already mining statically stays static if its capacity drops, so
+      miners are never orphaned and recycled.
+- [x] `harvest` stays as the bootstrap; `droppedResources` added to the snapshot.
+
+**2. Hauling**
+- [x] `haul` task: collects from mine containers and dropped energy (claim-aware, so haulers
+      spread out), delivers to spawns/extensions → towers → controller container → storage.
+- [x] Hauler count from measured spawn → source path lengths (`base/survey.ts`, saved in
+      `BaseMemory.sourceDistances`), capped at 2 per mine + 1.
+- [x] Leftover harvesters fill haul requests at the switch. Adoption now checks the request's
+      minimal body, so a small harvester can't be adopted as a miner.
+
+**3. Size everything else to income**
+- [x] `computeEconomy`: income from miners/harvesters/remote miners, upkeep of non-upgraders.
+- [x] Upgraders: WORK budget from spare income (halved during construction), plus 1 WORK per 25k
+      storage energy above 50k; at least 1, at most 15 at RCL 8. Bodies are capped to the WORK
+      still missing.
+- [x] Controller container: the survey picks a tile 2 from the controller; construction places
+      it from RCL 2. Upgraders gather from it first; haulers fill it.
+- [x] Builders: 1–3 from the remaining construction progress (1 per 5000).
+
+**4. Construction order and limits**
+- [x] At most 5 sites per room; placed in priority order (spawn → extensions → towers →
+      containers → storage → … → roads → walls/ramparts). Replans every 25 ticks (was 100), since
+      only a few sites are placed at a time.
+
+**5. Defense**
+- [x] Towers: healers first, then attackers, then others; heal my damaged creeps; repair only
+      above 500 energy (defense reserve).
+- [x] Wall/rampart repair targets by RCL (`defense/repair_targets.ts`: 10k at RCL 2 up to 10M at
+      RCL 8), used by towers and the repair task. Repairers finish normal structures first.
+- [x] Safe mode when dangerous hostiles reach a spawn (range 5) or the controller (range 3) and
+      towers can't cope (no energy, out-healed, or a spawn already damaged).
+
+**6. Scouting and room intel**
+- [x] `Memory.intel[roomName]` (`intel/types.ts`) recorded by `Headquarters` for every visible room,
+      at most every 25 ticks. Snapshot additions: controller owner, reservation and safe mode;
+      world `visibleRooms`, `getExits` and `myUsername`.
+- [x] `scout` task (from RCL 2): one `[MOVE]` creep while any adjacent room's intel is missing or
+      older than 5000 ticks.
+- [ ] Later: scouting rooms 2 exits away.
+
+**7. Remote mining**
+- [x] `remoteMine` task per remote room: a 3-`WORK` miner per source (spawned pre-assigned via
+      request memory), haulers sized from an estimated 50-tile distance. Drop mining.
+- [x] Remote choice from intel and exits: unowned, not reserved by others, no keepers, no hostiles
+      in the last 1500 ticks; more sources first. 1 room at ≥ 800 capacity, 2 at ≥ 1300. Rooms
+      used by other bases are skipped.
+- [x] Works without vision (source positions from intel). Retreats home and stops spawning while
+      hostiles are present or were seen in the last 300 ticks. Done when the room becomes owned,
+      reserved by someone else, or otherwise unusable.
+- [ ] Reserver (`CLAIM` + `MOVE`, from about 1300 energy capacity) to double output to 10/tick,
+      and containers in the remote room.
+- [ ] Measure real remote path lengths instead of the 50-tile estimate.
+- [ ] Roads to remote rooms, built in stages:
+      - None when a remote first starts. Remotes get lost (invaders, other players), so roads
+        would be wasted energy until the remote has proven it holds.
+      - Once it's stable (held for a few thousand ticks without being lost, and home has spare
+        energy), plan one route with PathFinder that prefers the home room's existing layout
+        roads, and save it in base memory. Build swamp tiles first: a loaded `[CARRY, MOVE]`
+        hauler takes 5 ticks per swamp tile without a road.
+      - Plains tiles once the room is reserved. On energy alone, plains roads pay back slowly
+        (about 15k energy to build vs about 0.33 energy/tick saved on hauler bodies for a remote
+        50 tiles away). The real gain is spawn time and CPU from smaller and fewer haulers, and
+        reservation doubles traffic, which roughly halves the payback.
+      - Upkeep: give haulers one `WORK` part to repair road tiles as they walk over them.
+      - Keep the decision a pure function (e.g. `shouldBuildRemoteRoads(intel, remoteStats)`) and
+        tune its cutoffs once phase 6 stats show real numbers.
 
 ### Phase 4: Directives and manual commands
 - [ ] `Memory.directives`: the directive type, lifecycle (created → active → done or
@@ -137,7 +212,8 @@ access through a small module so tests can use a fake.
 - [ ] Rework the automatic planners from phase 3 to create directives.
 - [ ] Console API: `cmd.list()`, `cmd.cancel(id)`, and a command per directive type.
 - [ ] Flag parser (a color convention mapped to directive types).
-- [ ] First directives: `RemoteMine`, `Scout`, `Claim`.
+- [ ] First directive types: `RemoteMine` and `Scout`, which create the phase 3 tasks for a room
+      you name (overriding the automatic choice), and `Claim` for taking a new base room.
 
 ### Phase 5: Military
 - [ ] `Attack`, `Defend` and `Escort` directives.

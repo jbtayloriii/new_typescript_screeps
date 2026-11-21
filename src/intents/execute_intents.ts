@@ -43,6 +43,11 @@ export function executeIntent(intent: Intent): IntentReturnCode {
             if (!spawn) return ERR_NOT_FOUND;
             return spawn.spawnCreep(intent.body, intent.name, { memory: intent.memory });
         }
+        case 'activateSafeMode': {
+            const controller = Game.getObjectById(intent.controllerId);
+            if (!controller) return ERR_NOT_FOUND;
+            return controller.activateSafeMode();
+        }
         case 'recycle': {
             const spawn = Game.getObjectById(intent.spawnId);
             if (!spawn) return ERR_NOT_FOUND;

@@ -12,7 +12,7 @@ function baseMemory(): BaseMemory {
 
 function input(builder: RoomSnapshotBuilder, tasks: TaskMemory[]) {
     const home = builder.withTick(2).build();
-    return { world: worldOf([home]), home, baseMemory: baseMemory(), tasks, creeps: home.creepsPresent };
+    return { world: worldOf([home]), home, baseMemory: baseMemory(), tasks, creeps: home.creepsPresent, intel: {}, unavailableRooms: [] };
 }
 
 const kinds = (intents: Intent[]) => intents.map(i => i.kind);
@@ -83,3 +83,31 @@ describe('decideBaseIntents', () => {
         expect(kinds(plan.intents)).not.toContain('spawn');
     });
 });
+
+describe('switching to static mining', () => {
+    test('harvesters become haulers and a miner spawns', () => {
+        const builder = aRoom().withRcl(2).withEnergy(550, 550).withSource(20, 20).withSpawn(10, 10, { energy: 300 })
+            .withMyCreep('h1', 19, 19, member('h'));
+        const sourceId = builder.build().sources[0].id;
+        const tasks: TaskMemory[] = [
+            { name: 'h', roomName: 'W1N1', type: 'harvest', sourceId },
+            { name: 'u', roomName: 'W1N1', type: 'upgrade' },
+        ];
+        const i = input(builder, tasks);
+
+        const changes = reconcileTasks(i);
+        expect(changes.remove).toEqual(['h']);
+        expect(changes.create.map(s => s.type)).toEqual(expect.arrayContaining(['mine', 'haul']));
+
+        // After the changes are applied: the harvester is an orphan and fills the haul request.
+        const after: TaskMemory[] = [
+            { name: 'm', roomName: 'W1N1', type: 'mine', sourceId },
+            { name: 'haul', roomName: 'W1N1', type: 'haul' },
+            { name: 'u', roomName: 'W1N1', type: 'upgrade' },
+        ];
+        const plan = decideBaseIntents({ ...i, tasks: after });
+        expect(plan.intents).toContainEqual(expect.objectContaining({ kind: 'setCreepMemory', creepName: 'h1', patch: expect.objectContaining({ taskName: 'haul' }) }));
+        expect(plan.intents).toContainEqual(expect.objectContaining({ kind: 'spawn', memory: expect.objectContaining({ taskName: 'm' }) }));
+    });
+});
+

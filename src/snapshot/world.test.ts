@@ -8,15 +8,33 @@ function mockRoom(name: string): Room {
     });
 }
 
+function mockGame(game: Partial<Record<keyof Game, unknown>>): Game {
+    return {
+        rooms: {}, creeps: {}, spawns: {},
+        map: { describeExits: (room: string) => room === 'W1N1' ? { 1: 'W1N2', 3: 'W0N1' } : null },
+        ...game,
+    } as unknown as Game;
+}
+
 describe('createWorldSnapshot', () => {
+    test('exposes visible rooms, exits and my username', () => {
+        const spawn = { owner: { username: 'me' } };
+        const world = createWorldSnapshot(mockGame({ time: 1, rooms: { W1N1: mockRoom('W1N1') }, spawns: { Spawn1: spawn } }));
+
+        expect(world.visibleRooms).toEqual(['W1N1']);
+        expect(world.getExits('W1N1')).toEqual(['W1N2', 'W0N1']);
+        expect(world.getExits('W9N9')).toEqual([]);
+        expect(world.myUsername).toBe('me');
+    });
+
     test('builds visible rooms on request, once per tick', () => {
         const room = mockRoom('W1N1');
-        const world = createWorldSnapshot({ time: 5, rooms: { W1N1: room }, creeps: {} } as unknown as Game);
+        const world = createWorldSnapshot(mockGame({ time: 5, rooms: { W1N1: room } }));
 
         const first = world.getRoom('W1N1');
         expect(first?.name).toBe('W1N1');
         expect(world.getRoom('W1N1')).toBe(first);
-        expect(room.find).toHaveBeenCalledTimes(6); // one call per find type, only once
+        expect(room.find).toHaveBeenCalledTimes(7); // one call per find type, only once
         expect(world.getRoom('W9N9')).toBeUndefined();
         expect(world.tick).toBe(5);
     });
@@ -27,7 +45,7 @@ describe('createWorldSnapshot', () => {
             store: { [RESOURCE_ENERGY]: 0, getCapacity: () => 0, getFreeCapacity: () => 0 },
             spawning: false, ticksToLive: 10, memory: { taskName: 't', baseRoomName: 'W1N1' },
         });
-        const world = createWorldSnapshot({ time: 1, rooms: {}, creeps: { c: creep } } as unknown as Game);
+        const world = createWorldSnapshot(mockGame({ time: 1, creeps: { c: creep } }));
         expect(world.myCreeps.map(c => [c.name, c.pos.roomName])).toEqual([['c', 'W5N5']]);
     });
 });

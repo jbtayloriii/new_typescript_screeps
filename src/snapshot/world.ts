@@ -11,22 +11,38 @@ import { MyCreepSnapshot, RoomSnapshot } from "./types";
  */
 export interface WorldSnapshot {
     readonly tick: number;
+    /** My player name, or undefined before I own anything. */
+    readonly myUsername: string | undefined;
+    /** Names of all rooms visible this tick. */
+    readonly visibleRooms: readonly RoomName[];
     /** Returns the room's snapshot, or undefined if the room isn't visible this tick. */
     getRoom(roomName: RoomName): RoomSnapshot | undefined;
+    /** Rooms connected to this one by an exit. Works without vision. */
+    getExits(roomName: RoomName): readonly RoomName[];
     /** All of my creeps, in every room, including ones still spawning. */
     readonly myCreeps: readonly MyCreepSnapshot[];
 }
 
 export function createWorldSnapshot(game: Game = Game): WorldSnapshot {
     const roomCache = new Map<RoomName, RoomSnapshot | undefined>();
+    const exitCache = new Map<RoomName, readonly RoomName[]>();
     return {
         tick: game.time,
+        myUsername: Object.values(game.spawns)[0]?.owner.username,
+        visibleRooms: Object.keys(game.rooms),
         getRoom(roomName: RoomName) {
             if (!roomCache.has(roomName)) {
                 const room = game.rooms[roomName];
                 roomCache.set(roomName, room ? buildRoomSnapshot(room, game.time) : undefined);
             }
             return roomCache.get(roomName);
+        },
+        getExits(roomName: RoomName) {
+            if (!exitCache.has(roomName)) {
+                const exits = game.map.describeExits(roomName);
+                exitCache.set(roomName, exits ? Object.values(exits) as RoomName[] : []);
+            }
+            return exitCache.get(roomName)!;
         },
         myCreeps: Object.values(game.creeps).map(toMyCreepSnapshot),
     };

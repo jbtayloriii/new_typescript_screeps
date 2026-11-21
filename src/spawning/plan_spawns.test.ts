@@ -67,4 +67,11 @@ describe('planSpawns', () => {
         expect(planSpawns(busy, [request('t', 50)])).toEqual([]);
         expect(planSpawns(aRoom().withSpawn(10, 10).build(), [])).toEqual([]);
     });
+
+    test('skips requests the room can never afford instead of blocking on them', () => {
+        const room = aRoom().withEnergy(500, 500).withSpawn(10, 10).build();
+        const miner: SpawnRequest = { taskName: 'miner', priority: 100, body: { base: [WORK, WORK, WORK, WORK, WORK, MOVE], pattern: [], maxRepeats: 0 } };
+        expect(planSpawns(room, [miner, request('next', 50)]).map(i => i.memory.taskName)).toEqual(['next']);
+    });
 });
+
