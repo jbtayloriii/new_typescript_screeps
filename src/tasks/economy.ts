@@ -51,8 +51,11 @@ export function computeEconomy(
                 break;
             }
             case 'remoteMine':
+                // Miners with more than 3 WORK only exist while the room is reserved (10/tick).
                 for (const miner of creeps.filter(c => c.memory.role === 'miner')) {
-                    income += Math.min(REMOTE_SOURCE_ENERGY_PER_TICK, HARVEST_POWER * work([miner]));
+                    const minerWork = work([miner]);
+                    const cap = minerWork > 3 ? OWNED_SOURCE_ENERGY_PER_TICK : REMOTE_SOURCE_ENERGY_PER_TICK;
+                    income += Math.min(cap, HARVEST_POWER * minerWork);
                 }
                 break;
         }

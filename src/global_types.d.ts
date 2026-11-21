@@ -61,6 +61,12 @@ declare global {
 
     // Tile for the container upgraders draw from, filled in by base/survey.ts
     controllerContainer?: Coordinate;
+
+    // Path length from the initial spawn to each remote source, filled in by base/survey.ts
+    remoteDistances?: { [sourceId: string]: number };
+
+    // Planned road route to each remote room, filled in by base/survey.ts (see tasks/remote_roads.ts)
+    remoteRoutes?: { [targetRoom: string]: RemoteRoute };
   }
 
   interface CreepMemory {
@@ -80,11 +86,14 @@ declare global {
     targetId?: Id<_HasId>;
 
     /** The creep's job within a task with several kinds of creeps (e.g. remote mining). */
-    role?: 'miner' | 'hauler' | 'claimer' | 'pioneer';
+    role?: 'miner' | 'hauler' | 'claimer' | 'pioneer' | 'reserver';
 
     /** The room the creep is heading to, for tasks that move between rooms. */
     targetRoom?: RoomName;
   }
+
+  /** A road route, compactly: per room, tile indexes (y * 50 + x). */
+  type RemoteRoute = { room: RoomName; tiles: number[] }[];
 
   interface LogMemory {
     lastReportedDate: number;

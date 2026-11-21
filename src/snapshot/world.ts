@@ -12,6 +12,7 @@ export interface FlagSnapshot {
 /** Terrain for a room; available for any room, even without vision. */
 export interface TerrainView {
     isWall(x: number, y: number): boolean;
+    isSwamp(x: number, y: number): boolean;
 }
 
 /**
@@ -74,7 +75,10 @@ export function createWorldSnapshot(game: Game = Game): WorldSnapshot {
         ownedRooms: Object.values(game.rooms).filter(r => r.controller?.my).map(r => r.name),
         getTerrain(roomName: RoomName) {
             const terrain = game.map.getRoomTerrain(roomName);
-            return { isWall: (x, y) => terrain.get(x, y) === TERRAIN_MASK_WALL };
+            return {
+                isWall: (x, y) => terrain.get(x, y) === TERRAIN_MASK_WALL,
+                isSwamp: (x, y) => terrain.get(x, y) === TERRAIN_MASK_SWAMP,
+            };
         },
     };
 }

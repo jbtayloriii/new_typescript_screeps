@@ -17,6 +17,10 @@ describe('remoteBlocker', () => {
         expect(remoteBlocker(room({ controller: { x: 1, y: 1, level: 0, reservedBy: 'me' } }), 'me')).toBeNull();
     });
 
+    test("an Invader core's reservation doesn't end a remote (it pauses it instead)", () => {
+        expect(remoteBlocker(room({ controller: { x: 1, y: 1, level: 0, reservedBy: 'Invader' } }), 'me')).toBeNull();
+    });
+
     test('rejects unusable rooms', () => {
         expect(remoteBlocker(undefined, 'me')).toBe('no intel');
         expect(remoteBlocker(room({ sources: [] }), 'me')).toBe('no sources');
@@ -41,6 +45,11 @@ describe('chooseNewRemoteRooms', () => {
         expect(maxRemoteRooms(799)).toBe(0);
         expect(chooseNewRemoteRooms(base)).toEqual(['B', 'A']);
         expect(chooseNewRemoteRooms({ ...base, energyCapacity: 800 })).toEqual(['B']);
+    });
+
+    test('does not pick rooms reserved by an Invader core', () => {
+        const invaded = { ...base, intel: { ...base.intel, B: room({ controller: { x: 1, y: 1, level: 0, reservedBy: 'Invader' } }) } };
+        expect(chooseNewRemoteRooms(invaded)).toEqual(['A']);
     });
 
     test('counts current remotes against the limit and skips rooms other bases use', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { INTEL_STALE_TICKS, scoutTask, staleNeighbors } from './scout_task';
+import { INTEL_STALE_TICKS, roomsWithinExits, scoutTask, staleNeighbors } from './scout_task';
 import { aRoom } from 'testing/builders/room_snapshot_builder';
 import { aTaskContext } from 'testing/builders/context';
 import { worldOf } from 'testing/builders/world';
@@ -76,6 +76,20 @@ describe('scoutTask with a target room (scout directive)', () => {
         expect(scoutTask.isDone(directed, withDirective(home, {}))).toBe(false);
         expect(scoutTask.isDone(directed, aTaskContext(home))).toBe(true);
         expect(scoutTask.isDone(task, aTaskContext(home))).toBe(false);
+    });
+});
+
+describe('routine scouting 2 exits out', () => {
+    test('roomsWithinExits walks exits breadth-first', () => {
+        const world = worldOf([aRoom().build()], { exits: { W1N1: ['W1N2', 'W2N1'], W1N2: ['W1N1', 'W1N3'], W2N1: ['W1N1', 'W1N2'] } });
+        expect([...roomsWithinExits(world, 'W1N1', 2)]).toEqual([['W1N2', 1], ['W2N1', 1], ['W1N3', 2]]);
+        expect([...roomsWithinExits(world, 'W1N1', 1)]).toEqual([['W1N2', 1], ['W2N1', 1]]);
+    });
+
+    test('stale rooms 2 exits away come after stale adjacent rooms', () => {
+        const home = aRoom().withTick(INTEL_STALE_TICKS + 100).build();
+        const c = aTaskContext(home, { world: worldOf([home], { exits: { W1N1: ['W1N2'], W1N2: ['W1N1', 'W1N3'] } }), intel: { W1N2: seenAt(50) } });
+        expect(staleNeighbors(c)).toEqual(['W1N2', 'W1N3']);
     });
 });
 

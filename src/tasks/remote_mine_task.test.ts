@@ -1,7 +1,11 @@
 import { describe, expect, test } from '@jest/globals';
-import { isRemoteThreatened, remoteMineTask, REMOTE_MINER_BODY, REMOTE_THREAT_COOLDOWN } from './remote_mine_task';
+import {
+    chooseRemoteContainerTile, isRemoteThreatened, remoteMineTask, REMOTE_MINER_BODY, REMOTE_THREAT_COOLDOWN, remoteReservation,
+    RESERVATION_TOP_UP, RESERVED_REMOTE_MINER_BODY, RESERVER_BODY, RESERVER_MIN_CAPACITY, RESERVER_PRIORITY, ROAD_HAULER_BODY,
+    roadStage, roadWork,
+} from './remote_mine_task';
 import { aRoom, energy } from 'testing/builders/room_snapshot_builder';
-import { aTaskContext } from 'testing/builders/context';
+import { aBaseMemory, aTaskContext } from 'testing/builders/context';
 import { worldOf } from 'testing/builders/world';
 import { RoomIntel } from 'intel/types';
 import { MyCreepSnapshot, RoomSnapshot } from 'snapshot/types';
@@ -90,3 +94,124 @@ describe('remoteMineTask.isDone', () => {
         expect(remoteMineTask.isDone(linked, aTaskContext(aRoom().build()))).toBe(true);
     });
 });
+
+describe('reservation', () => {
+    const reservedLive = (username: string, ticksToEnd: number) =>
+        aRoom('W1N2').withRcl(0, { my: false, owner: undefined, reservation: { username, ticksToEnd } }).withSource(10, 10).build();
+
+    test('reads the reservation live, else from intel', () => {
+        expect(remoteReservation(task, ctx({ remote: reservedLive('me', 4000) }))).toEqual({ username: 'me', ticksLeft: 4000 });
+        const fromIntel = ctx({ intel: intel({ controller: { x: 25, y: 25, level: 0, reservedBy: 'me', reservationEnd: 3000 } }) });
+        expect(remoteReservation(task, fromIntel)).toEqual({ username: 'me', ticksLeft: 2000 });
+        expect(remoteReservation(task, ctx())).toBeNull();
+    });
+
+    test('requests a reserver when the base can afford one and the reservation is low', () => {
+        const rich = aRoom('W1N1').withTick(1000).withEnergy(RESERVER_MIN_CAPACITY, RESERVER_MIN_CAPACITY).withSpawn(10, 10).build();
+        const reserverRequests = (remote?: RoomSnapshot, creeps: readonly MyCreepSnapshot[] = []) =>
+            remoteMineTask.getSpawnRequests(task, aTaskContext(rich, {
+                world: worldOf(remote ? [rich, remote] : [rich]), creeps, intel: { W1N2: intel() },
+            })).filter(r => r.memory?.role === 'reserver');
+
+        expect(reserverRequests()).toEqual([{ taskName: 'rm', priority: RESERVER_PRIORITY, body: RESERVER_BODY, memory: { role: 'reserver' } }]);
+        expect(reserverRequests(reservedLive('me', RESERVATION_TOP_UP + 1))).toEqual([]);
+        expect(reserverRequests(reservedLive('me', RESERVATION_TOP_UP - 1))).toHaveLength(1);
+        const reserver = aRoom('W1N1').withMyCreep('r', 1, 1, { memory: member({ role: 'reserver' }) }).build().creepsPresent;
+        expect(reserverRequests(undefined, reserver)).toEqual([]);
+        // Not before the base can afford 2 CLAIM parts
+        expect(remoteMineTask.getSpawnRequests(task, ctx()).some(r => r.memory?.role === 'reserver')).toBe(false);
+    });
+
+    test('while reserved: bigger miners and haulers sized for 10 energy/tick', () => {
+        const remote = reservedLive('me', 4000);
+        const requests = remoteMineTask.getSpawnRequests(task, ctx({ remote }));
+        expect(requests.find(r => r.memory?.role === 'miner')?.body).toBe(RESERVED_REMOTE_MINER_BODY);
+        // One source: 2×50×10/50 = 20 CARRY; 800 capacity → 8 CARRY per hauler → 3 haulers
+        expect(requests.filter(r => r.memory?.role === 'hauler')).toHaveLength(3);
+    });
+
+    test('haulers are sized from the measured distance when known', () => {
+        const home = aRoom('W1N1').withTick(1000).withEnergy(800, 800).withSpawn(10, 10).build();
+        const c = aTaskContext(home, { intel: { W1N2: intel() }, baseMemory: aBaseMemory({ remoteDistances: { rs1: 20 } }) });
+        // 2×20×5/50 = 4 CARRY → 1 hauler
+        expect(remoteMineTask.getSpawnRequests(task, c).filter(r => r.memory?.role === 'hauler')).toHaveLength(1);
+    });
+
+    test('reservers walk to the controller and reserve it', () => {
+        const remote = aRoom('W1N2').withRcl(0, { my: false, owner: undefined }).withMyCreep('r', 24, 24, { memory: member({ role: 'reserver' }) }).build();
+        expect(remoteMineTask.decide(task, ctx({ remote, creeps: remote.creepsPresent }))).toEqual([
+            { kind: 'reserveController', creepName: 'r', targetId: remote.controller!.id },
+        ]);
+    });
+
+    test('an Invader core reservation pauses the remote', () => {
+        expect(isRemoteThreatened(task, ctx({ remote: reservedLive('Invader', 3000) }))).toBe(true);
+    });
+});
+
+describe('remote containers', () => {
+    test('the container tile is the walkable tile next to the source closest to the room center', () => {
+        const terrain = { isWall: (x: number, y: number) => x === 11 && y === 11, isSwamp: () => false };
+        expect(chooseRemoteContainerTile({ x: 10, y: 10, roomName: 'W1N2' }, terrain)).toEqual({ x: 11, y: 10, roomName: 'W1N2' });
+    });
+
+    test('placed while reserved; the miner builds it when full, and repairs it when worn', () => {
+        const reserved = { my: false, owner: undefined, reservation: { username: 'me', ticksToEnd: 4000 } };
+        const minerMem = member({ role: 'miner' });
+        const minerParts = { [WORK]: 5, [CARRY]: 1, [MOVE]: 3 };
+
+        const empty = aRoom('W1N2').withRcl(0, reserved).withSource(10, 10).withMyCreep('m', 11, 11, { memory: minerMem, activeParts: minerParts }).build();
+        expect(remoteMineTask.decide(task, ctx({ remote: empty, creeps: empty.creepsPresent }))).toContainEqual(
+            { kind: 'createConstructionSite', pos: { x: 11, y: 11, roomName: 'W1N2' }, structureType: STRUCTURE_CONTAINER });
+
+        const withSite = aRoom('W1N2').withRcl(0, reserved).withSource(10, 10).withConstructionSite(STRUCTURE_CONTAINER, 11, 11)
+            .withMyCreep('m', 11, 11, { memory: minerMem, activeParts: minerParts, store: energy(50, 50) }).build();
+        expect(remoteMineTask.decide(task, ctx({ remote: withSite, creeps: withSite.creepsPresent }))).toContainEqual(
+            { kind: 'build', creepName: 'm', targetId: withSite.constructionSites[0].id });
+
+        const worn = aRoom('W1N2').withRcl(0, reserved).withSource(10, 10)
+            .withStructure(STRUCTURE_CONTAINER, 11, 11, { owner: 'none', hits: 1000, hitsMax: 250000 })
+            .withMyCreep('m', 11, 11, { memory: minerMem, activeParts: minerParts, store: energy(50, 50) }).build();
+        expect(remoteMineTask.decide(task, ctx({ remote: worn, creeps: worn.creepsPresent }))).toContainEqual(
+            { kind: 'repair', creepName: 'm', targetId: worn.structures[0].id });
+    });
+});
+
+describe('remote roads', () => {
+    test('haulers carry a WORK part once roads are being built', () => {
+        const home = aRoom('W1N1').withTick(10000).withEnergy(800, 800).withSpawn(10, 10).build();
+        const directive = { id: 'd1', type: 'remoteMine' as const, targetRoom: 'W1N2', source: 'auto' as const, status: 'active' as const, createdAt: 1 };
+        const c = aTaskContext(home, {
+            intel: { W1N2: intel() }, directives: { d1: directive }, economy: { incomePerTick: 20, upkeepPerTick: 2 },
+        });
+        const linked = { ...task, directiveId: 'd1' };
+        expect(roadStage(linked, c)).toBe('swamp');
+        expect(remoteMineTask.getSpawnRequests(linked, c).find(r => r.memory?.role === 'hauler')?.body).toBe(ROAD_HAULER_BODY);
+    });
+
+    test('roadWork: build a nearby road site, else repair a worn road, outside the home room only', () => {
+        const hauler = { memory: member({ role: 'hauler' }), activeParts: { [WORK]: 1, [CARRY]: 4, [MOVE]: 5 }, store: energy(100, 200) };
+        const withSite = aRoom('W1N2').withConstructionSite(STRUCTURE_ROAD, 12, 10).withMyCreep('h', 10, 10, hauler).build();
+        expect(roadWork(withSite.creepsPresent[0], withSite, 'W1N1')).toEqual({ kind: 'build', creepName: 'h', targetId: withSite.constructionSites[0].id });
+
+        const worn = aRoom('W1N2').withStructure(STRUCTURE_ROAD, 11, 10, { owner: 'none', hits: 1000, hitsMax: 5000 }).withMyCreep('h', 10, 10, hauler).build();
+        expect(roadWork(worn.creepsPresent[0], worn, 'W1N1')).toEqual({ kind: 'repair', creepName: 'h', targetId: worn.structures[0].id });
+
+        const home = aRoom('W1N1').withConstructionSite(STRUCTURE_ROAD, 12, 10).withMyCreep('h', 10, 10, hauler).build();
+        expect(roadWork(home.creepsPresent[0], home, 'W1N1')).toBeNull();
+    });
+
+    test('decide places road sites along the planned route at the current stage', () => {
+        const remote = aRoom('W1N2').withSource(10, 10).build();
+        const home = aRoom('W1N1').withTick(10000).withEnergy(800, 800).withSpawn(10, 10).build();
+        const directive = { id: 'd1', type: 'remoteMine' as const, targetRoom: 'W1N2', source: 'auto' as const, status: 'active' as const, createdAt: 1 };
+        const c = aTaskContext(home, {
+            world: worldOf([home, remote], { swamps: { W1N2: new Set(['20_20']) } }),
+            intel: { W1N2: intel() }, directives: { d1: directive }, economy: { incomePerTick: 20, upkeepPerTick: 2 },
+            baseMemory: aBaseMemory({ remoteRoutes: { W1N2: [{ room: 'W1N2', tiles: [20 * 50 + 20, 20 * 50 + 21] }] } }),
+        });
+        expect(remoteMineTask.decide({ ...task, directiveId: 'd1' }, c)).toContainEqual(
+            { kind: 'createConstructionSite', pos: { x: 20, y: 20, roomName: 'W1N2' }, structureType: STRUCTURE_ROAD });
+    });
+});
+

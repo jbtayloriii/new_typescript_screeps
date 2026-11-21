@@ -13,6 +13,8 @@ export interface WorldOptions {
     readonly ownedRooms?: readonly RoomName[];
     /** Walls by room name, as "x_y" strings. */
     readonly walls?: Readonly<Record<RoomName, ReadonlySet<string>>>;
+    /** Swamps by room name, as "x_y" strings. */
+    readonly swamps?: Readonly<Record<RoomName, ReadonlySet<string>>>;
 }
 
 /** A WorldSnapshot made of the given (visible) rooms. */
@@ -28,6 +30,9 @@ export function worldOf(rooms: readonly RoomSnapshot[], opts: WorldOptions = {})
         flags: opts.flags ?? [],
         gclLevel: opts.gclLevel ?? 1,
         ownedRooms: opts.ownedRooms ?? rooms.filter(r => r.controller?.my).map(r => r.name),
-        getTerrain: (name) => ({ isWall: (x, y) => opts.walls?.[name]?.has(`${x}_${y}`) ?? false }),
+        getTerrain: (name) => ({
+            isWall: (x, y) => opts.walls?.[name]?.has(`${x}_${y}`) ?? false,
+            isSwamp: (x, y) => opts.swamps?.[name]?.has(`${x}_${y}`) ?? false,
+        }),
     };
 }

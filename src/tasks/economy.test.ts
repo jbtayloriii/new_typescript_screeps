@@ -25,6 +25,13 @@ describe('computeEconomy', () => {
         expect(economy.upkeepPerTick).toBeCloseTo((650 + 300) / 1500);
     });
 
+    test('remote miners: 5/tick while small (unreserved), up to 10/tick when reserved-sized', () => {
+        const remote: TaskMemory[] = [{ name: 'rm', roomName: 'W1N1', type: 'remoteMine', targetRoom: 'W1N2' }];
+        const miner = (w: number) => creep({ [WORK]: w, [MOVE]: 3 }, { memory: { taskName: 'rm', baseRoomName: 'W1N1', role: 'miner' } });
+        expect(computeEconomy(remote, new Map([['rm', [miner(3)]]])).incomePerTick).toBe(5);
+        expect(computeEconomy(remote, new Map([['rm', [miner(5)]]])).incomePerTick).toBe(10);
+    });
+
     test('spawning creeps are not income yet', () => {
         expect(computeEconomy(tasks, new Map([['m', [creep({ [WORK]: 5 }, { spawning: true })]]])).incomePerTick).toBe(0);
     });

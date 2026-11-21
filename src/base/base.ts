@@ -6,7 +6,7 @@ import { MyCreepSnapshot } from "snapshot/types";
 import { WorldSnapshot } from "snapshot/world";
 import { TaskStore } from "tasks/task_store";
 import { decideBaseIntents, reconcileTasks } from "./base_tick";
-import { surveyBase } from "./survey";
+import { RemoteToSurvey, surveyBase } from "./survey";
 import { activePanels } from "visuals/settings";
 import { buildPanels } from "visuals/panels";
 import { layoutHud } from "visuals/layout";
@@ -43,6 +43,14 @@ export class Base {
     return new Base(roomName);
   }
 
+  /** This base's remote rooms with known sources, for `surveyBase`. */
+  private remotesToSurvey(): RemoteToSurvey[] {
+    return (Memory.tasks[this.roomName] ?? []).flatMap(t =>
+      t.type === 'remoteMine' && Memory.intel[t.targetRoom]
+        ? [{ targetRoom: t.targetRoom, sources: Memory.intel[t.targetRoom].sources }]
+        : []);
+  }
+
   public getRoomName(): RoomName {
     return this.roomName;
   }
@@ -55,7 +63,7 @@ export class Base {
     if (!home || !baseMemory || !room) {
       return;
     }
-    surveyBase(room, baseMemory);
+    surveyBase(room, baseMemory, this.remotesToSurvey());
 
     const shared = { world, home, baseMemory, creeps, intel: Memory.intel, directives: Memory.directives };
 

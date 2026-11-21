@@ -55,9 +55,9 @@ The empire is split into these pieces:
   | `upgrade` | WORK parts sized to spare income (+ storage bonus), at least 1 | gather energy, upgrade the controller |
   | `build` (while there are sites) | 1–3, by remaining work | gather energy, build the most important site (build priority order), closest among equals; done when none are left |
   | `repair` | 1 | repair critical structures, then damaged ones, then the weakest wall/rampart below its RCL target; else upgrade |
-  | `scout` (routine, from RCL 2) | one `[MOVE]`, only while a neighbor's intel is stale | visit the adjacent room with the oldest intel |
+  | `scout` (routine, from RCL 2) | one `[MOVE]`, only while a nearby room's intel is stale | visit rooms within 2 exits whose intel is missing or old, closest first |
   | `scout` (per scout directive) | one `[MOVE]` | go to the directive's room until it's been seen |
-  | `remoteMine` (one per remote mine directive) | a 3-`WORK` miner per source, haulers | drop mine the remote room's sources, haul the energy home; retreat while hostiles are around |
+  | `remoteMine` (one per remote mine directive) | a miner per source, haulers, and (from 1300 capacity) a reserver | mine the remote room's sources and haul the energy home; see "Remote mining" below |
   | `claim` (one per claim directive) | a claimer, then 2 pioneers | claim the controller, then build the first spawn |
 
   "Gather energy" means: ruins, then storage, then the controller container, then other
@@ -76,6 +76,19 @@ The empire is split into these pieces:
     the miner is working, the task releases its harvesters, which are adopted as haulers.
   - On collapse (nobody at the source and not enough energy for a miner): one urgent harvester
     to recover with.
+
+  **Remote mining** ([tasks/remote_mine_task.ts](tasks/remote_mine_task.ts)):
+  - Unreserved: 3-`WORK` miners drop mine (sources give 5 energy/tick); haulers are sized from
+    the measured path length to each source.
+  - Reserved (a `[CLAIM, MOVE]×2` reserver from 1300 capacity, sent whenever the reservation is
+    below 3000 ticks): sources give 10/tick, miners are `5W 1C 3M`, and each source gets a
+    container that its miner builds and repairs.
+  - Roads ([tasks/remote_roads.ts](tasks/remote_roads.ts)): none while the remote is new; swamp
+    tiles once it has held for 3000 ticks with spare income; all tiles once it's also reserved.
+    The route is planned once by the base survey. Haulers then carry a `WORK` part and build or
+    repair road tiles as they walk.
+  - Hostiles, or an Invader core reserving the room, pause the remote: no spawning, and creeps
+    go home until it has been clear for a while.
 
   **Remote rooms** ([tasks/remote_selection.ts](tasks/remote_selection.ts)): once a miner works one of the base's sources, with
   ≥ 800 energy capacity (2 rooms from 1300), the empire planner picks adjacent rooms from intel
@@ -99,8 +112,9 @@ The empire is split into these pieces:
   the controller and the towers can't cope.
 
 - **Base survey** ([base/survey.ts](base/survey.ts)): measures things that need game APIs once and
-  saves them in `BaseMemory`: path lengths from the spawn to each source (for hauler counts and
-  miner replacement timing) and the controller container's tile.
+  saves them in `BaseMemory`: path lengths from the spawn to each source and each remote source
+  (for hauler counts and miner replacement timing), the controller container's tile, and a road
+  route to each remote room.
 
 - **Directives** ([directives/](directives/)): empire-level goals, such as "remote mine W1N2",
   "scout W5N5" or "claim W2N3", saved in `Memory.directives` under short ids (`d3`). They come
@@ -206,7 +220,7 @@ in Memory must survive `JSON.stringify` (no `Map`, `Set` or class instances).
   next version number to `MIGRATIONS` in [memory/migrations.ts](memory/migrations.ts). Migrations
   run once each, in order, on global reset. Never edit one that has been deployed.
 - `bases_v3[roomName]`: base layout and construction planning state, plus survey results
-  (`sourceDistances`, `controllerContainer`).
+  (`sourceDistances`, `controllerContainer`, `remoteDistances`, `remoteRoutes`).
 - `tasks[baseRoomName]`: the saved state of each of the base's tasks.
 - `nextTaskId`: counter for unique task names.
 - `creeps[name]`: `taskName` (its task), `baseRoomName` (its base), and task state: `state`

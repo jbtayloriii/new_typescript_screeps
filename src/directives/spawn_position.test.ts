@@ -1,7 +1,7 @@
 import { describe, expect, test } from '@jest/globals';
 import { chooseSpawnPosition } from './spawn_position';
 
-const terrain = (isWall: (x: number, y: number) => boolean) => ({ isWall });
+const terrain = (isWall: (x: number, y: number) => boolean) => ({ isWall, isSwamp: () => false });
 
 describe('chooseSpawnPosition', () => {
     test('picks an open tile close to the sources and controller', () => {

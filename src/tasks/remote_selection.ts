@@ -13,14 +13,22 @@ export function maxRemoteRooms(energyCapacity: number): number {
     return 0;
 }
 
-/** Why a room can't be (or stop being) one of my remotes, or null if it can. */
+/** The username Invader cores reserve rooms under. */
+export const INVADER = 'Invader';
+
+/**
+ * Why a room can't be (or stop being) one of my remotes, or null if it can. An Invader core's
+ * reservation doesn't count here: it pauses an existing remote (see `isRemoteThreatened`) rather
+ * than ending it, since the core can be destroyed (phase 5).
+ */
 export function remoteBlocker(intel: RoomIntel | undefined, myUsername: string | undefined): string | null {
     if (!intel) return 'no intel';
     if (intel.sources.length === 0) return 'no sources';
     if (intel.keeperLairs > 0) return 'source keepers';
     if (!intel.controller) return 'no controller';
     if (intel.controller.owner) return 'owned';
-    if (intel.controller.reservedBy && intel.controller.reservedBy !== myUsername) return 'reserved by another player';
+    const reservedBy = intel.controller.reservedBy;
+    if (reservedBy && reservedBy !== myUsername && reservedBy !== INVADER) return 'reserved by another player';
     return null;
 }
 
@@ -39,7 +47,8 @@ export interface RemoteChoiceInput {
 
 /**
  * Picks new remote rooms for a base, up to its limit: adjacent rooms that are unowned, not
- * reserved by another player, without source keepers, and without recent hostiles. More sources
+ * reserved by another player (or an Invader core), without source keepers, and without recent
+ * hostiles. More sources
  * first, then by name for stability.
  */
 export function chooseNewRemoteRooms(input: RemoteChoiceInput): RoomName[] {
@@ -50,6 +59,7 @@ export function chooseNewRemoteRooms(input: RemoteChoiceInput): RoomName[] {
     return input.neighbors
         .filter(room => !input.current.includes(room) && !input.unavailable.includes(room))
         .filter(room => remoteBlocker(input.intel[room], input.myUsername) === null)
+        .filter(room => input.intel[room].controller?.reservedBy !== INVADER)
         .filter(room => {
             const seen = input.intel[room].hostilesLastSeen;
             return seen === undefined || input.tick - seen >= REMOTE_HOSTILE_AVOID_TICKS;

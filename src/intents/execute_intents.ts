@@ -45,6 +45,8 @@ export function executeIntent(intent: Intent): IntentReturnCode {
         }
         case 'claimController':
             return withCreepAndTarget(intent.creepName, intent.targetId, (c, t) => c.claimController(t));
+        case 'reserveController':
+            return withCreepAndTarget(intent.creepName, intent.targetId, (c, t) => c.reserveController(t));
         case 'removeFlag': {
             const flag = Game.flags[intent.flagName];
             if (!flag) return ERR_NOT_FOUND;

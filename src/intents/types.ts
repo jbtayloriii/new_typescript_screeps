@@ -18,6 +18,7 @@ export type RepairIntent = { kind: 'repair'; creepName: string; targetId: Id<Str
 export type UpgradeIntent = { kind: 'upgrade'; creepName: string; targetId: Id<StructureController> };
 export type SayIntent = { kind: 'say'; creepName: string; message: string };
 export type ClaimControllerIntent = { kind: 'claimController'; creepName: string; targetId: Id<StructureController> };
+export type ReserveControllerIntent = { kind: 'reserveController'; creepName: string; targetId: Id<StructureController> };
 
 export type CreepIntent =
     | MoveIntent
@@ -29,6 +30,7 @@ export type CreepIntent =
     | RepairIntent
     | UpgradeIntent
     | ClaimControllerIntent
+    | ReserveControllerIntent
     | SayIntent;
 
 /** Creep intents that act on a target object (everything except move and say). */

@@ -1,5 +1,6 @@
 import { Intent } from "intents/types";
 import { BodyPattern, ScoutTaskMemory, TaskContext, TaskDefinition } from "./types";
+import { WorldSnapshot } from "snapshot/world";
 
 export const SCOUT_BODY: BodyPattern = { pattern: [MOVE], maxRepeats: 1 };
 export const SCOUT_PRIORITY = 10;
@@ -10,13 +11,40 @@ export const INTEL_STALE_TICKS = 5000;
 /** Scouts stop within this range of a room's center, safely inside the room (not on an exit). */
 const ROOM_CENTER_RANGE = 20;
 
-/** Rooms next to the base whose intel is missing or stale: missing first, then oldest. */
+/** The routine scout keeps intel fresh for rooms up to this many exits from the base. */
+export const SCOUT_RANGE_EXITS = 2;
+
+/** Rooms within `maxExits` exits of `start` (not including it), with their distance in exits. */
+export function roomsWithinExits(world: WorldSnapshot, start: RoomName, maxExits: number): Map<RoomName, number> {
+    const distances = new Map<RoomName, number>([[start, 0]]);
+    let frontier = [start];
+    for (let d = 1; d <= maxExits; d++) {
+        const next: RoomName[] = [];
+        for (const room of frontier) {
+            for (const exit of world.getExits(room)) {
+                if (!distances.has(exit)) {
+                    distances.set(exit, d);
+                    next.push(exit);
+                }
+            }
+        }
+        frontier = next;
+    }
+    distances.delete(start);
+    return distances;
+}
+
+/**
+ * Rooms within SCOUT_RANGE_EXITS of the base whose intel is missing or stale. Closer rooms first
+ * (adjacent rooms matter most: they're remote mining candidates), then missing before oldest.
+ */
 export function staleNeighbors(ctx: TaskContext): RoomName[] {
     const tick = ctx.world.tick;
     const age = (room: RoomName) => ctx.intel[room] ? tick - ctx.intel[room].lastSeen : Infinity;
-    return ctx.world.getExits(ctx.home.name)
+    const nearby = roomsWithinExits(ctx.world, ctx.home.name, SCOUT_RANGE_EXITS);
+    return [...nearby.keys()]
         .filter(room => age(room) > INTEL_STALE_TICKS)
-        .sort((a, b) => age(b) - age(a) || a.localeCompare(b));
+        .sort((a, b) => nearby.get(a)! - nearby.get(b)! || age(b) - age(a) || a.localeCompare(b));
 }
 
 function center(roomName: RoomName) {
@@ -33,8 +61,8 @@ function directiveRoomUnseen(task: ScoutTaskMemory, ctx: TaskContext): boolean {
 /**
  * Two modes, each with one cheap [MOVE] creep. The scout only needs to enter a room:
  * `Headquarters` records intel for every visible room.
- * - Routine (no `targetRoom`): keeps adjacent rooms' intel fresh. While no neighbor is stale, no
- *   scout is spawned and an existing one returns home.
+ * - Routine (no `targetRoom`): keeps intel fresh for rooms up to 2 exits away. While none is
+ *   stale, no scout is spawned and an existing one returns home.
  * - Directive (`targetRoom`): goes to that room, however far, until it has been seen.
  */
 export const scoutTask: TaskDefinition<ScoutTaskMemory> = {

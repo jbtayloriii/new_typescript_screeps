@@ -123,7 +123,7 @@ access through a small module so tests can use a fake.
 - Changed from the old behavior: 2 harvesters per source instead of 1 in total; tasks run in
       the base's room only (remote work comes with phase 3 scouting and remote mining).
 
-### Phase 3: Full economy automation ✅ (except remote roads and reservers)
+### Phase 3: Full economy automation ✅
 Goal: the economy runs efficiently at every RCL with no manual tuning, then grows beyond the
 base room.
 
@@ -182,9 +182,9 @@ base room.
 - [x] `Memory.intel[roomName]` (`intel/types.ts`) recorded by `Headquarters` for every visible room,
       at most every 25 ticks. Snapshot additions: controller owner, reservation and safe mode;
       world `visibleRooms`, `getExits` and `myUsername`.
-- [x] `scout` task (from RCL 2): one `[MOVE]` creep while any adjacent room's intel is missing or
-      older than 5000 ticks.
-- [ ] Later: scouting rooms 2 exits away.
+- [x] `scout` task (from RCL 2): one `[MOVE]` creep while any room within 2 exits has intel that's
+      missing or older than 5000 ticks (adjacent rooms first). Remote mining still only picks
+      adjacent rooms.
 
 **7. Remote mining**
 - [x] `remoteMine` task per remote room: a 3-`WORK` miner per source (spawned pre-assigned via
@@ -195,23 +195,29 @@ base room.
 - [x] Works without vision (source positions from intel). Retreats home and stops spawning while
       hostiles are present or were seen in the last 300 ticks. Done when the room becomes owned,
       reserved by someone else, or otherwise unusable.
-- [ ] Reserver (`CLAIM` + `MOVE`, from about 1300 energy capacity) to double output to 10/tick,
-      and containers in the remote room.
-- [ ] Measure real remote path lengths instead of the 50-tile estimate.
-- [ ] Roads to remote rooms, built in stages:
-      - None when a remote first starts. Remotes get lost (invaders, other players), so roads
-        would be wasted energy until the remote has proven it holds.
-      - Once it's stable (held for a few thousand ticks without being lost, and home has spare
-        energy), plan one route with PathFinder that prefers the home room's existing layout
-        roads, and save it in base memory. Build swamp tiles first: a loaded `[CARRY, MOVE]`
-        hauler takes 5 ticks per swamp tile without a road.
-      - Plains tiles once the room is reserved. On energy alone, plains roads pay back slowly
-        (about 15k energy to build vs about 0.33 energy/tick saved on hauler bodies for a remote
-        50 tiles away). The real gain is spawn time and CPU from smaller and fewer haulers, and
-        reservation doubles traffic, which roughly halves the payback.
-      - Upkeep: give haulers one `WORK` part to repair road tiles as they walk over them.
-      - Keep the decision a pure function (e.g. `shouldBuildRemoteRoads(intel, remoteStats)`) and
-        tune its cutoffs once phase 6 stats show real numbers.
+- [x] Reserver (`[CLAIM, MOVE]×2`, from 1300 energy capacity) whenever the reservation has less
+      than 3000 ticks left. While reserved (10 energy/tick per source): miners are `5W 1C 3M` and
+      haulers are sized for 10/tick. **Added:** an Invader core's reservation pauses the remote
+      (like hostiles) instead of ending its directive, and rooms reserved by Invaders aren't
+      picked as new remotes. Destroying cores comes in phase 5.
+- [x] Containers in reserved remote rooms: one per source, on the walkable tile next to it that's
+      closest to the room center. The miner's CARRY part builds it and repairs it below half
+      hits (containers outside owned rooms decay 5× faster).
+- [x] Measured remote path lengths: the base survey runs PathFinder from the spawn to each remote
+      source once (`BaseMemory.remoteDistances`); haulers are sized from them (50-tile estimate
+      until then, or if no complete path is found).
+- [x] Roads to remote rooms, in stages (`tasks/remote_roads.ts`, `remoteRoadStage`, pure):
+      - `none` while the remote is new or was attacked in the last 3000 ticks, or the base has
+        less than 2 energy/tick spare;
+      - `swamp` once it's held 3000 ticks: swamp tiles only;
+      - `all` once it's also reserved.
+
+      The survey plans the route once (`BaseMemory.remoteRoutes`, compact tile indexes per
+      room), preferring existing roads and the home layout's planned roads. Sites are placed
+      only in visible rooms, at most 3 per room at a time. Once roads are being built, haulers
+      get one `WORK` part and build or repair road tiles within range 3 as they walk (outside the
+      home room, whose roads the base's own builders and repairers handle). The cutoffs are
+      guesses to tune with phase 6 stats.
 
 ### Phase 4: Directives and manual commands ✅
 - [x] `Memory.directives` (`directives/types.ts`): type, target room, assigned base, source
