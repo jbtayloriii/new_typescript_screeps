@@ -1,6 +1,7 @@
 # Base visuals (HUD) — design
 
-Status: design agreed, not built yet. See also [ROADMAP.md](ROADMAP.md) phase 6.
+Status: step 1 built (header, tasks, spawn queue and estimated economy panels, `cmd.visuals`).
+See "Suggested order" for what's next, and [ROADMAP.md](ROADMAP.md) phase 6.
 
 ## Goals
 
@@ -168,8 +169,11 @@ on.
 
 ## Suggested order
 
-1. `BaseReport` from the base tick; header, tasks and spawn queue panels; `cmd.visuals` on/off
-   with the 200-tick auto-off. Delete the old `src/visuals/` prototype.
+1. ✅ `BaseReport` from the base tick ([base/base_report.ts](../src/base/base_report.ts)); header,
+   tasks and spawn queue panels, plus the economy panel showing estimates
+   ([visuals/panels.ts](../src/visuals/panels.ts)); layout and renderer; `cmd.visuals` on/off with
+   the 200-tick auto-off. The old `src/visuals/` prototype is deleted. The spawn queue's statuses
+   come from `planSpawnQueue` ([spawning/plan_spawns.ts](../src/spawning/plan_spawns.ts)).
 2. Stats recording (shared with phase 6), then the economy panel. Until stats exist, the
    economy panel shows the economy summary's estimates (income, upkeep, upgrade budget).
 3. Alerts panel and creep labels.

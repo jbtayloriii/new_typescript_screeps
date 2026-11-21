@@ -27,7 +27,12 @@ export const HELP = `Directives (empire-level goals):
   cmd.claim(room, { base?, x?, y? })   claim a room; x/y place its first spawn
   cmd.list(includeEnded?)              list directives
   cmd.cancel(id)                       cancel a directive
-Flags: yellow = remote mine, white = scout, purple = claim (spawn on the flag). Remove the flag to cancel.`;
+Flags: yellow = remote mine, white = scout, purple = claim (spawn on the flag). Remove the flag to cancel.
+
+Visuals (HUD, switches off after 200 ticks):
+  cmd.visuals()                        list rooms with visuals on
+  cmd.visuals(room)                    toggle the default panels (header, tasks, spawn, economy)
+  cmd.visuals(room, 'off' | 'all' | ['tasks', 'spawn'])`;
 
 export function formatDirective(d: Directive): string {
     const parts = [`${d.id} ${d.type} ${d.targetRoom}`, `[${d.status}]`];

@@ -5,7 +5,8 @@ import { DirectiveMap } from "directives/types";
 import { Intent } from "intents/types";
 import { MyCreepSnapshot, RoomSnapshot } from "snapshot/types";
 import { WorldSnapshot } from "snapshot/world";
-import { planSpawns } from "spawning/plan_spawns";
+import { planSpawnQueue } from "spawning/plan_spawns";
+import { BaseReport, buildBaseReport } from "./base_report";
 import { assignOrphans, decideRecycle, groupCreepsByTask } from "tasks/creep_assignment";
 import { computeEconomy } from "tasks/economy";
 import { getTaskDefinition } from "tasks/registry";
@@ -70,6 +71,8 @@ export function reconcileTasks(input: BaseTickInput): TaskChanges {
 export interface BaseTickPlan {
     readonly intents: Intent[];
     readonly baseMemoryUpdate: Partial<BaseMemory>;
+    /** Only when asked for (visuals on for the room). */
+    readonly report?: BaseReport;
 }
 
 /**
@@ -82,7 +85,7 @@ export interface BaseTickPlan {
  *
  * Assumes `tasks` were already reconciled this tick (see `reconcileTasks`).
  */
-export function decideBaseIntents(input: BaseTickInput): BaseTickPlan {
+export function decideBaseIntents(input: BaseTickInput, opts: { report?: boolean } = {}): BaseTickPlan {
     const { home, tasks } = input;
     const intents: Intent[] = [];
 
@@ -108,7 +111,9 @@ export function decideBaseIntents(input: BaseTickInput): BaseTickPlan {
     }
 
     // 2. Spawn.
-    intents.push(...planSpawns(home, requestsFor(resolved.byTask)));
+    const requests = requestsFor(resolved.byTask);
+    const spawnPlan = planSpawnQueue(home, requests);
+    intents.push(...spawnPlan.intents);
 
     // 3. Tasks direct their creeps.
     for (const task of tasks) {
@@ -126,7 +131,17 @@ export function decideBaseIntents(input: BaseTickInput): BaseTickPlan {
     const construction = planConstruction(home, input.baseMemory);
     intents.push(...construction.intents);
 
-    return { intents: dedupeConstructionSites(intents), baseMemoryUpdate: construction.memoryUpdate };
+    const report = opts.report ? buildBaseReport({
+        home,
+        tasks,
+        byTask: resolved.byTask,
+        economy,
+        requests,
+        spawnPlan,
+        contextFor: task => contextFor(input, economy, resolved.byTask.get(task.name) ?? []),
+    }) : undefined;
+
+    return { intents: dedupeConstructionSites(intents), baseMemoryUpdate: construction.memoryUpdate, report };
 }
 
 /** Drops repeated construction site intents for the same spot (e.g. a mine task and the layout both placing a container). */

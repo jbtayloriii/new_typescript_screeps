@@ -126,6 +126,15 @@ The empire is split into these pieces:
   build the first spawn. When the spawn exists, `Headquarters` creates the new base, the directive
   is done, and the claim's creeps in that room are handed over to the new base.
 
+- **Visuals / HUD** ([visuals/](visuals/), design in [docs/VISUALS.md](../docs/VISUALS.md)):
+  `cmd.visuals('W1N1')` draws panels in the room's top-left corner for 200 ticks: header (RCL,
+  mining mode, energy, CPU), tasks (each task's creeps out of wanted, their states and lowest
+  TTL), spawn queue (priority order, with what's spawning and what it's waiting for) and economy
+  (estimates for now). `cmd.visuals(room, 'off' | 'all' | [panels])` changes it; `cmd.visuals()`
+  lists rooms with it on. The base tick builds a plain `BaseReport`
+  ([base/base_report.ts](base/base_report.ts)) only when visuals are on; pure functions turn it
+  into panels and draw commands, and `visuals/render.ts` is the only code calling `RoomVisual`.
+
 - **Base layout planning** ([pathfinding/](pathfinding/)): When a base is first created, it
   computes a full layout for controller levels 1–8 from the initial spawn position, terrain and
   sources: a 3x3 core, star-shaped extension stamps, and roads/containers to sources. The layout
@@ -202,6 +211,7 @@ in Memory must survive `JSON.stringify` (no `Map`, `Set` or class instances).
   (gathering/working), `targetId` (what it's currently working on), `role` (miner/hauler, for
   remote mining) and `targetRoom` (for scouts).
 - `intel[roomName]`: what we know about rooms we've seen (see [intel/types.ts](intel/types.ts)).
+- `visuals[roomName]`: rooms with the HUD on: `{ panels, until }`.
 - `directives[id]`, `nextDirectiveId`: empire-level goals (see [directives/types.ts](directives/types.ts)).
   Done directives are deleted after 5000 ticks, cancelled ones after 50000.
 - `log`: buffered log lines for `Logger`.

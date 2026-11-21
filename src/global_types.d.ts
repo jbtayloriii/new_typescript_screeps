@@ -1,6 +1,7 @@
 import { TaskMemory } from "tasks/types";
 import { RoomIntel } from "intel/types";
 import { Directive } from "directives/types";
+import { VisualSettings } from "visuals/types";
 
 /** A string that is of type "x_y", e.g. "33_4" */
 type CoordinateString = string;
@@ -36,6 +37,8 @@ declare global {
     directives: { [id: string]: Directive };
     // Counter for directive ids
     nextDirectiveId: number;
+    // Rooms with the HUD on (see visuals/ and docs/VISUALS.md)
+    visuals: { [roomName: string]: VisualSettings };
 
     log: LogMemory;
   }

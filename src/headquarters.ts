@@ -7,6 +7,7 @@ import { recordIntel, roomsNeedingIntel } from "intel/record_intel";
 import { DirectiveStore } from "directives/store";
 import { BaseSummary, planDirectives } from "directives/planning";
 import { Intent } from "intents/types";
+import { pruneVisuals } from "visuals/settings";
 
 /** Top-level singleton: creates a Base for each owned room and runs each base every tick. */
 export class Headquarters {
@@ -49,6 +50,9 @@ export class Headquarters {
     const changes = planDirectives({ world, directives: store.all(), bases: this.summarizeBases(world), intel: Memory.intel });
     store.apply(changes, world.tick);
     store.prune(world.tick);
+    for (const roomName of pruneVisuals(Memory, world.tick)) {
+      console.log(`Visuals off in ${roomName} (expired).`);
+    }
     const handoffs = new Map(changes.handoffs.map(h => [h.creepName, h.baseRoomName]));
     executeIntents([
       ...changes.intents,

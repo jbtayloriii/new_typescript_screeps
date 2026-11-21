@@ -114,6 +114,7 @@ function initializeDefaults(memory: Memory): void {
     memory.intel ??= {};
     memory.directives ??= {};
     memory.nextDirectiveId ??= 0;
+    memory.visuals ??= {};
     memory.log ??= {
         lastReportedDate: -1,
         infoMessages: [],

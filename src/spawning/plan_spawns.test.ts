@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { planSpawns } from './plan_spawns';
+import { planSpawnQueue, planSpawns } from './plan_spawns';
 import { aRoom } from 'testing/builders/room_snapshot_builder';
 import { SpawnRequest } from 'tasks/types';
 
@@ -72,6 +72,24 @@ describe('planSpawns', () => {
         const room = aRoom().withEnergy(500, 500).withSpawn(10, 10).build();
         const miner: SpawnRequest = { taskName: 'miner', priority: 100, body: { base: [WORK, WORK, WORK, WORK, WORK, MOVE], pattern: [], maxRepeats: 0 } };
         expect(planSpawns(room, [miner, request('next', 50)]).map(i => i.memory.taskName)).toEqual(['next']);
+    });
+});
+
+describe('planSpawnQueue', () => {
+    test('reports each request: spawning, waiting, queued or unaffordable', () => {
+        const room = aRoom().withEnergy(300, 500).withSpawn(10, 10).withSpawn(20, 20).build();
+        const miner: SpawnRequest = { taskName: 'miner', priority: 110, body: { base: [WORK, WORK, WORK, WORK, WORK, MOVE], pattern: [], maxRepeats: 0 } };
+        const plan = planSpawnQueue(room, [request('later', 10), request('big', 50), miner, request('now', 90, true)]);
+
+        expect(plan.queue.map(e => [e.request.taskName, e.status, e.cost])).toEqual([
+            ['miner', 'unaffordable', 550],
+            ['now', 'spawning', 200],
+            // Sized to the full 500 capacity (2 repeats = 400), but only 100 energy is left
+            ['big', 'waiting', 400],
+            ['later', 'queued', 400],
+        ]);
+        expect(plan.intents.map(i => i.memory.taskName)).toEqual(['now']);
+        expect(plan.queue[2].energyLeft).toBe(100);
     });
 });
 

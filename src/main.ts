@@ -6,6 +6,7 @@ import { maybeGeneratePixel } from "cpu";
 import { removeDeadCreepMemory } from "memory/creep_memory";
 import { createWorldSnapshot } from "snapshot/world";
 import { createCommands } from "directives/commands";
+import { createVisualsCommand } from "visuals/commands";
 
 // Make sure to both initialize memory before looping over the HQ, but also to do so in the game loop
 console.log(`---Full object reset at ${Game.time}---`);
@@ -13,8 +14,11 @@ MemoryUtil.initializeMemory();
 
 const globalHq = Headquarters.initialize();
 
-// Console commands for directives, e.g. cmd.claim('W2N3'). See cmd.help().
-(global as unknown as { cmd: unknown }).cmd = createCommands(() => Memory, () => Game.time);
+// Console commands, e.g. cmd.claim('W2N3') or cmd.visuals('W1N1'). See cmd.help().
+(global as unknown as { cmd: unknown }).cmd = {
+  ...createCommands(() => Memory, () => Game.time),
+  visuals: createVisualsCommand(() => Memory, () => Game.time),
+};
 
 export const loop = ErrorMapper.wrapLoop(() => {
   if (MemoryUtil.shouldInitializeMemory()) {

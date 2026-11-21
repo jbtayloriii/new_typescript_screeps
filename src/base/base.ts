@@ -7,6 +7,10 @@ import { WorldSnapshot } from "snapshot/world";
 import { TaskStore } from "tasks/task_store";
 import { decideBaseIntents, reconcileTasks } from "./base_tick";
 import { surveyBase } from "./survey";
+import { activePanels } from "visuals/settings";
+import { buildPanels } from "visuals/panels";
+import { layoutHud } from "visuals/layout";
+import { renderCommands } from "visuals/render";
 
 /**
  * A single owned room.
@@ -61,12 +65,18 @@ export class Base {
     changes.remove.forEach(name => store.removeTask(this.roomName, name));
     changes.create.forEach(spec => store.createTask(this.roomName, spec));
 
-    const plan = decideBaseIntents({ ...shared, tasks: store.getTasks(this.roomName) });
+    const panels = activePanels(Memory, this.roomName, world.tick);
+    const plan = decideBaseIntents({ ...shared, tasks: store.getTasks(this.roomName) }, { report: panels !== null });
     Object.assign(baseMemory, plan.baseMemoryUpdate);
 
     const failures = summarizeFailures(executeIntents(plan.intents));
     if (failures) {
       console.log(`[${this.roomName}] intent failures: ${failures}`);
+    }
+
+    if (panels && plan.report) {
+      const hud = buildPanels(plan.report, panels, { used: Game.cpu.getUsed(), bucket: Game.cpu.bucket });
+      renderCommands(layoutHud(hud), new RoomVisual(this.roomName));
     }
   }
 
