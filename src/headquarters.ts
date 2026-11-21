@@ -4,6 +4,9 @@ import { executeIntents } from "intents/execute_intents";
 import { MyCreepSnapshot } from "snapshot/types";
 import { WorldSnapshot } from "snapshot/world";
 import { recordIntel, roomsNeedingIntel } from "intel/record_intel";
+import { DirectiveStore } from "directives/store";
+import { BaseSummary, planDirectives } from "directives/planning";
+import { Intent } from "intents/types";
 
 /** Top-level singleton: creates a Base for each owned room and runs each base every tick. */
 export class Headquarters {
@@ -24,7 +27,13 @@ export class Headquarters {
           console.log(`Unable to create base in ${roomName}, no initial spawns.`);
           continue;
         }
-        this.bases.set(roomName, Base.createBaseFromInitialSpawn(spawns[0]));
+        try {
+          this.bases.set(roomName, Base.createBaseFromInitialSpawn(spawns[0]));
+        } catch (e) {
+          // E.g. the layout planner can't fit the base core next to a hand-placed spawn. Don't let
+          // one room break every tick; it's retried each tick in case the spawn changes.
+          console.log(`Unable to create base in ${roomName}: ${e}`);
+        }
       }
     }
   }
@@ -35,10 +44,34 @@ export class Headquarters {
       Memory.intel[roomName] = recordIntel(world.getRoom(roomName)!, Memory.intel[roomName]);
     }
 
-    const { byBase, rehomed } = groupCreepsByBase(world.myCreeps, [...this.bases.keys()]);
+    // Empire-level goals: flags, finishing, base assignment and automatic remote mining.
+    const store = new DirectiveStore(Memory);
+    const changes = planDirectives({ world, directives: store.all(), bases: this.summarizeBases(world), intel: Memory.intel });
+    store.apply(changes, world.tick);
+    store.prune(world.tick);
+    const handoffs = new Map(changes.handoffs.map(h => [h.creepName, h.baseRoomName]));
+    executeIntents([
+      ...changes.intents,
+      ...changes.handoffs.map((h): Intent =>
+        ({ kind: 'setCreepMemory', creepName: h.creepName, patch: { baseRoomName: h.baseRoomName, taskName: '' } })),
+    ]);
+    // Apply handoffs to this tick's creep list too, so the old base doesn't treat them as orphans.
+    const creeps = world.myCreeps.map(c => handoffs.has(c.name)
+      ? { ...c, memory: { ...c.memory, baseRoomName: handoffs.get(c.name)!, taskName: '' } }
+      : c);
+
+    const { byBase, rehomed } = groupCreepsByBase(creeps, [...this.bases.keys()]);
     executeIntents(rehomed.map(({ creep, baseRoomName }) =>
       ({ kind: 'setCreepMemory', creepName: creep.name, patch: { baseRoomName } })));
     this.bases.forEach((base, roomName) => base.tick(world, byBase.get(roomName) ?? []));
+  }
+
+  private summarizeBases(world: WorldSnapshot): BaseSummary[] {
+    return [...this.bases.keys()].map(roomName => ({
+      roomName,
+      energyCapacity: world.getRoom(roomName)?.energyCapacityAvailable ?? 0,
+      staticMining: (Memory.tasks[roomName] ?? []).some(t => t.type === 'mine'),
+    }));
   }
 
   public static initialize(): Headquarters {

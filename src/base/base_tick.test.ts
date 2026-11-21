@@ -12,7 +12,7 @@ function baseMemory(): BaseMemory {
 
 function input(builder: RoomSnapshotBuilder, tasks: TaskMemory[]) {
     const home = builder.withTick(2).build();
-    return { world: worldOf([home]), home, baseMemory: baseMemory(), tasks, creeps: home.creepsPresent, intel: {}, unavailableRooms: [] };
+    return { world: worldOf([home]), home, baseMemory: baseMemory(), tasks, creeps: home.creepsPresent, intel: {}, directives: {} };
 }
 
 const kinds = (intents: Intent[]) => intents.map(i => i.kind);
@@ -108,6 +108,18 @@ describe('switching to static mining', () => {
         const plan = decideBaseIntents({ ...i, tasks: after });
         expect(plan.intents).toContainEqual(expect.objectContaining({ kind: 'setCreepMemory', creepName: 'h1', patch: expect.objectContaining({ taskName: 'haul' }) }));
         expect(plan.intents).toContainEqual(expect.objectContaining({ kind: 'spawn', memory: expect.objectContaining({ taskName: 'm' }) }));
+    });
+});
+
+describe('directives in the base tick', () => {
+    test('an active directive assigned to the base gets a task', () => {
+        const i = input(aRoom().withRcl(3).withEnergy(300, 300).withSpawn(10, 10), []);
+        const directives = {
+            d1: { id: 'd1', type: 'scout' as const, targetRoom: 'W9N9', source: 'manual' as const, status: 'active' as const, createdAt: 1, baseRoomName: 'W1N1' },
+            d2: { id: 'd2', type: 'scout' as const, targetRoom: 'W8N8', source: 'manual' as const, status: 'active' as const, createdAt: 1, baseRoomName: 'W2N2' },
+        };
+        expect(reconcileTasks({ ...i, directives }).create).toContainEqual({ type: 'scout', targetRoom: 'W9N9', directiveId: 'd1' });
+        expect(reconcileTasks({ ...i, directives }).create).not.toContainEqual(expect.objectContaining({ directiveId: 'd2' }));
     });
 });
 

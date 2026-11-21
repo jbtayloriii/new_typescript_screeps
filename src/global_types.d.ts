@@ -1,5 +1,6 @@
 import { TaskMemory } from "tasks/types";
 import { RoomIntel } from "intel/types";
+import { Directive } from "directives/types";
 
 /** A string that is of type "x_y", e.g. "33_4" */
 type CoordinateString = string;
@@ -31,6 +32,10 @@ declare global {
     nextTaskId: number;
     // What we know about rooms we've seen. See intel/types.ts.
     intel: { [roomName: string]: RoomIntel };
+    // Empire-level goals by id (e.g. "d3"). See directives/types.ts.
+    directives: { [id: string]: Directive };
+    // Counter for directive ids
+    nextDirectiveId: number;
 
     log: LogMemory;
   }
@@ -72,7 +77,7 @@ declare global {
     targetId?: Id<_HasId>;
 
     /** The creep's job within a task with several kinds of creeps (e.g. remote mining). */
-    role?: 'miner' | 'hauler';
+    role?: 'miner' | 'hauler' | 'claimer' | 'pioneer';
 
     /** The room the creep is heading to, for tasks that move between rooms. */
     targetRoom?: RoomName;

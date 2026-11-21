@@ -1,0 +1,140 @@
+import { describe, expect, test } from '@jest/globals';
+import { BaseSummary, CLAIM_MIN_CAPACITY, DirectivePlanInput, MAX_DIRECTIVE_DISTANCE, planDirectives } from './planning';
+import { Directive } from './types';
+import { aRoom } from 'testing/builders/room_snapshot_builder';
+import { worldOf, WorldOptions } from 'testing/builders/world';
+import { RoomIntel } from 'intel/types';
+
+const base = (roomName: string, overrides: Partial<BaseSummary> = {}): BaseSummary =>
+    ({ roomName, energyCapacity: 800, staticMining: false, ...overrides });
+const directive = (overrides: Partial<Directive>): Directive =>
+    ({ id: 'd0', type: 'scout', targetRoom: 'W5N5', source: 'manual', status: 'pending', createdAt: 10, ...overrides });
+const intel = (overrides: Partial<RoomIntel> = {}): RoomIntel => ({
+    lastSeen: 1, sources: [{ id: 's' as Id<Source>, x: 20, y: 20 }],
+    controller: { x: 25, y: 25, level: 0 }, keeperLairs: 0, hostileCombatCreeps: 0, ...overrides,
+});
+
+function input(overrides: Partial<DirectivePlanInput> & { worldOpts?: WorldOptions } = {}): DirectivePlanInput {
+    const { worldOpts, ...rest } = overrides;
+    return {
+        world: worldOf([aRoom('W1N1').withTick(100).build()], worldOpts),
+        directives: [],
+        bases: [base('W1N1')],
+        intel: {},
+        ...rest,
+    };
+}
+
+describe('planDirectives: flags', () => {
+    const flag = { name: 'mine-here', color: COLOR_YELLOW, secondaryColor: COLOR_WHITE, pos: { x: 1, y: 1, roomName: 'W1N2' } };
+
+    test('new directive flags create directives, once', () => {
+        expect(planDirectives(input({ worldOpts: { flags: [flag] } })).create).toEqual([
+            { type: 'remoteMine', targetRoom: 'W1N2', source: 'flag', flagName: 'mine-here', spawnPos: undefined },
+        ]);
+        const existing = directive({ type: 'remoteMine', targetRoom: 'W1N2', source: 'flag', flagName: 'mine-here', status: 'active' });
+        expect(planDirectives(input({ worldOpts: { flags: [flag] }, directives: [existing] })).create).toEqual([]);
+    });
+
+    test('removing the flag cancels its directive', () => {
+        const existing = directive({ source: 'flag', flagName: 'gone', status: 'active', baseRoomName: 'W1N1' });
+        expect(planDirectives(input({ directives: [existing] })).end).toEqual([{ id: 'd0', status: 'cancelled', reason: 'flag removed' }]);
+    });
+
+    test('finishing a flag directive removes the flag', () => {
+        const scoutFlag = { ...flag, name: 'look', color: COLOR_WHITE, pos: { x: 1, y: 1, roomName: 'W5N5' } };
+        const existing = directive({ source: 'flag', flagName: 'look', status: 'active', baseRoomName: 'W1N1' });
+        const changes = planDirectives(input({ directives: [existing], intel: { W5N5: intel({ lastSeen: 50 }) }, worldOpts: { flags: [scoutFlag] } }));
+        expect(changes.end).toEqual([{ id: 'd0', status: 'done', reason: 'scouted' }]);
+        expect(changes.intents).toEqual([{ kind: 'removeFlag', flagName: 'look' }]);
+    });
+});
+
+describe('planDirectives: finishing', () => {
+    test('scouts finish once the room is seen after the directive was created', () => {
+        const d = directive({ status: 'active', baseRoomName: 'W1N1', createdAt: 10 });
+        expect(planDirectives(input({ directives: [d], intel: { W5N5: intel({ lastSeen: 9 }) } })).end).toEqual([]);
+        expect(planDirectives(input({ directives: [d], intel: { W5N5: intel({ lastSeen: 10 }) } })).end).toHaveLength(1);
+    });
+
+    test('remote mining ends when the room becomes unusable, not for missing intel', () => {
+        const d = directive({ type: 'remoteMine', status: 'active', baseRoomName: 'W1N1' });
+        expect(planDirectives(input({ directives: [d] })).end).toEqual([]);
+        expect(planDirectives(input({ directives: [d], intel: { W5N5: intel({ keeperLairs: 2 }) } })).end)
+            .toEqual([{ id: 'd0', status: 'done', reason: "can't remote mine: source keepers" }]);
+    });
+
+    test('claims finish when the room becomes a base, handing its creeps over', () => {
+        const d = directive({ type: 'claim', targetRoom: 'W2N1', status: 'active', baseRoomName: 'W1N1' });
+        const newBase = aRoom('W2N1').withMyCreep('pioneer1', 10, 10, { memory: { taskName: 'c', baseRoomName: 'W1N1', role: 'pioneer' } })
+            .withMyCreep('other', 11, 11, { memory: { taskName: 'x', baseRoomName: 'W1N1' } }).build();
+        const changes = planDirectives({ ...input({ directives: [d] }), bases: [base('W1N1'), base('W2N1')], world: worldOf([newBase]) });
+
+        expect(changes.end).toEqual([{ id: 'd0', status: 'done', reason: 'claimed: base created' }]);
+        expect(changes.handoffs).toEqual([{ creepName: 'pioneer1', baseRoomName: 'W2N1' }]);
+    });
+
+    test('claims fail when someone else owns the room', () => {
+        const d = directive({ type: 'claim', status: 'active', baseRoomName: 'W1N1' });
+        const owned = intel({ controller: { x: 1, y: 1, level: 3, owner: 'them' } });
+        expect(planDirectives(input({ directives: [d], intel: { W5N5: owned } })).end).toEqual([{ id: 'd0', status: 'done', reason: 'owned by them' }]);
+    });
+});
+
+describe('planDirectives: assigning bases', () => {
+    test('pending directives go to the closest base', () => {
+        const d = directive({ targetRoom: 'W4N1' });
+        const changes = planDirectives(input({ directives: [d], bases: [base('W1N1'), base('W3N1')] }));
+        expect(changes.update).toContainEqual({ id: 'd0', patch: { status: 'active', baseRoomName: 'W3N1', reason: undefined } });
+    });
+
+    test('waits, with a reason, when no base is close enough', () => {
+        const far = directive({ targetRoom: `W${MAX_DIRECTIVE_DISTANCE + 2}N1` });
+        expect(planDirectives(input({ directives: [far] })).update).toEqual([{ id: 'd0', patch: { reason: `no base within ${MAX_DIRECTIVE_DISTANCE} rooms` } }]);
+    });
+
+    test('claims need GCL and a base that can afford a claimer', () => {
+        const claim = directive({ type: 'claim', targetRoom: 'W2N1' });
+        const lowGcl = planDirectives(input({ directives: [claim], worldOpts: { gclLevel: 1, ownedRooms: ['W1N1'] } }));
+        expect(lowGcl.update[0].patch.reason).toContain('GCL 1');
+
+        const poor = planDirectives(input({ directives: [claim], bases: [base('W1N1', { energyCapacity: CLAIM_MIN_CAPACITY - 1 })], worldOpts: { gclLevel: 2, ownedRooms: ['W1N1'] } }));
+        expect(poor.update[0].patch.reason).toContain(`${CLAIM_MIN_CAPACITY} energy capacity`);
+
+        const ok = planDirectives(input({ directives: [claim], worldOpts: { gclLevel: 2, ownedRooms: ['W1N1'] } }));
+        expect(ok.update).toContainEqual({ id: 'd0', patch: { status: 'active', baseRoomName: 'W1N1', reason: undefined } });
+    });
+
+    test('claims get a spawn position once their room has intel', () => {
+        const claim = directive({ type: 'claim', targetRoom: 'W2N1', status: 'active', baseRoomName: 'W1N1' });
+        const changes = planDirectives(input({ directives: [claim], intel: { W2N1: intel() } }));
+        expect(changes.update).toContainEqual({ id: 'd0', patch: { spawnPos: expect.objectContaining({ x: expect.any(Number) }) } });
+        // Not recomputed once set
+        const placed = { ...claim, spawnPos: { x: 10, y: 10 } };
+        expect(planDirectives(input({ directives: [placed], intel: { W2N1: intel() } })).update).toEqual([]);
+    });
+});
+
+describe('planDirectives: automatic remote mining', () => {
+    const exits = { W1N1: ['W1N2', 'W2N1'] };
+    const good = { W1N2: intel(), W2N1: intel() };
+
+    test('static bases get remote directives up to their limit', () => {
+        const changes = planDirectives(input({ bases: [base('W1N1', { staticMining: true })], intel: good, worldOpts: { exits } }));
+        expect(changes.create).toEqual([{ type: 'remoteMine', targetRoom: 'W1N2', source: 'auto', baseRoomName: 'W1N1' }]);
+    });
+
+    test('not for bases still harvesting', () => {
+        expect(planDirectives(input({ intel: good, worldOpts: { exits } })).create).toEqual([]);
+    });
+
+    test('manual remotes count against the limit, and cancelled rooms are not retaken', () => {
+        const manual = directive({ type: 'remoteMine', targetRoom: 'W2N1', status: 'active', baseRoomName: 'W1N1' });
+        const statics = [base('W1N1', { staticMining: true })];
+        expect(planDirectives(input({ bases: statics, directives: [manual], intel: good, worldOpts: { exits } })).create).toEqual([]);
+
+        const cancelled = directive({ type: 'remoteMine', targetRoom: 'W1N2', status: 'cancelled' });
+        expect(planDirectives(input({ bases: statics, directives: [cancelled], intel: good, worldOpts: { exits } })).create)
+            .toEqual([{ type: 'remoteMine', targetRoom: 'W2N1', source: 'auto', baseRoomName: 'W1N1' }]);
+    });
+});

@@ -53,7 +53,7 @@ export class Base {
     }
     surveyBase(room, baseMemory);
 
-    const shared = { world, home, baseMemory, creeps, intel: Memory.intel, unavailableRooms: this.roomsUsedByOtherBases() };
+    const shared = { world, home, baseMemory, creeps, intel: Memory.intel, directives: Memory.directives };
 
     // Remove finished tasks and create missing ones before deciding anything else.
     const store = new TaskStore(Memory);
@@ -70,10 +70,4 @@ export class Base {
     }
   }
 
-  /** Other bases' rooms and their remote rooms. */
-  private roomsUsedByOtherBases(): RoomName[] {
-    return Object.entries(Memory.tasks)
-      .filter(([baseRoom]) => baseRoom !== this.roomName)
-      .flatMap(([baseRoom, tasks]) => [baseRoom, ...tasks.flatMap(t => t.type === 'remoteMine' ? [t.targetRoom] : [])]);
-  }
 }

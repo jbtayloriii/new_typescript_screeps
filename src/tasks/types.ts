@@ -2,6 +2,7 @@ import { Intent } from "intents/types";
 import { MyCreepSnapshot, RoomSnapshot } from "snapshot/types";
 import { WorldSnapshot } from "snapshot/world";
 import { IntelMap } from "intel/types";
+import { DirectiveMap } from "directives/types";
 
 /**
  * A task is a single goal (harvest a source, upgrade the controller, ...) that owns some
@@ -13,7 +14,7 @@ import { IntelMap } from "intel/types";
  * `memory.taskName` matches.
  */
 
-export type TaskType = 'harvest' | 'mine' | 'haul' | 'upgrade' | 'build' | 'repair' | 'scout' | 'remoteMine';
+export type TaskType = 'harvest' | 'mine' | 'haul' | 'upgrade' | 'build' | 'repair' | 'scout' | 'remoteMine' | 'claim';
 
 interface TaskMemoryBase {
     /** Unique name, e.g. "W1N1_harvest_3". Creeps refer to their task by this name. */
@@ -40,15 +41,29 @@ export interface HaulTaskMemory extends TaskMemoryBase {
     readonly type: 'haul';
 }
 
-/** Visits adjacent rooms to keep room intel fresh. */
+/**
+ * Without `targetRoom`: the base's routine scout, keeping adjacent rooms' intel fresh.
+ * With `targetRoom` (from a scout directive): sees that one room, however far away.
+ */
 export interface ScoutTaskMemory extends TaskMemoryBase {
     readonly type: 'scout';
+    readonly targetRoom?: RoomName;
+    readonly directiveId?: string;
 }
 
-/** Mines an adjacent room's sources and hauls the energy home. */
+/** Mines a nearby room's sources and hauls the energy home. Runs a remoteMine directive. */
 export interface RemoteMineTaskMemory extends TaskMemoryBase {
     readonly type: 'remoteMine';
     readonly targetRoom: RoomName;
+    /** Optional only for tasks saved before directives existed (migration 3 links them). */
+    readonly directiveId?: string;
+}
+
+/** Claims a room and builds its first spawn. Runs a claim directive. */
+export interface ClaimTaskMemory extends TaskMemoryBase {
+    readonly type: 'claim';
+    readonly targetRoom: RoomName;
+    readonly directiveId: string;
 }
 
 export interface UpgradeTaskMemory extends TaskMemoryBase {
@@ -71,7 +86,8 @@ export type TaskMemory =
     | BuildTaskMemory
     | RepairTaskMemory
     | ScoutTaskMemory
-    | RemoteMineTaskMemory;
+    | RemoteMineTaskMemory
+    | ClaimTaskMemory;
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 
@@ -124,6 +140,8 @@ export interface TaskContext {
     readonly baseTasks: readonly TaskMemory[];
     readonly economy: EconomySummary;
     readonly intel: IntelMap;
+    /** All directives, so directive-driven tasks can read theirs (e.g. a claim's spawn position). */
+    readonly directives: DirectiveMap;
 }
 
 /** The behavior of one task type. All functions are pure: they read state and return decisions. */

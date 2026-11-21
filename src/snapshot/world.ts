@@ -1,5 +1,18 @@
 import { buildRoomSnapshot, toMyCreepSnapshot } from "./build_snapshot";
-import { MyCreepSnapshot, RoomSnapshot } from "./types";
+import { MyCreepSnapshot, Pos, RoomSnapshot } from "./types";
+
+/** A flag as decisions see it. Flags are visible in every room, even without vision. */
+export interface FlagSnapshot {
+    readonly name: string;
+    readonly color: ColorConstant;
+    readonly secondaryColor: ColorConstant;
+    readonly pos: Pos;
+}
+
+/** Terrain for a room; available for any room, even without vision. */
+export interface TerrainView {
+    isWall(x: number, y: number): boolean;
+}
 
 /**
  * Everything decision logic can see this tick, across all rooms.
@@ -21,6 +34,12 @@ export interface WorldSnapshot {
     getExits(roomName: RoomName): readonly RoomName[];
     /** All of my creeps, in every room, including ones still spawning. */
     readonly myCreeps: readonly MyCreepSnapshot[];
+    readonly flags: readonly FlagSnapshot[];
+    /** How many rooms I may own (Global Control Level). */
+    readonly gclLevel: number;
+    /** Rooms whose controller I own. */
+    readonly ownedRooms: readonly RoomName[];
+    getTerrain(roomName: RoomName): TerrainView;
 }
 
 export function createWorldSnapshot(game: Game = Game): WorldSnapshot {
@@ -45,5 +64,17 @@ export function createWorldSnapshot(game: Game = Game): WorldSnapshot {
             return exitCache.get(roomName)!;
         },
         myCreeps: Object.values(game.creeps).map(toMyCreepSnapshot),
+        flags: Object.values(game.flags).map(f => ({
+            name: f.name,
+            color: f.color,
+            secondaryColor: f.secondaryColor,
+            pos: { x: f.pos.x, y: f.pos.y, roomName: f.pos.roomName },
+        })),
+        gclLevel: game.gcl.level,
+        ownedRooms: Object.values(game.rooms).filter(r => r.controller?.my).map(r => r.name),
+        getTerrain(roomName: RoomName) {
+            const terrain = game.map.getRoomTerrain(roomName);
+            return { isWall: (x, y) => terrain.get(x, y) === TERRAIN_MASK_WALL };
+        },
     };
 }

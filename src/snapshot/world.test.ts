@@ -10,8 +10,11 @@ function mockRoom(name: string): Room {
 
 function mockGame(game: Partial<Record<keyof Game, unknown>>): Game {
     return {
-        rooms: {}, creeps: {}, spawns: {},
-        map: { describeExits: (room: string) => room === 'W1N1' ? { 1: 'W1N2', 3: 'W0N1' } : null },
+        rooms: {}, creeps: {}, spawns: {}, flags: {}, gcl: { level: 1 },
+        map: {
+            describeExits: (room: string) => room === 'W1N1' ? { 1: 'W1N2', 3: 'W0N1' } : null,
+            getRoomTerrain: () => ({ get: (x: number) => x === 0 ? TERRAIN_MASK_WALL : 0 }),
+        },
         ...game,
     } as unknown as Game;
 }
@@ -48,4 +51,17 @@ describe('createWorldSnapshot', () => {
         const world = createWorldSnapshot(mockGame({ time: 1, creeps: { c: creep } }));
         expect(world.myCreeps.map(c => [c.name, c.pos.roomName])).toEqual([['c', 'W5N5']]);
     });
+
+    test('exposes flags, GCL, owned rooms and terrain', () => {
+        const flag = { name: 'f1', color: COLOR_YELLOW, secondaryColor: COLOR_WHITE, pos: { x: 3, y: 4, roomName: 'W1N2' } };
+        const owned = mockInstanceOf<Room>({ name: 'W1N1', controller: { my: true } });
+        const world = createWorldSnapshot(mockGame({ time: 1, rooms: { W1N1: owned }, flags: { f1: flag }, gcl: { level: 2 } }));
+
+        expect(world.flags).toEqual([{ name: 'f1', color: COLOR_YELLOW, secondaryColor: COLOR_WHITE, pos: { x: 3, y: 4, roomName: 'W1N2' } }]);
+        expect(world.gclLevel).toBe(2);
+        expect(world.ownedRooms).toEqual(['W1N1']);
+        expect(world.getTerrain('W5N5').isWall(0, 10)).toBe(true);
+        expect(world.getTerrain('W5N5').isWall(1, 10)).toBe(false);
+    });
 });
+

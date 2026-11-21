@@ -46,8 +46,8 @@ A **directive** is a persistent, high-level goal in `Memory.directives` ("grow t
 "remote-mine W1N2", "attack W3N3 with 4 melee"). Directives create tasks.
 
 - **Automatic**: empire and base planners create directives from game state.
-- **Manual** (later): console commands (`cmd.attack('W3N3', { size: 4 })`, `cmd.list()`,
-  `cmd.cancel(id)`) and a flag color convention both create directives.
+- **Manual**: console commands (`cmd.remoteMine('W1N2')`, `cmd.list()`, `cmd.cancel(id)`) and a
+  flag color convention both create directives.
 
 Automated and manual directives go through the same directive → tasks → intents path, so
 anything you can order by hand can later be automated, and the other way round.
@@ -206,14 +206,32 @@ base room.
       - Keep the decision a pure function (e.g. `shouldBuildRemoteRoads(intel, remoteStats)`) and
         tune its cutoffs once phase 6 stats show real numbers.
 
-### Phase 4: Directives and manual commands
-- [ ] `Memory.directives`: the directive type, lifecycle (created → active → done or
-      cancelled) and an empire-level loop that turns directives into tasks.
-- [ ] Rework the automatic planners from phase 3 to create directives.
-- [ ] Console API: `cmd.list()`, `cmd.cancel(id)`, and a command per directive type.
-- [ ] Flag parser (a color convention mapped to directive types).
-- [ ] First directive types: `RemoteMine` and `Scout`, which create the phase 3 tasks for a room
-      you name (overriding the automatic choice), and `Claim` for taking a new base room.
+### Phase 4: Directives and manual commands ✅
+- [x] `Memory.directives` (`directives/types.ts`): type, target room, assigned base, source
+      (auto/manual/flag) and lifecycle (pending → active → done or cancelled, with a reason).
+      Short ids (`d3`) for typing in the console. Ended directives are pruned after 5000 ticks
+      (done) or 50000 (cancelled; kept so the automatic planner doesn't recreate them).
+- [x] Empire-level loop (`planDirectives`, pure, run by `Headquarters` before the bases): flags,
+      finishing, assigning pending directives to the closest suitable base (within 10 rooms), claim
+      spawn positions, automatic remote mining. Bases run one task per active directive assigned
+      to them (tasks carry a `directiveId`) and drop tasks whose directive ended.
+- [x] Automatic remote room choice moved from `planTasks` to the empire loop, creating `auto`
+      directives. Migration 3 gives existing remote mine tasks a directive so they keep running.
+      **Kept per base, without directives:** mining, hauling, upgrading, building, repairing and
+      the routine adjacent-room scout, which are upkeep rather than goals you'd order by hand.
+- [x] Console API (global `cmd`): `help`, `list(includeEnded?)`, `cancel(id)`,
+      `remoteMine(room, { base? })`, `scout(room, { base? })`, `claim(room, { base?, x?, y? })`.
+- [x] Flags: yellow = remote mine, white = scout, purple = claim (spawn on the flag). Removing the
+      flag cancels; finishing removes the flag. Other colors are ignored.
+- [x] Directive types:
+      - `remoteMine`: manual ones override the automatic choice (they count against the same
+        limit). Done when the room becomes unusable (owned, reserved by others, keepers) or a base.
+      - `scout`: a scout goes to the room, however far, and the directive is done once it's seen.
+      - `claim`: waits for spare GCL and a base with 650 energy capacity. A claimer claims the
+        controller, two pioneers place and build the first spawn (position from the flag/command,
+        or chosen from terrain to fit the layout's core), then the new base takes over the creeps.
+- Not yet: directives for military goals (phase 5), and a claimer that can attack another
+  player's reservation.
 
 ### Phase 5: Military
 - [ ] `Attack`, `Defend` and `Escort` directives.

@@ -1,6 +1,7 @@
 import { decideSafeMode } from "defense/safe_mode";
 import { decideTowerIntents } from "defense/tower_logic";
 import { IntelMap } from "intel/types";
+import { DirectiveMap } from "directives/types";
 import { Intent } from "intents/types";
 import { MyCreepSnapshot, RoomSnapshot } from "snapshot/types";
 import { WorldSnapshot } from "snapshot/world";
@@ -24,8 +25,8 @@ export interface BaseTickInput {
     /** Creeps owned by this base (`memory.baseRoomName`), wherever they are. */
     readonly creeps: readonly MyCreepSnapshot[];
     readonly intel: IntelMap;
-    /** Rooms other bases use (as bases or remotes), which this base must not take. */
-    readonly unavailableRooms: readonly RoomName[];
+    /** All directives (the base runs the active ones assigned to it). */
+    readonly directives: DirectiveMap;
 }
 
 type ByTask = ReadonlyMap<string, readonly MyCreepSnapshot[]>;
@@ -39,6 +40,7 @@ function contextFor(input: BaseTickInput, economy: EconomySummary, creeps: reado
         baseTasks: input.tasks,
         economy,
         intel: input.intel,
+        directives: input.directives,
     };
 }
 
@@ -59,7 +61,9 @@ export function reconcileTasks(input: BaseTickInput): TaskChanges {
             kept.push(task);
         }
     }
-    const planned = planTasks({ ...input, tasks: kept, creepsByTask: byTask });
+    const assigned = Object.values(input.directives)
+        .filter(d => d.status === 'active' && d.baseRoomName === input.home.name);
+    const planned = planTasks({ ...input, tasks: kept, creepsByTask: byTask, directives: assigned });
     return { remove: [...finished, ...planned.remove], create: planned.create };
 }
 

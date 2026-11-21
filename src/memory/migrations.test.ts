@@ -112,7 +112,7 @@ describe('migration 2 (roles to tasks)', () => {
             rooms: { W1N1: { powerHarvestingMap: {} } },
         });
 
-        migrateMemory(memory);
+        migrateMemory(memory, MIGRATIONS.slice(0, 2));
 
         expect(memory.tasks).toEqual({});
         expect(memory).not.toHaveProperty('sources');
@@ -120,3 +120,25 @@ describe('migration 2 (roles to tasks)', () => {
         expect(memory.memoryVersion).toBe(2);
     });
 });
+
+describe('migration 3 (directives)', () => {
+    test('links existing remote mine tasks to new automatic directives', () => {
+        const memory = { ...createTestMemory(), memoryVersion: 2 } as Memory;
+        delete (memory as Partial<Memory>).directives;
+        memory.tasks = {
+            W1N1: [
+                { name: 'rm', roomName: 'W1N1', type: 'remoteMine', targetRoom: 'W1N2' },
+                { name: 'u', roomName: 'W1N1', type: 'upgrade' },
+            ],
+        };
+
+        migrateMemory(memory);
+
+        expect(memory.directives).toEqual({
+            d0: { id: 'd0', type: 'remoteMine', targetRoom: 'W1N2', source: 'auto', status: 'active', createdAt: 0, baseRoomName: 'W1N1' },
+        });
+        expect(memory.tasks.W1N1[0]).toMatchObject({ directiveId: 'd0' });
+        expect(memory.nextDirectiveId).toBe(1);
+    });
+});
+

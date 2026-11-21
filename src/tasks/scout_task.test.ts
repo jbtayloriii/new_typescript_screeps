@@ -51,3 +51,31 @@ describe('scoutTask', () => {
         ]);
     });
 });
+
+describe('scoutTask with a target room (scout directive)', () => {
+    const directed = { name: 'ds', roomName: 'W1N1', type: 'scout' as const, targetRoom: 'W9N9', directiveId: 'd1' };
+    const directive = { id: 'd1', type: 'scout' as const, targetRoom: 'W9N9', source: 'manual' as const, status: 'active' as const, createdAt: 50 };
+    const withDirective = (home: RoomSnapshot, intel: Record<string, RoomIntel>) =>
+        aTaskContext(home, { intel, directives: { d1: directive } });
+
+    test('spawns until the room is seen after the directive was created', () => {
+        const home = aRoom().withTick(100).build();
+        expect(scoutTask.getSpawnRequests(directed, withDirective(home, { W9N9: seenAt(40) }))).toHaveLength(1);
+        expect(scoutTask.getSpawnRequests(directed, withDirective(home, { W9N9: seenAt(60) }))).toEqual([]);
+    });
+
+    test('heads straight for the target room', () => {
+        const home = aRoom().withTick(100).withMyCreep('s1', 25, 25, scout({ x: 25, y: 25 })).build();
+        expect(scoutTask.decide(directed, withDirective(home, {}))).toEqual([
+            { kind: 'move', creepName: 's1', target: { x: 25, y: 25, roomName: 'W9N9' }, range: 20 },
+        ]);
+    });
+
+    test('ends with its directive; the routine scout never ends', () => {
+        const home = aRoom().build();
+        expect(scoutTask.isDone(directed, withDirective(home, {}))).toBe(false);
+        expect(scoutTask.isDone(directed, aTaskContext(home))).toBe(true);
+        expect(scoutTask.isDone(task, aTaskContext(home))).toBe(false);
+    });
+});
+

@@ -4,7 +4,7 @@ import { MyCreepSnapshot, Pos, RoomSnapshot } from "snapshot/types";
 import { WorldSnapshot } from "snapshot/world";
 import { basePlanCoordToBuildingObj } from "utils/string_utils";
 import { MINER_COST } from "./mine_task";
-import { chooseNewRemoteRooms } from "./remote_selection";
+import { Directive } from "directives/types";
 import { TaskMemory, TaskSpec } from "./types";
 
 export interface PlanTasksInput {
@@ -15,8 +15,8 @@ export interface PlanTasksInput {
     readonly tasks: readonly TaskMemory[];
     readonly creepsByTask: ReadonlyMap<string, readonly MyCreepSnapshot[]>;
     readonly intel: IntelMap;
-    /** Rooms other bases use (as bases or remotes). */
-    readonly unavailableRooms: readonly RoomName[];
+    /** Active directives assigned to this base. */
+    readonly directives: readonly Directive[];
 }
 
 export interface TaskChanges {
@@ -66,8 +66,9 @@ export function findContainerTile(baseLayout: BaseMemory['baseLayout'], source: 
  * - Per source: a mine task in static mode, or a harvest task in harvest mode (dropping the other).
  * - A haul task once there are mine tasks (kept afterwards, so existing haulers keep working).
  * - Upgrade while the controller is mine; build while there are sites; repair always.
- * - A scout from RCL 2.
- * - Remote mine tasks for new remote rooms, in static mode.
+ * - A routine scout from RCL 2.
+ * - One task per active directive assigned to the base; tasks whose directive ended are dropped.
+ *   (Choosing remote rooms is now the empire planner's job: see `directives/planning.ts`.)
  */
 export function planTasks(input: PlanTasksInput): TaskChanges {
     const { home, tasks } = input;
@@ -103,21 +104,21 @@ export function planTasks(input: PlanTasksInput): TaskChanges {
     if (!has('repair')) {
         create.push({ type: 'repair' });
     }
-    if ((home.controller?.level ?? 0) >= 2 && !has('scout')) {
+    if ((home.controller?.level ?? 0) >= 2 && !tasks.some(t => t.type === 'scout' && !t.targetRoom)) {
         create.push({ type: 'scout' });
     }
-    if (mode === 'static') {
-        const current = tasks.flatMap(t => t.type === 'remoteMine' ? [t.targetRoom] : []);
-        for (const targetRoom of chooseNewRemoteRooms({
-            energyCapacity: home.energyCapacityAvailable,
-            neighbors: input.world.getExits(home.name),
-            intel: input.intel,
-            myUsername: input.world.myUsername,
-            tick: input.world.tick,
-            current,
-            unavailable: input.unavailableRooms,
-        })) {
-            create.push({ type: 'remoteMine', targetRoom });
+
+    const activeIds = new Set(input.directives.map(d => d.id));
+    for (const task of tasks) {
+        const directiveId = 'directiveId' in task ? task.directiveId : undefined;
+        const directiveDriven = task.type === 'remoteMine' || task.type === 'claim' || (task.type === 'scout' && task.targetRoom);
+        if (directiveDriven && (!directiveId || !activeIds.has(directiveId))) {
+            remove.push(task.name);
+        }
+    }
+    for (const d of input.directives) {
+        if (!tasks.some(t => 'directiveId' in t && t.directiveId === d.id)) {
+            create.push({ type: d.type, targetRoom: d.targetRoom, directiveId: d.id });
         }
     }
     return { remove, create };

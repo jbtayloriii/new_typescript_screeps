@@ -17,6 +17,7 @@ export type BuildIntent = { kind: 'build'; creepName: string; targetId: Id<Const
 export type RepairIntent = { kind: 'repair'; creepName: string; targetId: Id<Structure> };
 export type UpgradeIntent = { kind: 'upgrade'; creepName: string; targetId: Id<StructureController> };
 export type SayIntent = { kind: 'say'; creepName: string; message: string };
+export type ClaimControllerIntent = { kind: 'claimController'; creepName: string; targetId: Id<StructureController> };
 
 export type CreepIntent =
     | MoveIntent
@@ -27,6 +28,7 @@ export type CreepIntent =
     | BuildIntent
     | RepairIntent
     | UpgradeIntent
+    | ClaimControllerIntent
     | SayIntent;
 
 /** Creep intents that act on a target object (everything except move and say). */
@@ -64,8 +66,12 @@ export type SetCreepMemoryIntent = { kind: 'setCreepMemory'; creepName: string; 
 
 export type ActivateSafeModeIntent = { kind: 'activateSafeMode'; controllerId: Id<StructureController> };
 
+/** Removes a flag, e.g. once its directive is done. */
+export type RemoveFlagIntent = { kind: 'removeFlag'; flagName: string };
+
 export type Intent =
     | ActivateSafeModeIntent
+    | RemoveFlagIntent
     | CreepIntent
     | SpawnIntent
     | RecycleIntent

@@ -56,8 +56,10 @@ The empire is split into these pieces:
   | `upgrade` | WORK parts sized to spare income (+ storage bonus), at least 1 | gather energy, upgrade the controller |
   | `build` (while there are sites) | 1–3, by remaining work | gather energy, build the closest site; done when none are left |
   | `repair` | 1 | repair critical structures, then damaged ones, then the weakest wall/rampart below its RCL target; else upgrade |
-  | `scout` (from RCL 2) | one `[MOVE]`, only while a neighbor's intel is stale | visit the adjacent room with the oldest intel |
-  | `remoteMine` (one per remote room) | a 3-`WORK` miner per source, haulers | drop mine the remote room's sources, haul the energy home; retreat while hostiles are around |
+  | `scout` (routine, from RCL 2) | one `[MOVE]`, only while a neighbor's intel is stale | visit the adjacent room with the oldest intel |
+  | `scout` (per scout directive) | one `[MOVE]` | go to the directive's room until it's been seen |
+  | `remoteMine` (one per remote mine directive) | a 3-`WORK` miner per source, haulers | drop mine the remote room's sources, haul the energy home; retreat while hostiles are around |
+  | `claim` (one per claim directive) | a claimer, then 2 pioneers | claim the controller, then build the first spawn |
 
   "Gather energy" means: ruins, then storage, then the controller container, then other
   containers, then harvesting the least crowded source. "Deliver" means: spawns and extensions,
@@ -70,8 +72,10 @@ The empire is split into these pieces:
   Containers aren't part of the decision, so losing one never flips modes.
 
   **Remote rooms** ([tasks/remote_selection.ts](tasks/remote_selection.ts)): in static mode with
-  ≥ 800 energy capacity (2 rooms from 1300), the base picks adjacent rooms from intel that are
-  unowned, not reserved by others, without source keepers and without recent hostiles.
+  ≥ 800 energy capacity (2 rooms from 1300), the empire planner picks adjacent rooms from intel
+  that are unowned, not reserved by others, without source keepers and without recent hostiles,
+  and creates automatic remote-mining directives for them. Manual remote directives count
+  against the same limit.
 
 - **Spawning** ([spawning/](spawning/)): `planSpawns` gives idle spawns the highest-priority
   requests from all tasks. A body is a fixed `base` (e.g. a miner's 5 `WORK` + `MOVE`) plus a
@@ -91,6 +95,30 @@ The empire is split into these pieces:
 - **Base survey** ([base/survey.ts](base/survey.ts)): measures things that need game APIs once and
   saves them in `BaseMemory`: path lengths from the spawn to each source (for hauler counts and
   miner replacement timing) and the controller container's tile.
+
+- **Directives** ([directives/](directives/)): empire-level goals, such as "remote mine W1N2",
+  "scout W5N5" or "claim W2N3", saved in `Memory.directives` under short ids (`d3`). They come
+  from three places and all take the same path, directive → a task in the assigned base → intents:
+  - **Automatic**: each statically mining base gets remote-mining directives for good adjacent
+    rooms (see "Remote rooms" above).
+  - **Console**: `cmd.remoteMine(room)`, `cmd.scout(room)`, `cmd.claim(room, { x, y })`,
+    `cmd.list()`, `cmd.cancel(id)` and `cmd.help()` ([directives/commands.ts](directives/commands.ts)).
+    Each takes an optional `{ base }`; otherwise the closest suitable base takes it.
+  - **Flags**: yellow = remote mine, white = scout, purple = claim (the first spawn goes on the
+    flag). Removing the flag cancels the directive, and the flag is removed when it's done.
+
+  Each tick, `planDirectives` ([directives/planning.ts](directives/planning.ts)) turns flags into
+  directives, finishes directives whose goal is met or impossible, assigns pending ones to the
+  closest base within 10 rooms (claims also need spare GCL and 650 energy capacity), picks claims'
+  spawn positions from terrain, and creates the automatic remote-mining directives. A directive
+  you cancel isn't recreated automatically. Bases run one task per active directive assigned to
+  them (`remoteMine`, a `scout` with a target room, or `claim`) and drop the task when the
+  directive ends. Routine base work (mining, hauling, upgrading, building, repairing and the
+  adjacent-room scout) stays automatic per base, without directives.
+
+  **Claiming**: a claimer (`[CLAIM, MOVE]`) claims the controller; two pioneers then place and
+  build the first spawn. When the spawn exists, `Headquarters` creates the new base, the directive
+  is done, and the claim's creeps in that room are handed over to the new base.
 
 - **Base layout planning** ([pathfinding/](pathfinding/)): When a base is first created, it
   computes a full layout for controller levels 1–8 from the initial spawn position, terrain and
@@ -132,8 +160,11 @@ Each tick:
 1. Re-initialize memory if the version changed. If the CPU bucket is full, generate a pixel.
 2. Delete memory of dead creeps.
 3. `setUpBases`: create a `Base` for any newly owned room with a spawn.
-4. Build the `WorldSnapshot`, record intel for visible rooms that need it, group creeps by base,
-   and run each base's tick (after surveying anything missing from its memory):
+4. Build the `WorldSnapshot` and record intel for visible rooms that need it.
+5. Plan directives (`planDirectives`), save the changes, remove finished flags and hand finished
+   claims' creeps to their new base.
+6. Group creeps by base and run each base's tick (after surveying anything missing from its
+   memory):
    1. **Reconcile tasks** (`reconcileTasks`): remove finished or unknown tasks, then create the
       ones the base needs but doesn't have, switching mining modes and adding remote rooms (see
       `planTasks`).
@@ -165,6 +196,8 @@ in Memory must survive `JSON.stringify` (no `Map`, `Set` or class instances).
   (gathering/working), `targetId` (what it's currently working on), `role` (miner/hauler, for
   remote mining) and `targetRoom` (for scouts).
 - `intel[roomName]`: what we know about rooms we've seen (see [intel/types.ts](intel/types.ts)).
+- `directives[id]`, `nextDirectiveId`: empire-level goals (see [directives/types.ts](directives/types.ts)).
+  Done directives are deleted after 5000 ticks, cancelled ones after 50000.
 - `log`: buffered log lines for `Logger`.
 
 ## Testing

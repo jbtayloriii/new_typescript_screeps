@@ -82,10 +82,11 @@ describe('remoteMineTask.decide', () => {
 });
 
 describe('remoteMineTask.isDone', () => {
-    test('when the room becomes unusable, but not just for lacking intel', () => {
-        expect(remoteMineTask.isDone(task, ctx())).toBe(false);
-        expect(remoteMineTask.isDone(task, ctx({ intel: intel({ controller: { x: 1, y: 1, level: 1, owner: 'them' } }) }))).toBe(true);
-        const noIntel = aTaskContext(aRoom().build());
-        expect(remoteMineTask.isDone(task, noIntel)).toBe(false);
+    test('ends with its directive', () => {
+        const active = { id: 'd1', type: 'remoteMine' as const, targetRoom: 'W1N2', source: 'auto' as const, status: 'active' as const, createdAt: 1 };
+        const linked = { ...task, directiveId: 'd1' };
+        expect(remoteMineTask.isDone(linked, aTaskContext(aRoom().build(), { directives: { d1: active } }))).toBe(false);
+        expect(remoteMineTask.isDone(linked, aTaskContext(aRoom().build(), { directives: { d1: { ...active, status: 'done' } } }))).toBe(true);
+        expect(remoteMineTask.isDone(linked, aTaskContext(aRoom().build()))).toBe(true);
     });
 });

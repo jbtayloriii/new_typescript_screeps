@@ -1,4 +1,5 @@
 import { IntelMap } from "intel/types";
+import { DirectiveMap } from "directives/types";
 import { MyCreepSnapshot, RoomSnapshot } from "snapshot/types";
 import { WorldSnapshot } from "snapshot/world";
 import { EconomySummary, TaskContext, TaskMemory } from "tasks/types";
@@ -17,6 +18,7 @@ export interface TaskContextOptions {
     readonly baseTasks?: readonly TaskMemory[];
     readonly economy?: Partial<EconomySummary>;
     readonly intel?: IntelMap;
+    readonly directives?: DirectiveMap;
 }
 
 /** A TaskContext for `home` with defaults for everything else. */
@@ -29,5 +31,6 @@ export function aTaskContext(home: RoomSnapshot, opts: TaskContextOptions = {}):
         baseTasks: opts.baseTasks ?? [],
         economy: { mode: 'harvest', incomePerTick: 0, upkeepPerTick: 0, ...opts.economy },
         intel: opts.intel ?? {},
+        directives: opts.directives ?? {},
     };
 }

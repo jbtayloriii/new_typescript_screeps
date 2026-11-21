@@ -98,4 +98,23 @@ describe('executeIntents', () => {
         expect(executeIntents([{ kind: 'activateSafeMode', controllerId: 'ctrl' as Id<StructureController> }])[0].code).toBe(OK);
         expect((objects['ctrl'] as StructureController).activateSafeMode).toHaveBeenCalled();
     });
+
+    test('claims controllers and removes flags', () => {
+        (creep as unknown as Record<string, unknown>).claimController = jest.fn(() => OK);
+        objects['ctrl'] = mockInstanceOf<StructureController>({ id: 'ctrl' });
+        const flag = { remove: jest.fn(() => OK) };
+        mockGlobal<Game>('Game', {
+            creeps: { c1: creep }, rooms: {}, flags: { f1: flag },
+            getObjectById: ((id: string) => objects[id] ?? null) as Game['getObjectById'],
+        }, true);
+
+        const results = executeIntents([
+            { kind: 'claimController', creepName: 'c1', targetId: 'ctrl' as Id<StructureController> },
+            { kind: 'removeFlag', flagName: 'f1' },
+            { kind: 'removeFlag', flagName: 'missing' },
+        ]);
+        expect(results.map(r => r.code)).toEqual([OK, OK, ERR_NOT_FOUND]);
+        expect(flag.remove).toHaveBeenCalled();
+    });
 });
+

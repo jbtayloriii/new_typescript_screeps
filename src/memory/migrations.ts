@@ -57,6 +57,27 @@ export const MIGRATIONS: readonly Migration[] = [
             }
         },
     },
+    {
+        version: 3,
+        description: "Directives: give each existing remote mine task an automatic directive, so it keeps running.",
+        migrate: (memory) => {
+            memory.directives ??= {};
+            memory.nextDirectiveId ??= 0;
+            for (const [baseRoomName, tasks] of Object.entries(memory.tasks ?? {})) {
+                for (const task of tasks) {
+                    if (task.type !== 'remoteMine' || task.directiveId) {
+                        continue;
+                    }
+                    const id = `d${memory.nextDirectiveId++}`;
+                    memory.directives[id] = {
+                        id, type: 'remoteMine', targetRoom: task.targetRoom, source: 'auto',
+                        status: 'active', createdAt: 0, baseRoomName,
+                    };
+                    (task as { directiveId?: string }).directiveId = id;
+                }
+            }
+        },
+    },
 ];
 
 export const CURRENT_MEMORY_VERSION: number = MIGRATIONS[MIGRATIONS.length - 1].version;
@@ -91,6 +112,8 @@ function initializeDefaults(memory: Memory): void {
     memory.tasks ??= {};
     memory.nextTaskId ??= 0;
     memory.intel ??= {};
+    memory.directives ??= {};
+    memory.nextDirectiveId ??= 0;
     memory.log ??= {
         lastReportedDate: -1,
         infoMessages: [],

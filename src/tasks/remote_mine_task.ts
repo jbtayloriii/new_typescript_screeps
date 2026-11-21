@@ -5,7 +5,6 @@ import { buildBody } from "spawning/body";
 import { Behavior, deliverEnergy, runWorker, stepToIntents } from "./behaviors";
 import { REMOTE_SOURCE_ENERGY_PER_TICK } from "./economy";
 import { collectEnergy } from "./haul_task";
-import { remoteBlocker } from "./remote_selection";
 import { BodyPattern, RemoteMineTaskMemory, SpawnRequest, TaskContext, TaskDefinition } from "./types";
 
 /** 3 WORK harvest the 5 energy/tick an unreserved source gives; 1 MOVE per part to travel at full speed. */
@@ -151,8 +150,7 @@ export const remoteMineTask: TaskDefinition<RemoteMineTaskMemory> = {
     },
 
     isDone(task, ctx) {
-        const intel = ctx.intel[task.targetRoom];
-        // Without intel we can't tell; keep going. Otherwise stop if the room became unusable.
-        return intel !== undefined && remoteBlocker(intel, ctx.world.myUsername) !== null;
+        // Ends with its directive (which `planDirectives` ends if the room becomes unusable).
+        return task.directiveId === undefined || ctx.directives[task.directiveId]?.status !== 'active';
     },
 };

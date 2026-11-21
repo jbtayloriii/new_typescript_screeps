@@ -7,7 +7,7 @@ import { MyCreepSnapshot } from 'snapshot/types';
 import { TaskMemory } from './types';
 import { MINER_COST } from './mine_task';
 import { basePlanObjToBasePlanCoordString } from 'utils/string_utils';
-import { RoomIntel } from 'intel/types';
+import { Directive } from 'directives/types';
 
 function input(builder: RoomSnapshotBuilder, tasks: TaskMemory[] = [], overrides: Partial<PlanTasksInput> = {}): PlanTasksInput {
     const home = builder.build();
@@ -18,7 +18,7 @@ function input(builder: RoomSnapshotBuilder, tasks: TaskMemory[] = [], overrides
         tasks,
         creepsByTask: new Map(),
         intel: {},
-        unavailableRooms: [],
+        directives: [],
         ...overrides,
     };
 }
@@ -131,20 +131,29 @@ describe('planTasks', () => {
         expect(planTasks(input(aRoom().withRcl(1))).create).not.toContainEqual({ type: 'scout' });
     });
 
-    test('adds remote mine tasks for good neighbors once static and rich enough', () => {
-        const intel: RoomIntel = {
-            lastSeen: 1, sources: [{ id: 'rs' as Id<Source>, x: 10, y: 10 }],
-            controller: { x: 25, y: 25, level: 0 }, keeperLairs: 0, hostileCombatCreeps: 0,
-        };
-        const builder = aRoom().withRcl(3).withEnergy(800, 800).withSource(20, 20);
-        const home = builder.build();
-        const world = worldOf([home], { exits: { W1N1: ['W1N2', 'W2N1'] } });
+    test('creates one task per active directive and drops tasks whose directive ended', () => {
+        const directive = (id: string, type: Directive['type'], targetRoom: string): Directive =>
+            ({ id, type, targetRoom, source: 'manual', status: 'active', createdAt: 1, baseRoomName: 'W1N1' });
+        const tasks: TaskMemory[] = [
+            { name: 'u', roomName: 'W1N1', type: 'upgrade' },
+            { name: 'r', roomName: 'W1N1', type: 'repair' },
+            { name: 'old', roomName: 'W1N1', type: 'remoteMine', targetRoom: 'W1N3', directiveId: 'gone' },
+            { name: 'legacy', roomName: 'W1N1', type: 'remoteMine', targetRoom: 'W1N4' },
+            { name: 'keep', roomName: 'W1N1', type: 'claim', targetRoom: 'W3N3', directiveId: 'd3' },
+        ];
+        const changes = planTasks(input(aRoom().withRcl(1), tasks, {
+            directives: [directive('d1', 'remoteMine', 'W1N2'), directive('d2', 'scout', 'W9N9'), directive('d3', 'claim', 'W3N3')],
+        }));
 
-        const changes = planTasks(input(builder, [], { world, intel: { W1N2: intel } }));
-        expect(changes.create).toContainEqual({ type: 'remoteMine', targetRoom: 'W1N2' });
+        expect(changes.remove).toEqual(['old', 'legacy']);
+        expect(changes.create).toEqual([
+            { type: 'remoteMine', targetRoom: 'W1N2', directiveId: 'd1' },
+            { type: 'scout', targetRoom: 'W9N9', directiveId: 'd2' },
+        ]);
+    });
 
-        // Not in harvest mode
-        const poor = aRoom().withRcl(3).withEnergy(100, 300).withSource(20, 20);
-        expect(planTasks(input(poor, [], { world, intel: { W1N2: intel } })).create.map(s => s.type)).not.toContain('remoteMine');
+    test("a directive scout doesn't replace the routine scout", () => {
+        const tasks: TaskMemory[] = [{ name: 's', roomName: 'W1N1', type: 'scout', targetRoom: 'W9N9', directiveId: 'd1' }];
+        expect(planTasks(input(aRoom().withRcl(2), tasks)).create).toContainEqual({ type: 'scout' });
     });
 });
