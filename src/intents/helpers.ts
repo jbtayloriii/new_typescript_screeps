@@ -13,6 +13,11 @@ export const ACTION_RANGE: Record<TargetedCreepIntent['kind'], number> = {
     upgrade: 3,
     claimController: 1,
     reserveController: 1,
+    attackController: 1,
+    attack: 1,
+    rangedAttack: 3,
+    heal: 1,
+    rangedHeal: 3,
 };
 
 /**

@@ -14,7 +14,7 @@ import { DirectiveMap } from "directives/types";
  * `memory.taskName` matches.
  */
 
-export type TaskType = 'mine' | 'haul' | 'upgrade' | 'build' | 'repair' | 'scout' | 'remoteMine' | 'claim';
+export type TaskType = 'mine' | 'haul' | 'upgrade' | 'build' | 'repair' | 'scout' | 'remoteMine' | 'claim' | 'squad';
 
 interface TaskMemoryBase {
     /** Unique name, e.g. "W1N1_harvest_3". Creeps refer to their task by this name. */
@@ -64,6 +64,14 @@ export interface ClaimTaskMemory extends TaskMemoryBase {
     readonly directiveId: string;
 }
 
+/** A combat squad running an attack, defend or escort directive (see `military/squad_task.ts`). */
+export interface SquadTaskMemory extends TaskMemoryBase {
+    readonly type: 'squad';
+    readonly mission: 'attack' | 'defend' | 'escort';
+    readonly targetRoom: RoomName;
+    readonly directiveId: string;
+}
+
 export interface UpgradeTaskMemory extends TaskMemoryBase {
     readonly type: 'upgrade';
 }
@@ -84,7 +92,8 @@ export type TaskMemory =
     | RepairTaskMemory
     | ScoutTaskMemory
     | RemoteMineTaskMemory
-    | ClaimTaskMemory;
+    | ClaimTaskMemory
+    | SquadTaskMemory;
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 

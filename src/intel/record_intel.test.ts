@@ -18,6 +18,10 @@ describe('recordIntel', () => {
             sources: [{ id: room.sources[0].id, x: 10, y: 11 }],
             controller: { x: 25, y: 25, level: 0, owner: undefined, reservedBy: 'them', reservationEnd: 1500 },
             keeperLairs: 1,
+            invaderCores: 0,
+            // Keeper lairs aren't structures an attack has to clear
+            hostileStructures: 0,
+            hostileOwners: ['Invader'],
             hostileCombatCreeps: 1,
             hostilesLastSeen: 500,
         });
@@ -38,3 +42,17 @@ describe('roomsNeedingIntel', () => {
         expect(roomsNeedingIntel(world, { B: entry(tick - INTEL_UPDATE_INTERVAL), C: entry(tick - 1) })).toEqual(['A', 'B']);
     });
 });
+
+describe('recordIntel: military fields', () => {
+    test('counts Invader cores and attackable hostile structures', () => {
+        const room = aRoom('W1N2').withTick(5)
+            .withStructure(STRUCTURE_INVADER_CORE, 10, 10, { owner: 'other' })
+            .withStructure(STRUCTURE_TOWER, 11, 11, { owner: 'other' })
+            .withStructure(STRUCTURE_RAMPART, 12, 12, { owner: 'other' })
+            .withStructure(STRUCTURE_ROAD, 13, 13, { owner: 'none' })
+            .withHostile(30, 30, { owner: 'someone' })
+            .build();
+        expect(recordIntel(room, undefined)).toMatchObject({ invaderCores: 1, hostileStructures: 2, hostileOwners: ['someone'] });
+    });
+});
+

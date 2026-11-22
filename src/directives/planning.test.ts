@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { BaseSummary, CLAIM_MIN_CAPACITY, DirectivePlanInput, MAX_DIRECTIVE_DISTANCE, planDirectives } from './planning';
+import { autoDefendSize, BaseSummary, CLAIM_MIN_CAPACITY, DEFEND_CLEAR_TICKS, DirectivePlanInput, MAX_DIRECTIVE_DISTANCE, MILITARY_MIN_CAPACITY, planDirectives } from './planning';
 import { Directive } from './types';
 import { aRoom } from 'testing/builders/room_snapshot_builder';
 import { worldOf, WorldOptions } from 'testing/builders/world';
@@ -138,3 +138,58 @@ describe('planDirectives: automatic remote mining', () => {
             .toEqual([{ type: 'remoteMine', targetRoom: 'W2N1', source: 'auto', baseRoomName: 'W1N1' }]);
     });
 });
+
+describe('planDirectives: military', () => {
+    test('attack is done once the room is seen with no hostile structures or combat creeps', () => {
+        const d = directive({ type: 'attack', status: 'active', baseRoomName: 'W1N1', createdAt: 10 });
+        expect(planDirectives(input({ directives: [d], intel: { W5N5: intel({ lastSeen: 50, hostileStructures: 2 }) } })).end).toEqual([]);
+        expect(planDirectives(input({ directives: [d], intel: { W5N5: intel({ lastSeen: 50, hostileStructures: 0 }) } })).end)
+            .toEqual([{ id: 'd0', status: 'done', reason: 'target cleared' }]);
+    });
+
+    test('defend is done once the room has been clear for a while', () => {
+        const d = directive({ type: 'defend', status: 'active', baseRoomName: 'W1N1', createdAt: 10 });
+        const recent = intel({ lastSeen: 95, hostilesLastSeen: 50 });
+        expect(planDirectives(input({ directives: [d], intel: { W5N5: recent } })).end).toEqual([]);
+        const world = worldOf([aRoom('W1N1').withTick(50 + DEFEND_CLEAR_TICKS).build()]);
+        expect(planDirectives({ ...input({ directives: [d], intel: { W5N5: recent } }), world }).end)
+            .toEqual([{ id: 'd0', status: 'done', reason: 'room clear' }]);
+    });
+
+    test('escort runs from the escorted directive\'s base and ends with it', () => {
+        const claim = directive({ id: 'd1', type: 'claim', targetRoom: 'W2N1', status: 'active', baseRoomName: 'W3N3' });
+        const escort = directive({ id: 'd2', type: 'escort', targetRoom: 'W2N1', escortedId: 'd1' });
+        expect(planDirectives(input({ directives: [claim, escort], bases: [base('W1N1'), base('W3N3')] })).update)
+            .toContainEqual({ id: 'd2', patch: { status: 'active', baseRoomName: 'W3N3', reason: undefined } });
+        const ended = { ...claim, status: 'done' as const };
+        expect(planDirectives(input({ directives: [ended, { ...escort, status: 'active', baseRoomName: 'W3N3' }] })).end)
+            .toEqual([{ id: 'd2', status: 'done', reason: 'escorted directive ended' }]);
+    });
+
+    test('military directives need a base with enough energy capacity', () => {
+        const d = directive({ type: 'attack', targetRoom: 'W2N1' });
+        const poor = planDirectives(input({ directives: [d], bases: [base('W1N1', { energyCapacity: MILITARY_MIN_CAPACITY - 1 })] }));
+        expect(poor.update[0].patch.reason).toContain(`${MILITARY_MIN_CAPACITY} energy capacity`);
+    });
+
+    test('remote rooms with NPC invaders or a core get an automatic defend directive, once', () => {
+        const remote = directive({ id: 'd1', type: 'remoteMine', targetRoom: 'W1N2', status: 'active', baseRoomName: 'W1N1' });
+        const invaded = intel({ lastSeen: 100, hostileCombatCreeps: 2, hostilesLastSeen: 90, hostileOwners: ['Invader'] });
+        expect(planDirectives(input({ directives: [remote], intel: { W1N2: invaded } })).create).toEqual([
+            { type: 'defend', targetRoom: 'W1N2', source: 'auto', baseRoomName: 'W1N1', size: 3 },
+        ]);
+        expect(planDirectives(input({ directives: [remote], intel: { W1N2: intel({ invaderCores: 1 }) } })).create)
+            .toEqual([{ type: 'defend', targetRoom: 'W1N2', source: 'auto', baseRoomName: 'W1N1', size: 2 }]);
+
+        const alreadyDefended = directive({ id: 'd2', type: 'defend', targetRoom: 'W1N2', status: 'active', baseRoomName: 'W1N1' });
+        expect(planDirectives(input({ directives: [remote, alreadyDefended], intel: { W1N2: invaded } })).create).toEqual([]);
+    });
+
+    test('players are not auto-defended against', () => {
+        const remote = directive({ id: 'd1', type: 'remoteMine', targetRoom: 'W1N2', status: 'active', baseRoomName: 'W1N1' });
+        const player = intel({ lastSeen: 100, hostileCombatCreeps: 2, hostilesLastSeen: 90, hostileOwners: ['someone'] });
+        expect(planDirectives(input({ directives: [remote], intel: { W1N2: player } })).create).toEqual([]);
+        expect(autoDefendSize({ hostileCombatCreeps: 9 })).toBe(4);
+    });
+});
+

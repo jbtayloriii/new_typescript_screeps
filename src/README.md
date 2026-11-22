@@ -58,7 +58,8 @@ The empire is split into these pieces:
   | `scout` (routine, from RCL 2) | one `[MOVE]`, only while a nearby room's intel is stale | visit rooms within 2 exits whose intel is missing or old, closest first |
   | `scout` (per scout directive) | one `[MOVE]` | go to the directive's room until it's been seen |
   | `remoteMine` (one per remote mine directive) | a miner per source, haulers, and (from 1300 capacity) a reserver | mine the remote room's sources and haul the energy home; see "Remote mining" below |
-  | `claim` (one per claim directive) | a claimer, then 2 pioneers | claim the controller, then build the first spawn |
+  | `claim` (one per claim directive) | a claimer, then 2 pioneers | claim the controller (clearing someone else's reservation first), then build the first spawn |
+  | `squad` (one per attack, defend or escort directive) | melee, ranged and healers by mission and size | rally, move out together, fight; see "Military" below |
 
   "Gather energy" means: ruins, then storage, then the controller container, then other
   containers, then harvesting the source with the most free tiles. A source's tiles are taken by
@@ -87,8 +88,10 @@ The empire is split into these pieces:
     tiles once it has held for 3000 ticks with spare income; all tiles once it's also reserved.
     The route is planned once by the base survey. Haulers then carry a `WORK` part and build or
     repair road tiles as they walk.
-  - Hostiles, or an Invader core reserving the room, pause the remote: no spawning, and creeps
-    go home until it has been clear for a while.
+  - Hostiles, or an Invader core in the room, pause the remote: no spawning, and creeps go home
+    until it has been clear for a while. NPC invaders and cores also trigger an automatic
+    `defend` directive (see "Military" below). A leftover reservation by someone else is cleared
+    by the reserver with `attackController`.
 
   **Remote rooms** ([tasks/remote_selection.ts](tasks/remote_selection.ts)): once a miner works one of the base's sources, with
   ≥ 800 energy capacity (2 rooms from 1300), the empire planner picks adjacent rooms from intel
@@ -117,28 +120,51 @@ The empire is split into these pieces:
   route to each remote room.
 
 - **Directives** ([directives/](directives/)): empire-level goals, such as "remote mine W1N2",
-  "scout W5N5" or "claim W2N3", saved in `Memory.directives` under short ids (`d3`). They come
+  "scout W5N5", "claim W2N3" or "attack W3N3", saved in `Memory.directives` under short ids (`d3`). They come
   from three places and all take the same path, directive → a task in the assigned base → intents:
   - **Automatic**: each statically mining base gets remote-mining directives for good adjacent
-    rooms (see "Remote rooms" above).
+    rooms (see "Remote rooms" above), and a `defend` directive when NPC invaders show up in one.
   - **Console**: `cmd.remoteMine(room)`, `cmd.scout(room)`, `cmd.claim(room, { x, y })`,
+    `cmd.attack(room, { size })`, `cmd.defend(room, { size })`, `cmd.escort(id, { size })`,
     `cmd.list()`, `cmd.cancel(id)` and `cmd.help()` ([directives/commands.ts](directives/commands.ts)).
-    Each takes an optional `{ base }`; otherwise the closest suitable base takes it.
+    Each room command takes an optional `{ base }`; otherwise the closest suitable base takes it.
   - **Flags**: yellow = remote mine, white = scout, purple = claim (the first spawn goes on the
     flag). Removing the flag cancels the directive, and the flag is removed when it's done.
 
   Each tick, `planDirectives` ([directives/planning.ts](directives/planning.ts)) turns flags into
   directives, finishes directives whose goal is met or impossible, assigns pending ones to the
-  closest base within 10 rooms (claims also need spare GCL and 650 energy capacity), picks claims'
-  spawn positions from terrain, and creates the automatic remote-mining directives. A directive
-  you cancel isn't recreated automatically. Bases run one task per active directive assigned to
-  them (`remoteMine`, a `scout` with a target room, or `claim`) and drop the task when the
-  directive ends. Routine base work (mining, hauling, upgrading, building, repairing and the
+  closest base within 10 rooms (claims also need spare GCL and 650 energy capacity, military
+  directives 550), picks claims' spawn positions from terrain, and creates the automatic
+  remote-mining and defend directives. A directive you cancel isn't recreated automatically.
+  Bases run one task per active directive assigned to them (`remoteMine`, a `scout` with a
+  target room, `claim`, or a `squad`) and drop the task when the directive ends. Routine base work (mining, hauling, upgrading, building, repairing and the
   adjacent-room scout) stays automatic per base, without directives.
 
   **Claiming**: a claimer (`[CLAIM, MOVE]`) claims the controller; two pioneers then place and
   build the first spawn. When the spawn exists, `Headquarters` creates the new base, the directive
   is done, and the claim's creeps in that room are handed over to the new base.
+
+- **Military** ([military/](military/)): attack, defend and escort directives each run a `squad`
+  task ([military/squad_task.ts](military/squad_task.ts)).
+  - **Composition** (`squadComposition`): attack squads are one healer per 3 members, the rest
+    alternating melee and ranged (default size 4). Defend and escort squads are ranged plus a
+    healer (default size 2; automatic defense sizes to the threat, 2–4).
+  - **Movement**: members gather at the rally point next to the home spawn until the squad is
+    complete, then move out together. The leader (fighters before healers) heads for the
+    target; followers stay next to it; the leader waits for members more than 3 tiles behind,
+    except on room-edge tiles. Below 40% total health the squad retreats to the rally point and
+    re-engages at 90%. Replacements for lost members go straight to the squad.
+  - **Engagement** ([military/combat.ts](military/combat.ts), pure): targets are healers first,
+    then ranged, melee and other creeps (never Source Keepers), then structures (Invader cores
+    and towers, spawns, extensions, the rest). Attack squads may hit any hostile structure,
+    defend squads only Invader cores, escorts none. Melee closes in; ranged keeps range 3 and
+    mass attacks when crowded; healers heal the most damaged member. Escorts engage hostiles
+    within 6 tiles of the creeps they guard. Everyone fights back against hostiles within 3.
+  - **Done**: attack once the room is seen with no hostile structures or combat creeps; defend
+    once it has been clear for 100 ticks; escort when the escorted directive ends. Leftover squad
+    creeps are recycled.
+  - Automatic defense is only against NPCs (`Invader`); player hostiles need a manual
+    `cmd.defend`, so the base doesn't start fights it can't win.
 
 - **Visuals / HUD** ([visuals/](visuals/), design in [docs/VISUALS.md](../docs/VISUALS.md)):
   `cmd.visuals('W1N1')` draws panels in the room's top-left corner for 200 ticks: header (RCL,
@@ -226,7 +252,8 @@ in Memory must survive `JSON.stringify` (no `Map`, `Set` or class instances).
 - `creeps[name]`: `taskName` (its task), `baseRoomName` (its base), and task state: `state`
   (gathering/working), `targetId` (what it's currently working on), `role` (miner/hauler, for
   remote mining) and `targetRoom` (for scouts).
-- `intel[roomName]`: what we know about rooms we've seen (see [intel/types.ts](intel/types.ts)).
+- `intel[roomName]`: what we know about rooms we've seen (see [intel/types.ts](intel/types.ts)),
+  including Invader cores, hostile structures and who owns the hostile creeps.
 - `visuals[roomName]`: rooms with the HUD on: `{ panels, until }`.
 - `directives[id]`, `nextDirectiveId`: empire-level goals (see [directives/types.ts](directives/types.ts)).
   Done directives are deleted after 5000 ticks, cancelled ones after 50000.

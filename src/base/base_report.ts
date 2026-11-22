@@ -4,6 +4,7 @@ import { upgradeWorkBudget } from "tasks/economy";
 import { isMiner } from "tasks/mine_task";
 import { isRemoteThreatened } from "tasks/remote_mine_task";
 import { staleNeighbors } from "tasks/scout_task";
+import { currentSquadState } from "military/squad_task";
 import { EconomySummary, SpawnRequest, TaskContext, TaskMemory, TaskType } from "tasks/types";
 
 /**
@@ -152,6 +153,11 @@ function taskDetail(
         }
         case 'remoteMine':
             return isRemoteThreatened(task, input.contextFor(task)) ? 'paused: hostiles' : undefined;
+        case 'squad': {
+            const states = ['rallying', 'engaged', 'retreating'];
+            const state = creeps.length > 0 ? states[currentSquadState(creeps)] : 'spawning';
+            return `${task.mission}, ${state}`;
+        }
         default:
             return undefined;
     }

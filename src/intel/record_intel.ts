@@ -1,6 +1,18 @@
 import { RoomSnapshot } from "snapshot/types";
 import { WorldSnapshot } from "snapshot/world";
 import { IntelMap, RoomIntel } from "./types";
+import { StructureSnapshot } from "snapshot/types";
+
+/**
+ * Hostile structures an attack has to destroy: owned by someone else, not counting walls,
+ * ramparts and keeper lairs (which can't be "cleared").
+ */
+export function isAttackableHostileStructure(s: StructureSnapshot): boolean {
+    return s.owner === 'other'
+        && s.structureType !== STRUCTURE_RAMPART
+        && s.structureType !== STRUCTURE_KEEPER_LAIR
+        && s.structureType !== STRUCTURE_POWER_BANK;
+}
 
 /** Visible rooms' intel is refreshed at most this often, to keep CPU down. */
 export const INTEL_UPDATE_INTERVAL = 25;
@@ -26,6 +38,9 @@ export function recordIntel(room: RoomSnapshot, previous: RoomIntel | undefined)
             reservationEnd: controller.reservation ? room.tick + controller.reservation.ticksToEnd : undefined,
         } : undefined,
         keeperLairs: room.structures.filter(s => s.structureType === STRUCTURE_KEEPER_LAIR).length,
+        invaderCores: room.structures.filter(s => s.structureType === STRUCTURE_INVADER_CORE).length,
+        hostileStructures: room.structures.filter(isAttackableHostileStructure).length,
+        hostileOwners: [...new Set(combat.map(h => h.owner))],
         hostileCombatCreeps: combat.length,
         hostilesLastSeen: combat.length > 0 ? room.tick : previous?.hostilesLastSeen,
     };

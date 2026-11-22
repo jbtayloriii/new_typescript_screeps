@@ -116,5 +116,26 @@ describe('executeIntents', () => {
         expect(results.map(r => r.code)).toEqual([OK, OK, ERR_NOT_FOUND]);
         expect(flag.remove).toHaveBeenCalled();
     });
+
+    test('runs combat intents', () => {
+        const fighter = creep as unknown as Record<string, unknown>;
+        for (const method of ['attack', 'rangedAttack', 'heal', 'rangedHeal', 'rangedMassAttack', 'attackController', 'reserveController']) {
+            fighter[method] = jest.fn(() => OK);
+        }
+        objects['ctrl'] = mockInstanceOf<StructureController>({ id: 'ctrl' });
+        const ctrl = 'ctrl' as Id<StructureController>;
+        const results = executeIntents([
+            { kind: 'attack', creepName: 'c1', targetId: hostileId },
+            { kind: 'rangedAttack', creepName: 'c1', targetId: hostileId },
+            { kind: 'heal', creepName: 'c1', targetId: hostileId },
+            { kind: 'rangedHeal', creepName: 'c1', targetId: hostileId },
+            { kind: 'rangedMassAttack', creepName: 'c1' },
+            { kind: 'attackController', creepName: 'c1', targetId: ctrl },
+            { kind: 'reserveController', creepName: 'c1', targetId: ctrl },
+            { kind: 'rangedMassAttack', creepName: 'gone' },
+        ]);
+        expect(results.map(r => r.code)).toEqual([OK, OK, OK, OK, OK, OK, OK, ERR_NOT_FOUND]);
+        expect(fighter.attack).toHaveBeenCalledWith(objects[hostileId]);
+    });
 });
 

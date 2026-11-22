@@ -197,9 +197,10 @@ base room.
       reserved by someone else, or otherwise unusable.
 - [x] Reserver (`[CLAIM, MOVE]×2`, from 1300 energy capacity) whenever the reservation has less
       than 3000 ticks left. While reserved (10 energy/tick per source): miners are `5W 1C 3M` and
-      haulers are sized for 10/tick. **Added:** an Invader core's reservation pauses the remote
-      (like hostiles) instead of ending its directive, and rooms reserved by Invaders aren't
-      picked as new remotes. Destroying cores comes in phase 5.
+      haulers are sized for 10/tick. **Added:** an Invader core reserving a room no longer ends its
+      directive, and rooms reserved by Invaders aren't picked as new remotes. Since phase 5, the
+      remote pauses only while a core exists (an automatic defend squad destroys it), and the
+      reserver clears the leftover reservation with `attackController`.
 - [x] Containers in reserved remote rooms: one per source, on the walkable tile next to it that's
       closest to the room center. The miner's CARRY part builds it and repairs it below half
       hits (containers outside owned rooms decay 5× faster).
@@ -243,13 +244,33 @@ base room.
       - `claim`: waits for spare GCL and a base with 650 energy capacity. A claimer claims the
         controller, two pioneers place and build the first spawn (position from the flag/command,
         or chosen from terrain to fit the layout's core), then the new base takes over the creeps.
-- Not yet: directives for military goals (phase 5), and a claimer that can attack another
-  player's reservation.
+- Military directives came in phase 5. Claimers also clear another player's reservation with
+  `attackController` before claiming (added in phase 5).
 
-### Phase 5: Military
-- [ ] `Attack`, `Defend` and `Escort` directives.
-- [ ] Groups of creeps that move together, with formation and rally points.
-- [ ] Target selection and engagement logic as pure, tested functions.
+### Phase 5: Military ✅
+- [x] `attack`, `defend` and `escort` directives, each run by a `squad` task in the assigned base
+      (`military/`). Console: `cmd.attack(room, { size })`, `cmd.defend(room, { size })`,
+      `cmd.escort(directiveId, { size })`. Military directives need a base with 550 energy
+      capacity; escorts run from the escorted directive's base. Done: attack when the room is seen
+      with no hostile structures or combat creeps; defend when clear for 100 ticks; escort when
+      the escorted directive ends.
+- [x] Automatic defense: a remote room with NPC invaders (recently seen) or an Invader core gets
+      a `defend` directive from its base, sized 2–4 to the threat. Only NPCs: player hostiles need
+      a manual order. Intel now records Invader cores, hostile structures and hostile owners.
+- [x] Squads (`squadComposition`): attack is a healer per 3, the rest alternating melee/ranged;
+      defend/escort is ranged plus a healer. Rally at the home spawn until complete, then move
+      out with follow-the-leader movement (followers stay next to the leader, the leader waits for
+      stragglers but never on a room edge). Retreat below 40% total health, re-engage at 90%.
+      Reinforcements join wherever the squad is. **Simpler than planned:** no fixed formations
+      (e.g. 2×2 quads); follow-the-leader with cohesion waits instead.
+- [x] Pure engagement logic (`military/combat.ts`): target tiers (healers → ranged → melee →
+      others; then cores/towers → spawns → extensions → other structures), per-mission structure
+      rules, melee/ranged/healer actions including mass attack and ranged heal.
+- [x] Phase 3/4 follow-ups: remotes pause only while an Invader core exists; reservers and
+      claimers clear other reservations with `attackController`.
+- Not yet: quad formations, kiting (ranged creeps stepping away from melee), boosts, towers and
+  ramparts as tactical concerns (breaching ramparts, avoiding tower range), and automatic
+  attacks.
 
 ### Phase 6: Observability (can be done at any point)
 - [ ] Per-tick CPU and stats recorded in Memory.

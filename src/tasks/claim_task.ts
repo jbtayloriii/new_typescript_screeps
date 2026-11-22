@@ -46,7 +46,11 @@ function decideClaimer(creep: MyCreepSnapshot, task: ClaimTaskMemory, ctx: TaskC
     if (!live?.controller || creep.pos.roomName !== task.targetRoom) {
         return [{ kind: 'move', creepName: creep.name, target, range: 1 }];
     }
-    return [actOrApproach(creep.pos, target, { kind: 'claimController', creepName: creep.name, targetId: live.controller.id })];
+    // A room reserved by someone else can't be claimed until the reservation is cleared.
+    const theirs = live.controller.reservation && live.controller.reservation.username !== ctx.world.myUsername;
+    return [actOrApproach(creep.pos, target, {
+        kind: theirs ? 'attackController' : 'claimController', creepName: creep.name, targetId: live.controller.id,
+    })];
 }
 
 function decidePioneer(creep: MyCreepSnapshot, task: ClaimTaskMemory, ctx: TaskContext): Intent[] {

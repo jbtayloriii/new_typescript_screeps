@@ -4,7 +4,7 @@ import { MyCreepSnapshot, Pos, RoomSnapshot } from "snapshot/types";
 import { WorldSnapshot } from "snapshot/world";
 import { basePlanCoordToBuildingObj } from "utils/string_utils";
 import { needsHauling } from "./mine_task";
-import { Directive } from "directives/types";
+import { Directive, isMilitary } from "directives/types";
 import { MineTaskMemory, TaskMemory, TaskSpec } from "./types";
 
 export interface PlanTasksInput {
@@ -78,14 +78,17 @@ export function planTasks(input: PlanTasksInput): TaskChanges {
     const activeIds = new Set(input.directives.map(d => d.id));
     for (const task of tasks) {
         const directiveId = 'directiveId' in task ? task.directiveId : undefined;
-        const directiveDriven = task.type === 'remoteMine' || task.type === 'claim' || (task.type === 'scout' && task.targetRoom);
+        const directiveDriven = task.type === 'remoteMine' || task.type === 'claim' || task.type === 'squad'
+            || (task.type === 'scout' && task.targetRoom);
         if (directiveDriven && (!directiveId || !activeIds.has(directiveId))) {
             remove.push(task.name);
         }
     }
     for (const d of input.directives) {
         if (!tasks.some(t => 'directiveId' in t && t.directiveId === d.id)) {
-            create.push({ type: d.type, targetRoom: d.targetRoom, directiveId: d.id });
+            create.push(isMilitary(d.type)
+                ? { type: 'squad', mission: d.type, targetRoom: d.targetRoom, directiveId: d.id }
+                : { type: d.type, targetRoom: d.targetRoom, directiveId: d.id });
         }
     }
     return { remove, create };

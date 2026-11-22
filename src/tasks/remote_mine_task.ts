@@ -8,7 +8,6 @@ import { Behavior, deliverEnergy, runWorker, stepToIntents } from "./behaviors";
 import { OWNED_SOURCE_ENERGY_PER_TICK, REMOTE_SOURCE_ENERGY_PER_TICK } from "./economy";
 import { collectEnergy } from "./haul_task";
 import { planRemoteRoads, remoteRoadStage, RemoteRoadStage } from "./remote_roads";
-import { INVADER } from "./remote_selection";
 import { BodyPattern, RemoteMineTaskMemory, SpawnRequest, TaskContext, TaskDefinition } from "./types";
 
 /** 3 WORK harvest the 5 energy/tick an unreserved source gives; 1 MOVE per part to travel at full speed. */
@@ -67,15 +66,19 @@ export function isReservedByMe(task: RemoteMineTaskMemory, ctx: TaskContext): bo
 }
 
 /**
- * True if the remote room has hostile combat creeps now, had them recently, or is reserved by an
- * Invader core (which spawns defenders; dealing with cores comes in phase 5).
+ * True if the remote room has hostile combat creeps now, had them recently, or has an Invader
+ * core (the base's automatic defend directive sends a squad to destroy it). A leftover Invader
+ * reservation alone doesn't pause the remote: the reserver clears it.
  */
 export function isRemoteThreatened(task: RemoteMineTaskMemory, ctx: TaskContext): boolean {
     const live = ctx.world.getRoom(task.targetRoom);
     if (live && live.hostileCreeps.some(h => (h.activeParts[ATTACK] ?? 0) + (h.activeParts[RANGED_ATTACK] ?? 0) > 0)) {
         return true;
     }
-    if (remoteReservation(task, ctx)?.username === INVADER) {
+    const cores = live
+        ? live.structures.filter(s => s.structureType === STRUCTURE_INVADER_CORE).length
+        : ctx.intel[task.targetRoom]?.invaderCores ?? 0;
+    if (cores > 0) {
         return true;
     }
     const seen = ctx.intel[task.targetRoom]?.hostilesLastSeen;
@@ -304,7 +307,11 @@ export const remoteMineTask: TaskDefinition<RemoteMineTaskMemory> = {
                     ? { x: ctx.intel[task.targetRoom].controller!.x, y: ctx.intel[task.targetRoom].controller!.y, roomName: task.targetRoom }
                     : null);
                 if (controller && creep.pos.roomName === task.targetRoom) {
-                    intents.push(actOrApproach(creep.pos, controller.pos, { kind: 'reserveController', creepName: creep.name, targetId: controller.id }));
+                    // Someone else's reservation (e.g. a destroyed Invader core's) has to be cleared first.
+                    const theirs = controller.reservation && controller.reservation.username !== ctx.world.myUsername;
+                    intents.push(actOrApproach(creep.pos, controller.pos, {
+                        kind: theirs ? 'attackController' : 'reserveController', creepName: creep.name, targetId: controller.id,
+                    }));
                 } else {
                     intents.push(target ? { kind: 'move', creepName: creep.name, target, range: 1 } : moveToRoom(creep, task.targetRoom));
                 }

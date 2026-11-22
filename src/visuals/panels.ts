@@ -50,7 +50,7 @@ function creepSummary(task: TaskReport): string {
     const creeps = task.creeps;
     const byRole = (role: CreepReport['role']) => creeps.filter(c => c.role === role).length;
     if (creeps.some(c => c.role)) {
-        return ['miner', 'hauler', 'claimer', 'pioneer']
+        return ['miner', 'hauler', 'reserver', 'claimer', 'pioneer', 'melee', 'ranged', 'healer']
             .map(role => [role, byRole(role as CreepReport['role'])] as const)
             .filter(([, n]) => n > 0)
             .map(([role, n]) => `${role} ${n}`)
@@ -64,7 +64,7 @@ function creepSummary(task: TaskReport): string {
 }
 
 export function tasksPanel(report: BaseReport): Panel {
-    const order: TaskReport['type'][] = ['mine', 'haul', 'upgrade', 'build', 'repair', 'scout', 'remoteMine', 'claim'];
+    const order: TaskReport['type'][] = ['mine', 'haul', 'upgrade', 'build', 'repair', 'scout', 'remoteMine', 'claim', 'squad'];
     const tasks = [...report.tasks].sort((a, b) => order.indexOf(a.type) - order.indexOf(b.type));
     const rows: Row[] = tasks.map(task => {
         const minTtl = Math.min(...task.creeps.map(c => c.ticksToLive ?? Infinity));

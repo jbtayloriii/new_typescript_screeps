@@ -16,6 +16,12 @@ export interface RoomIntel {
         readonly reservationEnd?: number;
     };
     readonly keeperLairs: number;
+    /** Invader cores (NPC structures that reserve rooms and spawn defenders). */
+    readonly invaderCores?: number;
+    /** Other players' (or NPCs') structures worth attacking: spawns, towers, extensions, ... */
+    readonly hostileStructures?: number;
+    /** Owners of the hostile combat creeps seen at `lastSeen` (e.g. "Invader" for NPCs). */
+    readonly hostileOwners?: readonly string[];
     /** Hostile creeps with attack or ranged attack parts seen at `lastSeen`. */
     readonly hostileCombatCreeps: number;
     /** Last tick hostile combat creeps were seen here (kept across updates without hostiles). */

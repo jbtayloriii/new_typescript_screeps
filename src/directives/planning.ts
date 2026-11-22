@@ -5,7 +5,7 @@ import { chooseNewRemoteRooms, remoteBlocker } from "tasks/remote_selection";
 import { roomLinearDistance } from "utils/room_names";
 import { parseFlag } from "./flags";
 import { chooseSpawnPosition } from "./spawn_position";
-import { Directive, DirectiveSpec, isEnded } from "./types";
+import { Directive, DirectiveSpec, isEnded, isMilitary } from "./types";
 
 /** A base's state as directive planning needs it. */
 export interface BaseSummary {
@@ -40,6 +40,26 @@ export const CLAIM_MIN_CAPACITY = BODYPART_COST[CLAIM] + BODYPART_COST[MOVE];
 /** Bases only take directives for rooms within this many rooms. */
 export const MAX_DIRECTIVE_DISTANCE = 10;
 
+/** Energy capacity a base needs to run a combat squad. */
+export const MILITARY_MIN_CAPACITY = 550;
+
+/** A defended room counts as safe once no hostiles have been seen there for this long. */
+export const DEFEND_CLEAR_TICKS = 100;
+
+/** Remote rooms get an automatic defend directive while NPC hostiles were seen this recently. */
+export const AUTO_DEFEND_RECENT_TICKS = 300;
+
+/** The NPC owner name of invaders (creeps and cores). */
+const INVADER = 'Invader';
+
+/**
+ * The squad size for an automatic defense: one more than the hostile combat creeps (plus one for
+ * a core), between 2 and 4.
+ */
+export function autoDefendSize(room: { hostileCombatCreeps: number, invaderCores?: number }): number {
+    return Math.max(2, Math.min(4, room.hostileCombatCreeps + ((room.invaderCores ?? 0) > 0 ? 1 : 0) + 1));
+}
+
 /**
  * The empire-level step, run once per tick before the bases. All pure:
  * 1. Flags: new directive flags create directives; removed flags cancel theirs.
@@ -47,6 +67,9 @@ export const MAX_DIRECTIVE_DISTANCE = 10;
  * 3. Assign pending directives to the closest suitable base.
  * 4. Claims: pick a spawn position once the room's intel exists.
  * 5. Automatic remote mining: each static base gets remote rooms up to its limit.
+ * 6. Automatic defense: a remote room with NPC invaders (creeps or a core) gets a defend directive
+ *    from its base. Player hostiles are left to manual orders (`cmd.defend`), since auto-sending
+ *    squads at players could start fights the base can't win.
  */
 export function planDirectives(input: DirectivePlanInput): DirectiveChanges {
     const { world, intel } = input;
@@ -147,6 +170,25 @@ export function planDirectives(input: DirectivePlanInput): DirectiveChanges {
         }
     }
 
+    // 6. Automatic defense of remote rooms against NPC invaders.
+    const defended = new Set(live.filter(d => d.type === 'defend' && !ending.has(d.id)).map(d => d.targetRoom));
+    const defendCancelled = new Set(input.directives.filter(d => d.type === 'defend' && d.status === 'cancelled').map(d => d.targetRoom));
+    for (const d of live) {
+        const room = intel[d.targetRoom];
+        const base = input.bases.find(b => b.roomName === d.baseRoomName);
+        if (d.type !== 'remoteMine' || ending.has(d.id) || !room || !base || base.energyCapacity < MILITARY_MIN_CAPACITY
+            || defended.has(d.targetRoom) || defendCancelled.has(d.targetRoom)) {
+            continue;
+        }
+        const recent = room.hostilesLastSeen !== undefined && world.tick - room.hostilesLastSeen < AUTO_DEFEND_RECENT_TICKS;
+        const npcOnly = (room.hostileOwners ?? []).every(owner => owner === INVADER);
+        const invaders = recent && room.hostileCombatCreeps > 0 && npcOnly;
+        if (invaders || (room.invaderCores ?? 0) > 0) {
+            create.push({ type: 'defend', targetRoom: d.targetRoom, source: 'auto', baseRoomName: base.roomName, size: autoDefendSize(room) });
+            defended.add(d.targetRoom);
+        }
+    }
+
     return { create, update, end, intents, handoffs };
 }
 
@@ -177,6 +219,23 @@ function finishedReason(d: Directive, input: DirectivePlanInput): string | null 
             }
             return null;
         }
+        case 'attack': {
+            const cleared = room && room.lastSeen >= d.createdAt
+                && (room.hostileStructures ?? 0) === 0 && room.hostileCombatCreeps === 0;
+            return cleared ? 'target cleared' : null;
+        }
+        case 'defend': {
+            if (!room || room.lastSeen < d.createdAt) {
+                return null;
+            }
+            const quietFor = world.tick - Math.max(room.hostilesLastSeen ?? d.createdAt, d.createdAt);
+            const clear = room.hostileCombatCreeps === 0 && (room.invaderCores ?? 0) === 0 && quietFor >= DEFEND_CLEAR_TICKS;
+            return clear ? 'room clear' : null;
+        }
+        case 'escort': {
+            const escorted = input.directives.find(e => e.id === d.escortedId);
+            return !escorted || isEnded(escorted) ? 'escorted directive ended' : null;
+        }
     }
 }
 
@@ -185,14 +244,22 @@ function assignBase(d: Directive, input: DirectivePlanInput): { baseRoomName: Ro
     if (d.type === 'claim' && input.world.gclLevel <= input.world.ownedRooms.length) {
         return { waiting: `GCL ${input.world.gclLevel} is too low to claim another room` };
     }
+    if (d.type === 'escort') {
+        // Escorts run from the escorted directive's base, so the squad can find its creeps.
+        const escorted = input.directives.find(e => e.id === d.escortedId);
+        return escorted?.status === 'active' && escorted.baseRoomName
+            ? { baseRoomName: escorted.baseRoomName }
+            : { waiting: `waiting for ${d.escortedId} to be assigned a base` };
+    }
+    const minCapacity = d.type === 'claim' ? CLAIM_MIN_CAPACITY : isMilitary(d.type) ? MILITARY_MIN_CAPACITY : 0;
     const eligible = input.bases
-        .filter(b => d.type !== 'claim' || b.energyCapacity >= CLAIM_MIN_CAPACITY)
+        .filter(b => b.energyCapacity >= minCapacity)
         .filter(b => roomLinearDistance(b.roomName, d.targetRoom) <= MAX_DIRECTIVE_DISTANCE)
         .sort((a, b) => roomLinearDistance(a.roomName, d.targetRoom) - roomLinearDistance(b.roomName, d.targetRoom)
             || a.roomName.localeCompare(b.roomName));
     if (eligible.length === 0) {
-        return { waiting: d.type === 'claim'
-            ? `no base within ${MAX_DIRECTIVE_DISTANCE} rooms with ${CLAIM_MIN_CAPACITY} energy capacity`
+        return { waiting: minCapacity > 0
+            ? `no base within ${MAX_DIRECTIVE_DISTANCE} rooms with ${minCapacity} energy capacity`
             : `no base within ${MAX_DIRECTIVE_DISTANCE} rooms` };
     }
     return { baseRoomName: eligible[0].roomName };

@@ -41,3 +41,24 @@ describe('console commands', () => {
         expect(cmd.help()).toContain('cmd.claim');
     });
 });
+
+describe('military commands', () => {
+    test('attack and defend with a size', () => {
+        const { memory, cmd } = setup();
+        expect(cmd.attack('W3N3', { size: 6 })).toBe('Created d0 attack W3N3 [pending] (manual) size 6');
+        expect(cmd.defend('W1N2', { base: 'W1N1' })).toBe('Created d1 defend W1N2 [active] from W1N1 (manual)');
+        expect(cmd.attack('W3N3', { size: 0 })).toContain('Size must be');
+        expect(memory.directives.d0.size).toBe(6);
+    });
+
+    test('escort guards another directive, in its room', () => {
+        const { memory, cmd } = setup();
+        cmd.claim('W2N3');
+        expect(cmd.escort('d0')).toBe('Created d1 escort W2N3 [pending] (manual) escorting d0');
+        expect(memory.directives.d1.escortedId).toBe('d0');
+        expect(cmd.escort('d0')).toContain('Already exists');
+        expect(cmd.escort('d9')).toBe('No directive d9');
+        expect(cmd.escort('d1')).toContain("Can't escort");
+    });
+});
+

@@ -6,7 +6,14 @@
  * Saved in `Memory.directives[id]`.
  */
 
-export type DirectiveType = 'remoteMine' | 'scout' | 'claim';
+export type DirectiveType = 'remoteMine' | 'scout' | 'claim' | 'attack' | 'defend' | 'escort';
+
+/** Directive types run by a combat squad (see `military/`). */
+export type MilitaryDirectiveType = 'attack' | 'defend' | 'escort';
+
+export function isMilitary(type: DirectiveType): type is MilitaryDirectiveType {
+    return type === 'attack' || type === 'defend' || type === 'escort';
+}
 
 /** Where a directive came from. Flag directives are cancelled when their flag is removed. */
 export type DirectiveSource = 'auto' | 'manual' | 'flag';
@@ -36,11 +43,15 @@ export interface Directive {
     readonly flagName?: string;
     /** Claims: where the first spawn goes. From the flag or command, else chosen from terrain. */
     readonly spawnPos?: { readonly x: number; readonly y: number };
+    /** Military directives: how many creeps the squad has (see `squadComposition`). */
+    readonly size?: number;
+    /** Escorts: the directive whose creeps the squad guards. */
+    readonly escortedId?: string;
 }
 
 /** What's needed to create a directive; the rest is filled in when it is saved. */
 export type DirectiveSpec = Pick<Directive, 'type' | 'targetRoom' | 'source'>
-    & Partial<Pick<Directive, 'baseRoomName' | 'flagName' | 'spawnPos'>>;
+    & Partial<Pick<Directive, 'baseRoomName' | 'flagName' | 'spawnPos' | 'size' | 'escortedId'>>;
 
 export type DirectiveMap = { readonly [id: string]: Directive };
 

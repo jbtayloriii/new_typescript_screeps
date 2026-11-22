@@ -47,6 +47,21 @@ export function executeIntent(intent: Intent): IntentReturnCode {
             return withCreepAndTarget(intent.creepName, intent.targetId, (c, t) => c.claimController(t));
         case 'reserveController':
             return withCreepAndTarget(intent.creepName, intent.targetId, (c, t) => c.reserveController(t));
+        case 'attackController':
+            return withCreepAndTarget(intent.creepName, intent.targetId, (c, t) => c.attackController(t));
+        case 'attack':
+            return withCreepAndTarget(intent.creepName, intent.targetId, (c, t) => c.attack(t));
+        case 'rangedAttack':
+            return withCreepAndTarget(intent.creepName, intent.targetId, (c, t) => c.rangedAttack(t));
+        case 'heal':
+            return withCreepAndTarget(intent.creepName, intent.targetId, (c, t) => c.heal(t));
+        case 'rangedHeal':
+            return withCreepAndTarget(intent.creepName, intent.targetId, (c, t) => c.rangedHeal(t));
+        case 'rangedMassAttack': {
+            const creep = Game.creeps[intent.creepName];
+            if (!creep) return ERR_NOT_FOUND;
+            return creep.rangedMassAttack();
+        }
         case 'removeFlag': {
             const flag = Game.flags[intent.flagName];
             if (!flag) return ERR_NOT_FOUND;

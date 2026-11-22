@@ -1,6 +1,7 @@
 import { isValidRoomName } from "utils/room_names";
 import { DirectiveStore } from "./store";
-import { Directive, DirectiveType, isEnded } from "./types";
+import { Directive, DirectiveType, isEnded, isMilitary } from "./types";
+import { MAX_SQUAD_SIZE } from "military/squads";
 
 /**
  * Console commands, installed as the global `cmd` (see main.ts). Each returns a message for the
@@ -19,12 +20,18 @@ export interface Commands {
     remoteMine(room: RoomName, opts?: { base?: RoomName }): string;
     scout(room: RoomName, opts?: { base?: RoomName }): string;
     claim(room: RoomName, opts?: { base?: RoomName, x?: number, y?: number }): string;
+    attack(room: RoomName, opts?: { base?: RoomName, size?: number }): string;
+    defend(room: RoomName, opts?: { base?: RoomName, size?: number }): string;
+    escort(directiveId: string, opts?: { size?: number }): string;
 }
 
 export const HELP = `Directives (empire-level goals):
   cmd.remoteMine(room, { base? })      remote mine a room (overrides the automatic choice)
   cmd.scout(room, { base? })           send a scout to a room once
   cmd.claim(room, { base?, x?, y? })   claim a room; x/y place its first spawn
+  cmd.attack(room, { base?, size? })   send a squad to clear a room (default 4 creeps)
+  cmd.defend(room, { base?, size? })   send a squad to keep a room clear (default 2)
+  cmd.escort(id, { size? })            guard another directive's creeps (e.g. a claim)
   cmd.list(includeEnded?)              list directives
   cmd.cancel(id)                       cancel a directive
 Flags: yellow = remote mine, white = scout, purple = claim (spawn on the flag). Remove the flag to cancel.
@@ -38,6 +45,8 @@ export function formatDirective(d: Directive): string {
     const parts = [`${d.id} ${d.type} ${d.targetRoom}`, `[${d.status}]`];
     if (d.baseRoomName) parts.push(`from ${d.baseRoomName}`);
     parts.push(`(${d.source}${d.flagName ? ` flag ${d.flagName}` : ''})`);
+    if (d.size !== undefined) parts.push(`size ${d.size}`);
+    if (d.escortedId) parts.push(`escorting ${d.escortedId}`);
     if (d.reason) parts.push(`- ${d.reason}`);
     return parts.join(' ');
 }
@@ -45,18 +54,27 @@ export function formatDirective(d: Directive): string {
 export function createCommands(getMemory: () => Memory, getTick: () => number): Commands {
     const store = () => new DirectiveStore(getMemory());
 
-    function addDirective(type: DirectiveType, room: RoomName, base?: RoomName, spawnPos?: { x: number, y: number }): string {
+    function addDirective(
+        type: DirectiveType,
+        room: RoomName,
+        base?: RoomName,
+        spawnPos?: { x: number, y: number },
+        extra: { size?: number, escortedId?: string } = {}): string {
         if (!isValidRoomName(room)) {
             return `Invalid room name: ${room}`;
         }
         if (base !== undefined && !getMemory().bases_v3[base]) {
             return `Not a base: ${base}`;
         }
-        const existing = store().all().find(d => d.type === type && d.targetRoom === room && !isEnded(d));
+        if (extra.size !== undefined && (!Number.isInteger(extra.size) || extra.size < 1 || extra.size > MAX_SQUAD_SIZE)) {
+            return `Size must be a whole number from 1 to ${MAX_SQUAD_SIZE}: ${extra.size}`;
+        }
+        const existing = store().all().find(d => d.type === type && d.targetRoom === room && !isEnded(d)
+            && (type !== 'escort' || d.escortedId === extra.escortedId));
         if (existing) {
             return `Already exists: ${formatDirective(existing)}`;
         }
-        const created = store().add({ type, targetRoom: room, source: 'manual', baseRoomName: base, spawnPos }, getTick());
+        const created = store().add({ type, targetRoom: room, source: 'manual', baseRoomName: base, spawnPos, ...extra }, getTick());
         return `Created ${formatDirective(created)}`;
     }
 
@@ -88,6 +106,20 @@ export function createCommands(getMemory: () => Memory, getTick: () => number): 
                 return `Spawn position must be within 1-48: (${opts.x}, ${opts.y})`;
             }
             return addDirective('claim', room, opts.base, hasPos ? { x: opts.x!, y: opts.y! } : undefined);
+        },
+
+        attack: (room, opts = {}) => addDirective('attack', room, opts.base, undefined, { size: opts.size }),
+        defend: (room, opts = {}) => addDirective('defend', room, opts.base, undefined, { size: opts.size }),
+        escort(directiveId, opts = {}) {
+            const escorted = store().get(directiveId);
+            if (!escorted) {
+                return `No directive ${directiveId}`;
+            }
+            if (isEnded(escorted) || isMilitary(escorted.type)) {
+                return `Can't escort ${formatDirective(escorted)}`;
+            }
+            // The escort's base is set from the escorted directive by the planner.
+            return addDirective('escort', escorted.targetRoom, undefined, undefined, { size: opts.size, escortedId: directiveId });
         },
     };
 }

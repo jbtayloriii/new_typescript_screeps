@@ -1,5 +1,6 @@
 import { buildTask } from "./build_task";
 import { claimTask } from "./claim_task";
+import { squadTask } from "military/squad_task";
 import { haulTask } from "./haul_task";
 import { mineTask } from "./mine_task";
 import { remoteMineTask } from "./remote_mine_task";
@@ -20,6 +21,7 @@ const TASK_DEFINITIONS: TaskDefinitions = {
     scout: scoutTask,
     remoteMine: remoteMineTask,
     claim: claimTask,
+    squad: squadTask,
 };
 
 /** Returns the definition for a task, or undefined for an unknown type (e.g. from old Memory). */

@@ -86,3 +86,14 @@ describe('claimTask', () => {
         expect(claimTask.isDone(task, ctx({ directive: { ...directive, status: 'done' } }))).toBe(true);
     });
 });
+
+describe('claiming a reserved room', () => {
+    test("the claimer clears someone else's reservation first", () => {
+        const target = aRoom('W2N1').withRcl(0, { my: false, owner: undefined, reservation: { username: 'them', ticksToEnd: 500 } })
+            .withMyCreep('claimer', 24, 24, member('claimer')).build();
+        expect(claimTask.decide(task, ctx({ target, creeps: target.creepsPresent }))).toEqual([
+            { kind: 'attackController', creepName: 'claimer', targetId: target.controller!.id },
+        ]);
+    });
+});
+

@@ -97,3 +97,14 @@ describe('buildPanels', () => {
         expect(buildPanels(report(), ['economy', 'header']).map(p => p.title)).toEqual(['W1N1', 'Economy (estimated)']);
     });
 });
+
+describe('tasksPanel: squads', () => {
+    test('shows role counts and the mission detail', () => {
+        const panel = tasksPanel(report({
+            tasks: [task({ type: 'squad', label: 'W3N3 (d5)', wanted: 3, detail: 'attack, rallying',
+                creeps: [creep(0, { role: 'melee' }), creep(0, { role: 'healer' })] })],
+        }));
+        expect(panel.rows[0].text).toBe('squad W3N3 (d5)  2/3  melee 1 healer 1 attack, rallying');
+    });
+});
+

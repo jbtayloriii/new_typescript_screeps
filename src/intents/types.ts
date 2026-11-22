@@ -19,6 +19,14 @@ export type UpgradeIntent = { kind: 'upgrade'; creepName: string; targetId: Id<S
 export type SayIntent = { kind: 'say'; creepName: string; message: string };
 export type ClaimControllerIntent = { kind: 'claimController'; creepName: string; targetId: Id<StructureController> };
 export type ReserveControllerIntent = { kind: 'reserveController'; creepName: string; targetId: Id<StructureController> };
+/** With CLAIM parts: reduces another player's reservation (or an enemy controller's downgrade timer). */
+export type AttackControllerIntent = { kind: 'attackController'; creepName: string; targetId: Id<StructureController> };
+export type AttackIntent = { kind: 'attack'; creepName: string; targetId: Id<Creep | Structure> };
+export type RangedAttackIntent = { kind: 'rangedAttack'; creepName: string; targetId: Id<Creep | Structure> };
+export type HealIntent = { kind: 'heal'; creepName: string; targetId: Id<Creep> };
+export type RangedHealIntent = { kind: 'rangedHeal'; creepName: string; targetId: Id<Creep> };
+/** Hits everything hostile within range 3, more the closer it is. Needs no target. */
+export type RangedMassAttackIntent = { kind: 'rangedMassAttack'; creepName: string };
 
 export type CreepIntent =
     | MoveIntent
@@ -31,10 +39,16 @@ export type CreepIntent =
     | UpgradeIntent
     | ClaimControllerIntent
     | ReserveControllerIntent
+    | AttackControllerIntent
+    | AttackIntent
+    | RangedAttackIntent
+    | HealIntent
+    | RangedHealIntent
+    | RangedMassAttackIntent
     | SayIntent;
 
 /** Creep intents that act on a target object (everything except move and say). */
-export type TargetedCreepIntent = Exclude<CreepIntent, MoveIntent | SayIntent>;
+export type TargetedCreepIntent = Exclude<CreepIntent, MoveIntent | SayIntent | RangedMassAttackIntent>;
 
 export type SpawnIntent = {
     kind: 'spawn';

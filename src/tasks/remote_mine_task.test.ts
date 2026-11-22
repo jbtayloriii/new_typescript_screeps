@@ -144,8 +144,19 @@ describe('reservation', () => {
         ]);
     });
 
-    test('an Invader core reservation pauses the remote', () => {
-        expect(isRemoteThreatened(task, ctx({ remote: reservedLive('Invader', 3000) }))).toBe(true);
+    test('an Invader core pauses the remote; its leftover reservation alone does not', () => {
+        expect(isRemoteThreatened(task, ctx({ remote: reservedLive('Invader', 3000) }))).toBe(false);
+        const withCore = aRoom('W1N2').withStructure(STRUCTURE_INVADER_CORE, 20, 20, { owner: 'other' }).build();
+        expect(isRemoteThreatened(task, ctx({ remote: withCore }))).toBe(true);
+        expect(isRemoteThreatened(task, ctx({ intel: intel({ invaderCores: 1 }) }))).toBe(true);
+    });
+
+    test("reservers clear someone else's reservation before reserving", () => {
+        const remote = aRoom('W1N2').withRcl(0, { my: false, owner: undefined, reservation: { username: 'Invader', ticksToEnd: 2000 } })
+            .withMyCreep('r', 24, 24, { memory: member({ role: 'reserver' }) }).build();
+        expect(remoteMineTask.decide(task, ctx({ remote, creeps: remote.creepsPresent }))).toEqual([
+            { kind: 'attackController', creepName: 'r', targetId: remote.controller!.id },
+        ]);
     });
 });
 

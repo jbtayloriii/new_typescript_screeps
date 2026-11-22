@@ -109,6 +109,14 @@ describe('planTasks', () => {
         ]);
     });
 
+    test('military directives get a squad task with their mission', () => {
+        const attack: Directive = { id: 'd5', type: 'attack', targetRoom: 'W3N3', source: 'manual', status: 'active', createdAt: 1, baseRoomName: 'W1N1' };
+        expect(planTasks(input(aRoom().withRcl(1), [], { directives: [attack] })).create)
+            .toContainEqual({ type: 'squad', mission: 'attack', targetRoom: 'W3N3', directiveId: 'd5' });
+        const stale: TaskMemory = { name: 'sq', roomName: 'W1N1', type: 'squad', mission: 'defend', targetRoom: 'W1N2', directiveId: 'gone' };
+        expect(planTasks(input(aRoom().withRcl(1), [stale])).remove).toContain('sq');
+    });
+
     test("a directive scout doesn't replace the routine scout", () => {
         const tasks: TaskMemory[] = [{ name: 's', roomName: 'W1N1', type: 'scout', targetRoom: 'W9N9', directiveId: 'd1' }];
         expect(planTasks(input(aRoom().withRcl(2), tasks)).create).toContainEqual({ type: 'scout' });
