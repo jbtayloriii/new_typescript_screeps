@@ -76,6 +76,34 @@ describe('collectEnergy', () => {
         });
     });
 
+    test('haulers sharing low piles settle on targets instead of all switching every tick', () => {
+        // W24S31 history: two containers with little energy and several empty haulers all
+        // switched to the other container together, then switched back the next tick, forever.
+        const builder = aRoom()
+            .withStructure(STRUCTURE_CONTAINER, 28, 36, { owner: 'none', store: energy(70, 2000) })
+            .withStructure(STRUCTURE_CONTAINER, 38, 43, { owner: 'none', store: energy(60, 2000) });
+        const [a, b] = builder.build().structures.map(s => s.id);
+        const gathering = (store = energy(0, 500)) => ({ ...hauler({ targetId: a, state: WorkerState.GATHERING }), store });
+        let room = builder
+            .withMyCreep('h1', 31, 36, gathering())
+            .withMyCreep('h2', 40, 31, gathering())
+            .withMyCreep('h3', 29, 36, gathering(energy(490, 500)))
+            .build();
+
+        const targets: string[][] = [];
+        for (let tick = 0; tick < 3; tick++) {
+            const collect = collectEnergy(room.creepsPresent);
+            const steps = room.creepsPresent.map(c => collect(c, room));
+            room = { ...room, creepsPresent: room.creepsPresent.map((c, i) => ({ ...c, memory: { ...c.memory, ...steps[i].memory } })) };
+            targets.push(steps.map(s => s.action ? (s.action as { targetId?: string }).targetId ?? 'move' : 'wait'));
+        }
+        // h1 keeps the first container, h2 takes the second, h3 waits: the same on every tick.
+        expect(room.creepsPresent.map(c => c.memory.targetId)).toEqual([a, b, a]);
+        expect(targets[1]).toEqual(targets[0]);
+        expect(targets[2]).toEqual(targets[0]);
+        expect(targets[0][2]).toBe('wait');
+    });
+
     test('ignores small piles and the controller container', () => {
         const room = aRoom().withRcl(2)
             .withStructure(STRUCTURE_CONTAINER, 24, 24, { owner: 'none', store: energy(1000, 2000) })

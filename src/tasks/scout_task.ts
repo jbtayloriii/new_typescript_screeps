@@ -1,6 +1,7 @@
 import { Intent } from "intents/types";
 import { BodyPattern, ScoutTaskMemory, TaskContext, TaskDefinition } from "./types";
 import { WorldSnapshot } from "snapshot/world";
+import { isInRange } from "snapshot/queries";
 
 export const SCOUT_BODY: BodyPattern = { pattern: [MOVE], maxRepeats: 1 };
 export const SCOUT_PRIORITY = 10;
@@ -90,7 +91,9 @@ export const scoutTask: TaskDefinition<ScoutTaskMemory> = {
             const next = current && stale.includes(current) ? current : stale[0];
             if (next) {
                 intents.push({ kind: 'move', creepName: creep.name, target: center(next), range: ROOM_CENTER_RANGE });
-            } else if (creep.pos.roomName !== ctx.home.name) {
+            } else if (!isInRange(creep.pos, center(ctx.home.name), ROOM_CENTER_RANGE)) {
+                // Not just "in the home room": a creep left on an exit tile is moved to the next
+                // room, then walks back, and bounces between the two rooms every tick.
                 intents.push({ kind: 'move', creepName: creep.name, target: center(ctx.home.name), range: ROOM_CENTER_RANGE });
             }
             if (next !== current) {

@@ -83,6 +83,18 @@ describe('remoteMineTask.decide', () => {
             { kind: 'move', creepName: 'm', target: { x: 25, y: 25, roomName: 'W1N1' }, range: 20 },
         ]);
     });
+
+    test('retreating creeps move off the home exit tile they arrive on, then wait', () => {
+        const remote = aRoom('W1N2').withHostile(30, 30).build();
+        const home = (x: number, y: number) => aRoom('W1N1').withTick(1000).withEnergy(800, 800).withSpawn(10, 10, { energy: 0 })
+            .withMyCreep('m', x, y, { memory: member({ role: 'miner' }) }).build();
+        const onExit = home(25, 0);
+        expect(remoteMineTask.decide(task, ctx({ home: onExit, remote, creeps: [...onExit.creepsPresent] }))).toEqual([
+            { kind: 'move', creepName: 'm', target: { x: 25, y: 25, roomName: 'W1N1' }, range: 20 },
+        ]);
+        const inside = home(25, 10);
+        expect(remoteMineTask.decide(task, ctx({ home: inside, remote, creeps: [...inside.creepsPresent] }))).toEqual([]);
+    });
 });
 
 describe('remoteMineTask.isDone', () => {

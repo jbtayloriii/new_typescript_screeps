@@ -50,6 +50,18 @@ describe('scoutTask', () => {
             { kind: 'setCreepMemory', creepName: 'scout', patch: { targetRoom: undefined } },
         ]);
     });
+
+    test('back home with nothing stale, it moves off the exit tile it arrived on, then stops', () => {
+        const allFresh = { W1N2: seenAt(10), W2N1: seenAt(10), W0N1: seenAt(10) };
+        // Left on an exit tile, the game moves it back out of the room (seen in W23S31 history).
+        const onExit = aRoom().withTick(10).withMyCreep('scout', 0, 37, scout({ x: 0, y: 37 })).build();
+        expect(scoutTask.decide(task, ctx(onExit, allFresh))).toEqual([
+            { kind: 'move', creepName: 'scout', target: { x: 25, y: 25, roomName: 'W1N1' }, range: 20 },
+        ]);
+
+        const inside = aRoom().withTick(10).withMyCreep('scout', 20, 37, scout({ x: 20, y: 37 })).build();
+        expect(scoutTask.decide(task, ctx(inside, allFresh))).toEqual([]);
+    });
 });
 
 describe('scoutTask with a target room (scout directive)', () => {

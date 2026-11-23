@@ -49,9 +49,43 @@ interface EnergyPile {
 }
 
 /**
- * Picks the pile with the most unclaimed energy (energy minus what other gathering haulers
- * heading there can carry), keeping the remembered pile while it still has unclaimed energy.
+ * Shares the piles between gathering haulers in one pass, in a fixed order (by name):
+ * 1. Each hauler keeps its remembered pile while energy is left after the haulers before it.
+ * 2. The rest (in this room) take the pile with the most energy left, closest first.
+ * Haulers left over get nothing and wait.
+ *
+ * Every hauler computes the same assignment from the same inputs, so they agree. Each choosing
+ * on its own from last tick's targets made them all switch piles together when the piles ran
+ * low, then all switch back the next tick, forever (seen in W24S31 room history).
  */
+function assignPiles(gatherers: readonly MyCreepSnapshot[], piles: readonly EnergyPile[], roomName: RoomName): Map<string, EnergyPile> {
+    const left = new Map(piles.map(p => [p.id as string, p.amount]));
+    const assigned = new Map<string, EnergyPile>();
+    const claim = (hauler: MyCreepSnapshot, pile: EnergyPile) => {
+        assigned.set(hauler.name, pile);
+        left.set(pile.id, left.get(pile.id)! - hauler.store.freeCapacity);
+    };
+
+    const choosing: MyCreepSnapshot[] = [];
+    for (const hauler of [...gatherers].sort((a, b) => a.name.localeCompare(b.name))) {
+        const kept = piles.find(p => p.id === hauler.memory.targetId);
+        if (kept && left.get(kept.id)! > 0) {
+            claim(hauler, kept);
+        } else if (hauler.pos.roomName === roomName) {
+            choosing.push(hauler);
+        }
+    }
+    for (const hauler of choosing) {
+        const best = Math.max(0, ...piles.map(p => left.get(p.id)!));
+        const target = best > 0 ? findClosestByRange(hauler.pos, piles.filter(p => left.get(p.id) === best)) : null;
+        if (target) {
+            claim(hauler, target);
+        }
+    }
+    return assigned;
+}
+
+/** Collects from the pile `assignPiles` gives this hauler, sharing piles with the other gathering haulers. */
 export function collectEnergy(haulers: readonly MyCreepSnapshot[]): Behavior {
     return (creep, room) => {
         const piles: EnergyPile[] = [
@@ -62,15 +96,9 @@ export function collectEnergy(haulers: readonly MyCreepSnapshot[]): Behavior {
                 .filter(s => s.structureType === STRUCTURE_CONTAINER && !isControllerContainer(s, room) && (s.store?.energy ?? 0) >= MIN_PICKUP)
                 .map(s => ({ id: s.id as Id<StructureContainer>, pos: s.pos, amount: s.store!.energy, kind: 'container' as const })),
         ];
-        const unclaimed = (pile: EnergyPile) => pile.amount - haulers
-            .filter(h => h.name !== creep.name && h.memory.targetId === pile.id && h.memory.state === WorkerState.GATHERING)
-            .reduce((sum, h) => sum + h.store.freeCapacity, 0);
-
-        let target = piles.find(p => p.id === creep.memory.targetId && unclaimed(p) > 0) ?? null;
-        if (!target) {
-            const best = Math.max(0, ...piles.map(unclaimed));
-            target = best > 0 ? findClosestByRange(creep.pos, piles.filter(p => unclaimed(p) === best)) : null;
-        }
+        // `creep` may have just switched to gathering (and had its target cleared), so use it, not its entry in `haulers`.
+        const gatherers = [creep, ...haulers.filter(h => h.name !== creep.name && h.memory.state === WorkerState.GATHERING)];
+        const target = assignPiles(gatherers, piles, room.name).get(creep.name);
         if (!target) {
             return {};
         }

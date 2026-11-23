@@ -1,6 +1,6 @@
 import { Intent } from "intents/types";
 import { actOrApproach } from "intents/helpers";
-import { findClosestByRange, getMyStructures, getRange } from "snapshot/queries";
+import { findClosestByRange, getMyStructures, getRange, isInRange } from "snapshot/queries";
 import { MyCreepSnapshot, Pos, RoomSnapshot } from "snapshot/types";
 import { TerrainView } from "snapshot/world";
 import { buildBody } from "spawning/body";
@@ -296,7 +296,8 @@ export const remoteMineTask: TaskDefinition<RemoteMineTaskMemory> = {
                 // Retreat; loaded haulers still deliver what they carry.
                 if (creep.memory.role === 'hauler' && creep.store.energy > 0) {
                     intents.push(...stepToIntents(creep.name, deliverHome(ctx.home)(creep, ctx.home)));
-                } else if (creep.pos.roomName !== ctx.home.name) {
+                } else if (!isInRange(creep.pos, { x: 25, y: 25, roomName: ctx.home.name }, ROOM_CENTER_RANGE)) {
+                    // Not just "in the home room": a creep left on an exit tile bounces between rooms.
                     intents.push(moveToRoom(creep, ctx.home.name));
                 }
             } else if (creep.memory.role === 'miner') {
