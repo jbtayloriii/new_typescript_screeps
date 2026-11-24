@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { groupCreepsByBase } from './headquarters';
+import { groupCreepsByBase, tickEachBase } from './headquarters';
 import { aRoom } from 'testing/builders/room_snapshot_builder';
 
 describe('groupCreepsByBase', () => {
@@ -25,5 +25,21 @@ describe('groupCreepsByBase', () => {
 
     test('ignores creeps when there are no bases', () => {
         expect(groupCreepsByBase([creep('c', 'W1N1', 'W1N1')], []).rehomed).toEqual([]);
+    });
+});
+
+describe('tickEachBase', () => {
+    test('a base that throws does not stop the bases after it', () => {
+        const ticked: string[] = [];
+        const logs: string[] = [];
+        const bases = new Map([['W1N1', 'a'], ['W2N2', 'b'], ['W3N3', 'c']]);
+        const failed = tickEachBase(bases, (base, room) => {
+            if (room === 'W2N2') throw new Error('boom');
+            ticked.push(base);
+        }, m => logs.push(m));
+
+        expect(ticked).toEqual(['a', 'c']);
+        expect(failed).toEqual(['W2N2']);
+        expect(logs[0]).toMatch(/^\[W2N2\] base tick failed: Error: boom/);
     });
 });

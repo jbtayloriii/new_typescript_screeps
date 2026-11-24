@@ -243,6 +243,16 @@ describe('replanning an existing base', () => {
         expect(countUpTo(plan.layout, STRUCTURE_POWER_SPAWN, 8)).toBe(1);
     });
 
+    test('roads avoid a built link the layout did not plan', () => {
+        const first = planBaseLayout(layoutInputFor('W23S31'));
+        // A tile on a source road, far from the core.
+        const road = plannedList(first.layout).filter(p => p.structure === STRUCTURE_ROAD && p.level === 2)
+            .sort((a, b) => b.x - a.x)[0];
+        const built: BuiltStructure[] = [{ x: road.x, y: road.y, structure: STRUCTURE_LINK }];
+        const plan = planBaseLayout(layoutInputFor('W23S31', { existing: { layout: first.layout, built } }));
+        expect(plannedList(plan.layout).filter(p => p.x === road.x && p.y === road.y && p.structure === STRUCTURE_ROAD)).toEqual([]);
+    });
+
     test('structures the layout does not plan block their tiles', () => {
         const first = planBaseLayout(layoutInputFor('W23S31'));
         const lab = plannedList(first.layout).find(p => p.structure === STRUCTURE_LAB)!;

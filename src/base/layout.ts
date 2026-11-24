@@ -42,12 +42,20 @@ export function needsReplan(baseMemory: Readonly<BaseMemory>): boolean {
 let lastReplanTick = -1;
 
 /**
- * Replans a base whose layout is out of date, at most one base per tick. Built structures stay
- * where they are. If planning fails, the old layout is kept (with a warning) and not retried
- * until the next version. Returns whether it replanned.
+ * Replans wait until the CPU bucket has at least this much. A replan can take more than a
+ * tick's CPU limit, and a tick that runs out of CPU doesn't save Memory, so with an empty bucket
+ * it would time out and retry every tick.
  */
-export function replanIfOutdated(room: Room, baseMemory: BaseMemory, tick: number): boolean {
-    if (!needsReplan(baseMemory) || lastReplanTick === tick) {
+export const REPLAN_MIN_BUCKET = 1000;
+
+/**
+ * Replans a base whose layout is out of date, at most one base per tick and only with
+ * REPLAN_MIN_BUCKET CPU in the bucket. Built structures stay where they are. If planning fails
+ * for any reason, the old layout is kept (with a warning) and not retried until the next
+ * version. Returns whether it replanned.
+ */
+export function replanIfOutdated(room: Room, baseMemory: BaseMemory, tick: number, bucket: number): boolean {
+    if (!needsReplan(baseMemory) || lastReplanTick === tick || bucket < REPLAN_MIN_BUCKET) {
         return false;
     }
     lastReplanTick = tick;
@@ -62,9 +70,11 @@ export function replanIfOutdated(room: Room, baseMemory: BaseMemory, tick: numbe
         console.log(`[${room.name}] replanned layout v${baseMemory.layoutVersion ?? 1} -> v${LAYOUT_VERSION}`
             + (plan.warnings.length > 0 ? `; warnings: ${plan.warnings.join('; ')}` : ''));
     } catch (e) {
-        if (!(e instanceof BaseLayoutError)) throw e;
-        baseMemory.layoutWarnings = [`replan failed, kept the old layout: ${e.message}`];
-        console.log(`[${room.name}] layout replan failed: ${e.message}`);
+        // Any error, not just BaseLayoutError: an unexpected one would otherwise throw (and
+        // replan) every tick.
+        const message = e instanceof Error ? e.message : String(e);
+        baseMemory.layoutWarnings = [`replan failed, kept the old layout: ${message}`];
+        console.log(`[${room.name}] layout replan failed: ${e instanceof Error && !(e instanceof BaseLayoutError) ? e.stack : message}`);
     }
     baseMemory.layoutVersion = LAYOUT_VERSION;
     return true;

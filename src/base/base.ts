@@ -70,7 +70,7 @@ export class Base {
     if (!home || !baseMemory || !room) {
       return;
     }
-    replanIfOutdated(room, baseMemory, world.tick);
+    replanIfOutdated(room, baseMemory, world.tick, Game.cpu.bucket);
     surveyBase(room, baseMemory, this.remotesToSurvey());
 
     const shared = { world, home, baseMemory, creeps, intel: Memory.intel, directives: Memory.directives };

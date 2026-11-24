@@ -67,7 +67,7 @@ export class Headquarters {
     const { byBase, rehomed } = groupCreepsByBase(creeps, [...this.bases.keys()]);
     executeIntents(rehomed.map(({ creep, baseRoomName }) =>
       ({ kind: 'setCreepMemory', creepName: creep.name, patch: { baseRoomName } })));
-    this.bases.forEach((base, roomName) => base.tick(world, byBase.get(roomName) ?? []));
+    tickEachBase(this.bases, (base, roomName) => base.tick(world, byBase.get(roomName) ?? []));
   }
 
   /** True once a miner (a mine task creep without CARRY) works one of the base's sources. */
@@ -115,4 +115,24 @@ export function groupCreepsByBase(creeps: readonly MyCreepSnapshot[], baseNames:
     byBase.get(baseRoomName)!.push({ ...creep, memory: { ...creep.memory, baseRoomName } });
   }
   return { byBase, rehomed };
+}
+
+/**
+ * Runs `tick` for every base, catching errors so one broken base doesn't stop the bases after
+ * it (or the rest of the tick). Errors are logged with their stack. Returns the rooms that failed.
+ */
+export function tickEachBase<B>(
+  bases: ReadonlyMap<RoomName, B>,
+  tick: (base: B, roomName: RoomName) => void,
+  log: (message: string) => void = console.log): RoomName[] {
+  const failed: RoomName[] = [];
+  bases.forEach((base, roomName) => {
+    try {
+      tick(base, roomName);
+    } catch (e) {
+      failed.push(roomName);
+      log(`[${roomName}] base tick failed: ${e instanceof Error ? e.stack : String(e)}`);
+    }
+  });
+  return failed;
 }

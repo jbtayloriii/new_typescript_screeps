@@ -240,7 +240,7 @@ export function planBaseLayout(input: LayoutInput): LayoutPlan {
             .filter(n => target.near === null || range(n, target.near) <= 3);
         const tile = options.find(n => builtOfType(n, STRUCTURE_LINK))
             ?? closest(options.filter(n => isFree(n, input, plan)), input.spawn);
-        if (!tile) {
+        if (!tile || !map.isOpenOrType(tile, STRUCTURE_LINK)) {
             warnings.push(`no tile for a link next to ${target.tile.x},${target.tile.y}`);
             return;
         }
@@ -286,14 +286,15 @@ export function planLayoutFromTerrain(input: LayoutInput): TerrainPlan {
         warnings.push(`only ${slots.length} grid slots fit; dropped ${dropped.map(describeAssignment).join(', ')}`);
     }
 
-    // Existing containers stay where they are (the PathFinder steps plan them); structures the
+    // Existing containers, links and labs stay where they are: they're reserved, so roads and
+    // other placements avoid them, and the later steps plan them again. Other structures the
     // layout doesn't plan block their tiles.
     const reserved = new Set<string>();
     const builtRoads = new Set<string>();
     for (const b of input.existing?.built ?? []) {
         if (b.structure === STRUCTURE_ROAD) {
             builtRoads.add(key(b));
-        } else if (b.structure === STRUCTURE_CONTAINER) {
+        } else if (b.structure === STRUCTURE_CONTAINER || b.structure === STRUCTURE_LINK || b.structure === STRUCTURE_LAB) {
             reserved.add(key(b));
         } else if (!PLANNED_AFTER_BLOCKING.has(b.structure)) {
             map.block(b);
