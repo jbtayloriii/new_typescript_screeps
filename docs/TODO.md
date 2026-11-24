@@ -20,10 +20,14 @@ two days after the base had spent its safe mode on three harassers.
 - [ ] **Respond to repeated player attacks.** W23S31 had 5 waves in 12 hours, each bigger than the
       last. The previous one left the tower at 500 / 3000, and nothing changed. Track attacks per
       room in intel, and respond: defenders, higher rampart targets, an alert.
-- [ ] **Defend against players automatically.** Auto defense only covers NPC invaders in remotes
-      ([directives/planning.ts](../src/directives/planning.ts)); players need `cmd.defend`.
-- [ ] **Spawning during a siege.** While the tower was dying, the spawn kept making remote miners.
-      Pause economy spawns (or switch to defenders) while the base is under attack.
+- [x] **Defend bases against players automatically**, with defenders spawning ahead of most of
+      the economy ([military/home_defense.ts](../src/military/home_defense.ts)).
+- [ ] **Defend remotes against players.** Remote auto defense is still NPC-only
+      ([directives/planning.ts](../src/directives/planning.ts)); players there need `cmd.defend`.
+- [ ] **NPC invaders in a base with no tower.** Home defense ignores invaders (towers handle
+      them), so an RCL 1–2 base has nothing against them.
+- [ ] **Defenders don't use ramparts.** They chase attackers in the open. Standing on ramparts
+      near the attackers (once there's a perimeter) would keep them alive much longer.
 - [ ] **Higher hit targets for protective ramparts.** They use the shared wall table: 100k at
       RCL 4 and 300k at RCL 5. W23S31's final wave did about 225k damage before one tower could
       have killed it all, so an RCL 4 base wouldn't hold. Consider a separate, higher table for
@@ -34,6 +38,10 @@ two days after the base had spent its safe mode on three harassers.
 
 ## Bugs
 
+- [ ] **Intel doesn't count dismantlers as combat creeps.** `recordIntel` only counts ATTACK and
+      RANGED_ATTACK creeps, so WORK-only dismantlers (what took W23S31) don't set
+      `hostilesLastSeen` or block a room as a remote, and a remote `defend` can end while they're
+      still there. Home defense reads the live room instead, so it isn't affected.
 - [ ] **`myUsername` is lost with the spawn.** It comes from the first spawn's owner
       ([snapshot/world.ts](../src/snapshot/world.ts)), so a base whose spawn dies thinks its own
       remote reservations belong to another player and ends them. This happened at W23S31.

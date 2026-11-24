@@ -3,8 +3,10 @@ import { getMyStructures, getRange } from "snapshot/queries";
 import { MyCreepSnapshot, Pos, RoomSnapshot } from "snapshot/types";
 import { SpawnRequest, SquadTaskMemory, TaskContext, TaskDefinition } from "tasks/types";
 import { chooseTarget, CombatRole, CombatTarget, decideCombat, StructureTargets } from "./combat";
+import { enemyProfile, HOME_DEFENSE_PRIORITY } from "./home_defense";
 import {
-    DEFAULT_SQUAD_SIZE, Mission, MISSION_PRIORITY, RETREAT_BELOW, RETREAT_RECOVER, SQUAD_BODIES, squadComposition, SquadState,
+    DEFAULT_SQUAD_SIZE, homeDefenseComposition, Mission, MISSION_PRIORITY, RETREAT_BELOW, RETREAT_RECOVER, SQUAD_BODIES,
+    squadComposition, SquadState,
 } from "./squads";
 
 /** The leader waits for members farther away than this (outside combat). */
@@ -35,6 +37,21 @@ export function chooseLeader(members: readonly MyCreepSnapshot[]): MyCreepSnapsh
         ROLE_ORDER.indexOf(roleOf(a)) - ROLE_ORDER.indexOf(roleOf(b)) || a.name.localeCompare(b.name))[0] ?? null;
 }
 
+/** True for a squad defending its own base's room (see `military/home_defense.ts`). */
+export function isHomeDefense(task: SquadTaskMemory, ctx: TaskContext): boolean {
+    return task.mission === 'defend' && task.targetRoom === ctx.home.name;
+}
+
+/** The roles a squad wants. Home defense counters the attackers seen (see `enemyProfile`). */
+function rolesFor(task: SquadTaskMemory, ctx: TaskContext): CombatRole[] {
+    const directive = ctx.directives[task.directiveId];
+    const size = directive?.size ?? DEFAULT_SQUAD_SIZE[task.mission];
+    if (isHomeDefense(task, ctx)) {
+        return homeDefenseComposition(size, directive?.threat ? enemyProfile(directive.threat) : 'mixed');
+    }
+    return squadComposition(task.mission, size);
+}
+
 /** The squad's state: the most common state among members that have one, else RALLY. */
 export function currentSquadState(members: readonly MyCreepSnapshot[]): SquadState {
     const counts = new Map<number, number>();
@@ -62,7 +79,8 @@ export function squadHealth(members: readonly MyCreepSnapshot[]): number {
 
 /**
  * The next squad state:
- * - RALLY → ENGAGE once every role is filled, nobody is spawning, and all are at the rally point;
+ * - RALLY → ENGAGE once every role is filled, nobody is spawning, and all are at the rally point
+ *   (or straight away when `rallies` is false: home defenders fight as soon as they spawn);
  * - ENGAGE → RETREAT below RETREAT_BELOW total health;
  * - RETREAT → ENGAGE once back above RETREAT_RECOVER.
  */
@@ -70,10 +88,11 @@ export function nextSquadState(
     state: SquadState,
     members: readonly MyCreepSnapshot[],
     wanted: number,
-    rally: Pos): SquadState {
+    rally: Pos,
+    rallies = true): SquadState {
     switch (state) {
         case SquadState.RALLY: {
-            const ready = members.length >= wanted
+            const ready = !rallies || members.length >= wanted
                 && members.every(m => !m.spawning && getRange(m.pos, rally) <= RALLY_RANGE);
             return ready ? SquadState.ENGAGE : SquadState.RALLY;
         }
@@ -137,6 +156,11 @@ function targetFor(member: MyCreepSnapshot, task: SquadTaskMemory, ctx: TaskCont
  * waiting would bounce it between rooms). In the mission area every member fights (see
  * `decideCombat`). Below 40% total health the squad retreats to the rally point and re-engages
  * at 90%. A replacement for a lost member joins the squad wherever it is.
+ *
+ * Home defense (a defend directive for the base's own room) differs: it spawns at
+ * HOME_DEFENSE_PRIORITY (the first defender with the energy available now), counters the
+ * attackers seen (`homeDefenseComposition`), and skips the rally, so each defender fights as it
+ * spawns.
  */
 export const squadTask: TaskDefinition<SquadTaskMemory> = {
     getSpawnRequests(task, ctx) {
@@ -144,7 +168,8 @@ export const squadTask: TaskDefinition<SquadTaskMemory> = {
         if (!directive || directive.status !== 'active') {
             return [];
         }
-        const roles = squadComposition(task.mission, directive.size ?? DEFAULT_SQUAD_SIZE[task.mission]);
+        const home = isHomeDefense(task, ctx);
+        const roles = rolesFor(task, ctx);
         const requests: SpawnRequest[] = [];
         for (const role of ROLE_ORDER) {
             const have = ctx.creeps.filter(c => c.memory.role === role).length;
@@ -152,9 +177,11 @@ export const squadTask: TaskDefinition<SquadTaskMemory> = {
             for (let i = have; i < want; i++) {
                 requests.push({
                     taskName: task.name,
-                    priority: MISSION_PRIORITY[task.mission] - requests.length,
+                    priority: (home ? HOME_DEFENSE_PRIORITY : MISSION_PRIORITY[task.mission]) - requests.length,
                     body: SQUAD_BODIES[role],
                     memory: { role },
+                    // The base is under attack: the first defender spawns with the energy there is now.
+                    ...(home && ctx.creeps.length === 0 && requests.length === 0 ? { urgent: true } : {}),
                 });
             }
         }
@@ -168,10 +195,10 @@ export const squadTask: TaskDefinition<SquadTaskMemory> = {
             return [];
         }
         const intents: Intent[] = [];
-        const wanted = squadComposition(task.mission, directive.size ?? DEFAULT_SQUAD_SIZE[task.mission]).length;
+        const wanted = rolesFor(task, ctx).length;
         const rally = rallyPoint(ctx.home);
         const state = currentSquadState(members);
-        const next = nextSquadState(state, ctx.creeps, wanted, rally);
+        const next = nextSquadState(state, ctx.creeps, wanted, rally, !isHomeDefense(task, ctx));
         for (const m of ctx.creeps) {
             // New members (no state yet) join the squad's state, so reinforcements go straight to it.
             if (m.memory.state !== next) {

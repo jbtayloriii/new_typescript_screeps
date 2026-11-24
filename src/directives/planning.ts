@@ -1,11 +1,14 @@
 import { IntelMap } from "intel/types";
 import { Intent } from "intents/types";
+import {
+    attackingHostiles, HOME_DEFENSE_CANCEL_COOLDOWN, homeDefenseNeed, homeThreats, maxThreat, threatParts,
+} from "military/home_defense";
 import { WorldSnapshot } from "snapshot/world";
 import { chooseNewRemoteRooms, remoteBlocker } from "tasks/remote_selection";
 import { roomLinearDistance } from "utils/room_names";
 import { parseFlag } from "./flags";
 import { chooseSpawnPosition } from "./spawn_position";
-import { Directive, DirectiveSpec, isEnded, isMilitary } from "./types";
+import { Directive, DirectiveSpec, isEnded, isMilitary, ThreatParts } from "./types";
 
 /** A base's state as directive planning needs it. */
 export interface BaseSummary {
@@ -68,8 +71,12 @@ export function autoDefendSize(room: { hostileCombatCreeps: number, invaderCores
  * 4. Claims: pick a spawn position once the room's intel exists.
  * 5. Automatic remote mining: each static base gets remote rooms up to its limit.
  * 6. Automatic defense: a remote room with NPC invaders (creeps or a core) gets a defend directive
- *    from its base. Player hostiles are left to manual orders (`cmd.defend`), since auto-sending
- *    squads at players could start fights the base can't win.
+ *    from its base. Player hostiles in remotes are left to manual orders (`cmd.defend`), since
+ *    auto-sending squads at players could start fights the base can't win.
+ * 7. Home defense: a base room with player attackers its towers can't kill quickly gets a defend
+ *    directive for itself (see `military/home_defense.ts`), whose squad spawns ahead of most of
+ *    the economy. While attackers are there, it records when they were last seen and grows (never
+ *    shrinks) to the threat.
  */
 export function planDirectives(input: DirectivePlanInput): DirectiveChanges {
     const { world, intel } = input;
@@ -189,6 +196,39 @@ export function planDirectives(input: DirectivePlanInput): DirectiveChanges {
         }
     }
 
+    // 7. Home defense against players.
+    for (const base of input.bases) {
+        const room = world.getRoom(base.roomName);
+        if (!room) {
+            continue;
+        }
+        const existing = live.find(d => d.type === 'defend' && d.targetRoom === base.roomName && !ending.has(d.id));
+        const need = homeDefenseNeed(room, base.energyCapacity);
+        if (existing) {
+            // Keep the threat clock running while any attacker is here, even ones the towers could
+            // handle, and remember the strongest threat so the squad's make-up doesn't flip as
+            // attackers die.
+            const patch: { lastThreatAt?: number, size?: number, threat?: ThreatParts } = {};
+            const attackers = attackingHostiles(room);
+            if (attackers.length > 0) {
+                patch.lastThreatAt = world.tick;
+                const threat = maxThreat(existing.threat, threatParts(attackers));
+                if (JSON.stringify(threat) !== JSON.stringify(existing.threat)) patch.threat = threat;
+            }
+            if (need && need.size > (existing.size ?? 0)) patch.size = need.size;
+            if (Object.keys(patch).length > 0) update.push({ id: existing.id, patch });
+            continue;
+        }
+        const recentlyCancelled = input.directives.some(d => d.type === 'defend' && d.targetRoom === base.roomName
+            && d.status === 'cancelled' && world.tick - (d.endedAt ?? 0) < HOME_DEFENSE_CANCEL_COOLDOWN);
+        if (need && !recentlyCancelled) {
+            create.push({
+                type: 'defend', targetRoom: base.roomName, source: 'auto', baseRoomName: base.roomName,
+                size: need.size, lastThreatAt: world.tick, threat: need.threat, reason: `under attack: ${need.reason}`,
+            });
+        }
+    }
+
     return { create, update, end, intents, handoffs };
 }
 
@@ -225,6 +265,12 @@ function finishedReason(d: Directive, input: DirectivePlanInput): string | null 
             return cleared ? 'target cleared' : null;
         }
         case 'defend': {
+            // A base's own room is always visible, so use what's there now.
+            const home = input.bases.some(b => b.roomName === d.targetRoom) ? world.getRoom(d.targetRoom) : undefined;
+            if (home) {
+                const quiet = homeThreats(home).length === 0 && world.tick - (d.lastThreatAt ?? d.createdAt) >= DEFEND_CLEAR_TICKS;
+                return quiet ? 'base clear' : null;
+            }
             if (!room || room.lastSeen < d.createdAt) {
                 return null;
             }

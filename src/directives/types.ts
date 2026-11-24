@@ -35,7 +35,7 @@ export interface Directive {
     readonly createdAt: number;
     /** The base that runs this directive. Set by the caller, or by `planDirectives` when pending. */
     readonly baseRoomName?: RoomName;
-    /** Why it's pending, done or cancelled (for `cmd.list`). */
+    /** Why it's pending, done or cancelled, or why an automatic one was made (for `cmd.list`). */
     readonly reason?: string;
     /** Tick it became done or cancelled. */
     readonly endedAt?: number;
@@ -47,11 +47,26 @@ export interface Directive {
     readonly size?: number;
     /** Escorts: the directive whose creeps the squad guards. */
     readonly escortedId?: string;
+    /** Defending a base's own room: the last tick player attackers were seen there. */
+    readonly lastThreatAt?: number;
+    /**
+     * Defending a base's own room: the most of each combat part seen on the attackers at once
+     * during this defense. The squad's make-up counters it (see `military/home_defense.ts`).
+     */
+    readonly threat?: ThreatParts;
+}
+
+/** Combat body parts on a group of hostile creeps. */
+export interface ThreatParts {
+    readonly attack: number;
+    readonly ranged: number;
+    readonly work: number;
+    readonly heal: number;
 }
 
 /** What's needed to create a directive; the rest is filled in when it is saved. */
 export type DirectiveSpec = Pick<Directive, 'type' | 'targetRoom' | 'source'>
-    & Partial<Pick<Directive, 'baseRoomName' | 'flagName' | 'spawnPos' | 'size' | 'escortedId'>>;
+    & Partial<Pick<Directive, 'baseRoomName' | 'flagName' | 'spawnPos' | 'size' | 'escortedId' | 'lastThreatAt' | 'reason' | 'threat'>>;
 
 export type DirectiveMap = { readonly [id: string]: Directive };
 

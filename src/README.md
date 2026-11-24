@@ -167,8 +167,18 @@ The empire is split into these pieces:
   - **Done**: attack once the room is seen with no hostile structures or combat creeps; defend
     once it has been clear for 100 ticks; escort when the escorted directive ends. Leftover squad
     creeps are recycled.
-  - Automatic defense is only against NPCs (`Invader`); player hostiles need a manual
-    `cmd.defend`, so the base doesn't start fights it can't win.
+  - Automatic defense of remotes is only against NPCs (`Invader`); player hostiles in remotes
+    need a manual `cmd.defend`, so the base doesn't start fights it can't win.
+  - **Home defense** ([military/home_defense.ts](military/home_defense.ts)): when other
+    players' creeps that can attack, dismantle or claim are in a base's own room and its
+    towers can't kill them within 50 ticks, the empire planner creates a `defend` directive for
+    the base room, sized to the attackers (2–6). Its squad spawns at priority 95, ahead of
+    upgraders, builders, repairers, remotes and extra haulers (only the first miner, harvesters
+    and the first hauler come first), with the first defender sized to the energy available
+    now. It's melee and ranged alternating plus a healer per 3, and skips the rally: each
+    defender fights as soon as it spawns. It ends 100 ticks after the last attacker leaves, and
+    each one is logged to `Memory.log`. Cancelling it from the console holds off a new one for
+    1,500 ticks.
 
 - **Visuals / HUD** ([visuals/](visuals/), design in [docs/VISUALS.md](../docs/VISUALS.md)):
   `cmd.visuals('W1N1')` draws panels in the room's top-left corner for 200 ticks: header (RCL,

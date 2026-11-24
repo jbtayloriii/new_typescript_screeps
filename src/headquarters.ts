@@ -49,6 +49,12 @@ export class Headquarters {
     const store = new DirectiveStore(Memory);
     const changes = planDirectives({ world, directives: store.all(), bases: this.summarizeBases(world), intel: Memory.intel });
     store.apply(changes, world.tick);
+    for (const spec of changes.create) {
+      if (spec.type === 'defend' && spec.targetRoom === spec.baseRoomName) {
+        // Saved in Memory.log (and the daily email), so attacks leave a record.
+        Logger.warning(`[${spec.targetRoom}] home defense with ${spec.size} defenders: ${spec.reason ?? 'under attack'}`);
+      }
+    }
     store.prune(world.tick);
     for (const roomName of pruneVisuals(Memory, world.tick)) {
       console.log(`Visuals off in ${roomName} (expired).`);

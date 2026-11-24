@@ -262,6 +262,10 @@ base room.
 - [x] Automatic defense: a remote room with NPC invaders (recently seen) or an Invader core gets
       a `defend` directive from its base, sized 2–4 to the threat. Only NPCs: player hostiles need
       a manual order. Intel now records Invader cores, hostile structures and hostile owners.
+- [x] Home defense against players (`military/home_defense.ts`): player attackers in a base room
+      that its towers can't kill within 50 ticks get an automatic `defend` directive for the base
+      itself, sized 2–6. Defenders spawn at priority 95 (ahead of everything but the first miner,
+      harvesters and the first hauler), mix melee and ranged, and fight as soon as they spawn.
 - [x] Squads (`squadComposition`): attack is a healer per 3, the rest alternating melee/ranged;
       defend/escort is ranged plus a healer. Rally at the home spawn until complete, then move
       out with follow-the-leader movement (followers stay next to the leader, the leader waits for

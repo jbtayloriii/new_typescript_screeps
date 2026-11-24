@@ -4,6 +4,7 @@ import { Directive } from './types';
 import { aRoom } from 'testing/builders/room_snapshot_builder';
 import { worldOf, WorldOptions } from 'testing/builders/world';
 import { RoomIntel } from 'intel/types';
+import { HOME_DEFENSE_CANCEL_COOLDOWN } from 'military/home_defense';
 
 const base = (roomName: string, overrides: Partial<BaseSummary> = {}): BaseSummary =>
     ({ roomName, energyCapacity: 800, staticMining: false, ...overrides });
@@ -193,3 +194,62 @@ describe('planDirectives: military', () => {
     });
 });
 
+
+describe('planDirectives: home defense against players', () => {
+    const dismantler = { activeParts: { [WORK]: 10, [MOVE]: 10 }, hits: 2000, hitsMax: 2000, owner: 'someone' };
+    const attacked = (tick = 100) => worldOf([aRoom('W1N1').withTick(tick).withRcl(3).withSpawn(10, 10)
+        .withHostile(12, 12, dismantler).withHostile(13, 13, dismantler).build()]);
+    const quiet = (tick: number) => worldOf([aRoom('W1N1').withTick(tick).withRcl(3).withSpawn(10, 10).build()]);
+    const homeDefense = (overrides: Partial<Directive> = {}) => directive({
+        id: 'd1', type: 'defend', targetRoom: 'W1N1', source: 'auto', status: 'active', baseRoomName: 'W1N1',
+        size: 2, createdAt: 50, lastThreatAt: 90, ...overrides,
+    });
+
+    test('player attackers the towers can\'t handle get a defend directive for the base itself', () => {
+        expect(planDirectives(input({ world: attacked() })).create).toEqual([
+            {
+                type: 'defend', targetRoom: 'W1N1', source: 'auto', baseRoomName: 'W1N1', size: 5, lastThreatAt: 100,
+                threat: { attack: 0, ranged: 0, work: 20, heal: 0 },
+                reason: 'under attack: 2 attackers (someone; dismantlers); no tower can out-damage them',
+            },
+        ]);
+    });
+
+    test('no directive when the towers can kill them quickly, or for NPC invaders', () => {
+        const towers = worldOf([aRoom('W1N1').withTick(100).withRcl(3).withSpawn(10, 10).withTower(11, 11)
+            .withHostile(12, 12, dismantler).build()]);
+        expect(planDirectives(input({ world: towers })).create).toEqual([]);
+        const invaders = worldOf([aRoom('W1N1').withTick(100).withRcl(3).withHostile(12, 12, { ...dismantler, owner: 'Invader' }).build()]);
+        expect(planDirectives(input({ world: invaders })).create).toEqual([]);
+    });
+
+    test('while attackers are there, the existing directive records them and grows', () => {
+        const changes = planDirectives(input({ world: attacked(120), directives: [homeDefense()] }));
+        expect(changes.create).toEqual([]);
+        expect(changes.update).toEqual([{ id: 'd1', patch: { lastThreatAt: 120, size: 5, threat: { attack: 0, ranged: 0, work: 20, heal: 0 } } }]);
+        expect(changes.end).toEqual([]);
+    });
+
+    test('keeps the strongest threat as attackers die, and adds new kinds', () => {
+        const seen = { attack: 0, ranged: 0, work: 40, heal: 0 };
+        // 20 WORK left of the 40 seen: nothing to update but the clock.
+        expect(planDirectives(input({ world: attacked(130), directives: [homeDefense({ size: 5, threat: seen })] })).update)
+            .toEqual([{ id: 'd1', patch: { lastThreatAt: 130 } }]);
+        const melee = worldOf([aRoom('W1N1').withTick(140).withRcl(3).withSpawn(10, 10)
+            .withHostile(12, 12, { activeParts: { [ATTACK]: 10, [MOVE]: 10 }, owner: 'someone' }).build()]);
+        expect(planDirectives(input({ world: melee, directives: [homeDefense({ size: 5, threat: seen })] })).update)
+            .toEqual([{ id: 'd1', patch: { lastThreatAt: 140, threat: { attack: 10, ranged: 0, work: 40, heal: 0 } } }]);
+    });
+
+    test('ends once the base has been clear for DEFEND_CLEAR_TICKS', () => {
+        expect(planDirectives(input({ world: quiet(90 + DEFEND_CLEAR_TICKS - 1), directives: [homeDefense()] })).end).toEqual([]);
+        expect(planDirectives(input({ world: quiet(90 + DEFEND_CLEAR_TICKS), directives: [homeDefense()] })).end)
+            .toEqual([{ id: 'd1', status: 'done', reason: 'base clear' }]);
+    });
+
+    test('a home defense cancelled from the console is not recreated for a while', () => {
+        const cancelled = homeDefense({ status: 'cancelled', endedAt: 95 });
+        expect(planDirectives(input({ world: attacked(100), directives: [cancelled] })).create).toEqual([]);
+        expect(planDirectives(input({ world: attacked(95 + HOME_DEFENSE_CANCEL_COOLDOWN), directives: [cancelled] })).create).toHaveLength(1);
+    });
+});

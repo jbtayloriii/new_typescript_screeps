@@ -43,6 +43,28 @@ export function squadComposition(mission: Mission, size: number): CombatRole[] {
     return [...Array<CombatRole>(n - healers).fill('ranged'), ...Array<CombatRole>(healers).fill('healer')];
 }
 
+/** What a base's attackers mostly are, which decides the home defense squad's make-up. */
+export type EnemyProfile = 'dismantlers' | 'melee' | 'ranged' | 'mixed';
+
+/**
+ * The roles of a squad defending its own base, countering the attackers:
+ * - dismantlers (and claimers): all melee, no healer. They can't hit back, and melee does
+ *   3× ranged damage;
+ * - melee: ranged, which keeps range 3 and so takes no melee damage, plus a healer per 3;
+ * - ranged: melee to close in for 3× damage, plus a healer per 3 for the damage on the way;
+ * - mixed (or unknown): melee and ranged alternating, starting with melee, plus a healer per 3.
+ */
+export function homeDefenseComposition(size: number, enemy: EnemyProfile = 'mixed'): CombatRole[] {
+    const n = Math.max(1, Math.min(MAX_SQUAD_SIZE, Math.floor(size)));
+    if (enemy === 'dismantlers') {
+        return Array<CombatRole>(n).fill('melee');
+    }
+    const healers = n >= 2 ? Math.max(1, Math.floor(n / 3)) : 0;
+    const fighters = n - healers;
+    const fighter = (i: number): CombatRole => enemy === 'melee' ? 'ranged' : enemy === 'ranged' ? 'melee' : i % 2 === 0 ? 'melee' : 'ranged';
+    return [...Array.from({ length: fighters }, (_, i) => fighter(i)), ...Array<CombatRole>(healers).fill('healer')];
+}
+
 /** Squad states, saved in each member's `memory.state`. */
 export const enum SquadState {
     RALLY = 0,

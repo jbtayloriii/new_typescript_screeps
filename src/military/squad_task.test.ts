@@ -1,6 +1,7 @@
 import { describe, expect, test } from '@jest/globals';
 import { chooseLeader, currentSquadState, nextSquadState, rallyPoint, squadHealth, squadTask } from './squad_task';
 import { SquadState, SQUAD_BODIES, MISSION_PRIORITY } from './squads';
+import { HOME_DEFENSE_PRIORITY } from './home_defense';
 import { aRoom, RoomSnapshotBuilder } from 'testing/builders/room_snapshot_builder';
 import { aTaskContext } from 'testing/builders/context';
 import { worldOf } from 'testing/builders/world';
@@ -130,5 +131,42 @@ describe('squadTask.decide', () => {
         const squad = field.creepsPresent.filter(c => c.memory.taskName === 'sq');
         const intents = squadTask.decide(escort, ctx(homeWith(), { rooms: [field], creeps: squad, d, baseTasks: [claimTask] }));
         expect(intents).toContainEqual({ kind: 'move', creepName: 'a', target: field.hostileCreeps[0].pos, range: 3 });
+    });
+});
+
+describe('home defense squads', () => {
+    const homeTask: SquadTaskMemory = { ...task, mission: 'defend', targetRoom: 'W1N1' };
+    const homeDirective = directive({ type: 'defend', targetRoom: 'W1N1', size: 3 });
+
+    test('spawn ahead of the economy, melee first, the first one with the energy available now', () => {
+        expect(squadTask.getSpawnRequests(homeTask, ctx(homeWith(), { d: homeDirective }))).toEqual([
+            { taskName: 'sq', priority: HOME_DEFENSE_PRIORITY, body: SQUAD_BODIES.melee, memory: { role: 'melee' }, urgent: true },
+            { taskName: 'sq', priority: HOME_DEFENSE_PRIORITY - 1, body: SQUAD_BODIES.ranged, memory: { role: 'ranged' } },
+            { taskName: 'sq', priority: HOME_DEFENSE_PRIORITY - 2, body: SQUAD_BODIES.healer, memory: { role: 'healer' } },
+        ]);
+    });
+
+    test.each([
+        ['dismantlers', { attack: 0, ranged: 0, work: 30, heal: 0 }, ['melee', 'melee', 'melee']],
+        ['melee', { attack: 20, ranged: 0, work: 0, heal: 5 }, ['ranged', 'ranged', 'healer']],
+        ['ranged', { attack: 0, ranged: 20, work: 0, heal: 5 }, ['melee', 'melee', 'healer']],
+        ['mixed', { attack: 10, ranged: 10, work: 0, heal: 0 }, ['melee', 'healer', 'ranged']],
+    ])('counters %s', (_, threat, roles) => {
+        const requests = squadTask.getSpawnRequests(homeTask, ctx(homeWith(), { d: directive({ ...homeDirective, threat }) }));
+        expect(requests.map(r => r.memory?.role).sort()).toEqual([...roles].sort());
+    });
+
+    test('a defender fights straight away instead of waiting for the rest of the squad', () => {
+        const home = homeWith(b => b.withMyCreep('a', 11, 11, member('melee')).withHostile(20, 20, { owner: 'someone' }));
+        const intents = squadTask.decide(homeTask, ctx(home, { d: homeDirective }));
+        expect(intents).toContainEqual({ kind: 'setCreepMemory', creepName: 'a', patch: { state: SquadState.ENGAGE } });
+        expect(intents.some(i => i.kind === 'move' && i.creepName === 'a' && i.target.x === 20)).toBe(true);
+    });
+
+    test('a defend squad for a remote room still rallies', () => {
+        const remoteTask: SquadTaskMemory = { ...task, mission: 'defend', targetRoom: 'W2N1' };
+        const home = homeWith(b => b.withMyCreep('a', 30, 30, member('ranged')));
+        const intents = squadTask.decide(remoteTask, ctx(home, { d: directive({ type: 'defend', size: 2 }) }));
+        expect(intents).toContainEqual({ kind: 'setCreepMemory', creepName: 'a', patch: { state: SquadState.RALLY } });
     });
 });
