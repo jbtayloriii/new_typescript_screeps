@@ -93,10 +93,17 @@ describe('executeIntents', () => {
         expect(memory).toEqual({ taskName: 'new', baseRoomName: 'W1N1' });
     });
 
-    test('activates safe mode', () => {
-        objects['ctrl'] = mockInstanceOf<StructureController>({ id: 'ctrl', activateSafeMode: () => OK });
-        expect(executeIntents([{ kind: 'activateSafeMode', controllerId: 'ctrl' as Id<StructureController> }])[0].code).toBe(OK);
+    test('activates safe mode and logs why', () => {
+        const log = { lastReportedDate: -1, infoMessages: [] as string[], warningMessages: [] as string[] };
+        mockGlobal<Memory>('Memory', { log });
+        (Game as { time: number }).time = 500;
+        objects['ctrl'] = mockInstanceOf<StructureController>({
+            id: 'ctrl', activateSafeMode: () => OK, room: mockInstanceOf<Room>({ name: 'W1N1' }),
+        });
+        const intent: Intent = { kind: 'activateSafeMode', controllerId: 'ctrl' as Id<StructureController>, reason: 'spawn under attack' };
+        expect(executeIntents([intent])[0].code).toBe(OK);
         expect((objects['ctrl'] as StructureController).activateSafeMode).toHaveBeenCalled();
+        expect(Memory.log.warningMessages).toEqual(['500 - [W1N1] safe mode activated: spawn under attack']);
     });
 
     test('claims controllers and removes flags', () => {

@@ -111,8 +111,12 @@ The empire is split into these pieces:
 
 - **Defense** ([defense/](defense/)): towers attack healers first, then attackers; heal my damaged
   creeps; and, keeping 500 energy in reserve, repair damaged structures and then the weakest
-  wall/rampart below its RCL target. Safe mode activates when dangerous hostiles reach a spawn or
-  the controller and the towers can't cope.
+  wall/rampart below its RCL target, but first any rampart about to decay away. Safe mode
+  ([defense/safe_mode.ts](defense/safe_mode.ts)) is kept for when the base is about to fall:
+  hostiles within 3 of a spawn or tower can destroy it (and the rampart over it) within 50 ticks
+  and the towers can't kill them first, or a claimer reaches the controller (which would block
+  safe mode) while hostiles that can damage structures are in the room. Activations are logged
+  to `Memory.log` with the reason.
 
 - **Base survey** ([base/survey.ts](base/survey.ts)): measures things that need game APIs once and
   saves them in `BaseMemory`: path lengths from the spawn to each source and each remote source
@@ -234,7 +238,7 @@ Each tick:
       1. Assign orphaned creeps to tasks, or recycle them.
       2. Spawn creeps for the highest-priority open requests.
       3. Each task directs its creeps.
-      4. Safe mode if the base is overrun; towers attack, heal and repair.
+      4. Safe mode if a spawn or tower is about to fall; towers attack, heal and repair.
       5. Every 25 ticks, and right after a controller level-up, place construction sites for
          unbuilt structures from every unlocked layout level (except `NOT_YET_BUILT` types:
          links, labs, terminal and others nothing uses yet), in build priority order (spawn →

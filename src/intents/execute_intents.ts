@@ -1,3 +1,4 @@
+import { Logger } from "logging/logger";
 import { Intent, IntentResult, IntentReturnCode } from "./types";
 
 /**
@@ -70,7 +71,10 @@ export function executeIntent(intent: Intent): IntentReturnCode {
         case 'activateSafeMode': {
             const controller = Game.getObjectById(intent.controllerId);
             if (!controller) return ERR_NOT_FOUND;
-            return controller.activateSafeMode();
+            const result = controller.activateSafeMode();
+            // Saved in Memory.log, so a lost base leaves a record of when and why.
+            Logger.warning(`[${controller.room?.name}] safe mode ${result === OK ? 'activated' : `failed (${result})`}: ${intent.reason ?? 'no reason given'}`);
+            return result;
         }
         case 'recycle': {
             const spawn = Game.getObjectById(intent.spawnId);

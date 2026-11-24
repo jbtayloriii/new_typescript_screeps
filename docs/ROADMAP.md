@@ -177,6 +177,11 @@ base room.
       RCL 8), used by towers and the repair task. Repairers finish normal structures first.
 - [x] Safe mode when dangerous hostiles reach a spawn (range 5) or the controller (range 3) and
       towers can't cope (no energy, out-healed, or a spawn already damaged).
+- [x] Safe mode v2 (after losing W23S31, which spent its charge on 3 harassers at RCL 3): only
+      when hostiles within 3 of a spawn or tower can destroy it and its rampart within 50 ticks
+      and the towers can't kill them first, or a claimer reaches the controller (which would
+      block safe mode) while hostiles that can damage structures are in the room. Activations
+      are logged to `Memory.log` with the reason.
 
 **6. Scouting and room intel**
 - [x] `Memory.intel[roomName]` (`intel/types.ts`) recorded by `Headquarters` for every visible room,

@@ -80,7 +80,8 @@ export type RecycleIntent = { kind: 'recycle'; spawnId: Id<StructureSpawn>; cree
  */
 export type SetCreepMemoryIntent = { kind: 'setCreepMemory'; creepName: string; patch: Partial<CreepMemory> };
 
-export type ActivateSafeModeIntent = { kind: 'activateSafeMode'; controllerId: Id<StructureController> };
+/** `reason` says why (see defense/safe_mode.ts); it's logged when safe mode is activated. */
+export type ActivateSafeModeIntent = { kind: 'activateSafeMode'; controllerId: Id<StructureController>; reason?: string };
 
 /** Removes a flag, e.g. once its directive is done. */
 export type RemoveFlagIntent = { kind: 'removeFlag'; flagName: string };
