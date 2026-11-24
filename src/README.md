@@ -237,11 +237,11 @@ Each tick:
       4. Safe mode if the base is overrun; towers attack, heal and repair.
       5. Every 25 ticks, and right after a controller level-up, place construction sites for
          unbuilt structures from every unlocked layout level (except `NOT_YET_BUILT` types:
-         links, labs, terminal and others nothing uses yet), in
-         build priority order (spawn → extensions → towers → containers → storage → … → roads →
-         walls/ramparts), with roads only from RCL 3. At most 5 sites at a time for each
-         structure type and everything more important than it, so less important sites never
-         block more important ones.
+         links, labs, terminal and others nothing uses yet), in build priority order (spawn →
+         extensions → towers → containers → storage → ramparts → … → roads → walls), with
+         roads only from RCL 3. At most 5 sites at a time for each structure type and
+         everything more important than it, so less important sites never block more important
+         ones.
    3. **Execute** all intents with a single `executeIntents` call, and save the base's memory
       changes.
 

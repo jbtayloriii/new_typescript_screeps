@@ -65,6 +65,23 @@ describe('new module', () => {
     });
 });
 
+describe('addRampart', () => {
+    test('plans a rampart over a structure without replacing it', () => {
+        const map = new BaseLayoutMapObj(5);
+        map.addBuilding(1, { x: 2, y: 2 }, STRUCTURE_SPAWN);
+        map.addRampart(3, { x: 2, y: 2 });
+        map.addRampart(4, { x: 2, y: 2 });
+        expect(map.isType({ x: 2, y: 2 }, STRUCTURE_SPAWN)).toBe(true);
+        expect(map.hasRampart({ x: 2, y: 2 })).toBe(true);
+        expect(map.toSerializedMap()[3]).toEqual(['2_2_R']);
+        expect(map.toSerializedMap()[4]).toEqual([]);
+    });
+
+    test('needs a structure to cover', () => {
+        expect(() => new BaseLayoutMapObj(5).addRampart(3, { x: 1, y: 1 })).toThrow();
+    });
+});
+
 describe('getLayoutCoordsBetweenLevels', () => {
     const layout = { 1: ['a'], 2: ['b', 'c'], 3: [], 4: ['d'] };
 

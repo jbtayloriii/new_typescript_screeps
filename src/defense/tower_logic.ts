@@ -9,6 +9,13 @@ export const TOWER_REPAIR_MIN_DAMAGE = 1000;
 /** Towers keep this much energy for defense and only repair above it. */
 export const TOWER_REPAIR_MIN_ENERGY = 500;
 
+/**
+ * Ramparts below this many hits are repaired whenever a tower has the energy for a shot, ahead of
+ * other repairs. A new rampart has 1 hit and loses RAMPART_DECAY_AMOUNT (300) every 100 ticks, so
+ * without this it can decay away before a tower has energy to spare.
+ */
+export const RAMPART_RESCUE_HITS = 2 * RAMPART_DECAY_AMOUNT;
+
 function isWall(s: StructureSnapshot): boolean {
     return s.structureType === STRUCTURE_WALL || s.structureType === STRUCTURE_RAMPART;
 }
@@ -31,7 +38,8 @@ export function chooseTowerTarget(tower: StructureSnapshot, hostiles: readonly H
  * Decides what each tower does this tick, in order:
  * 1. Attack (see `chooseTowerTarget`).
  * 2. Heal the closest damaged creep of mine.
- * 3. If it has energy to spare: repair the closest damaged non-wall structure, then the weakest
+ * 3. Repair the weakest rampart about to decay away (below RAMPART_RESCUE_HITS).
+ * 4. If it has energy to spare: repair the closest damaged non-wall structure, then the weakest
  *    wall or rampart below its RCL target.
  */
 export function decideTowerIntents(room: RoomSnapshot): TowerIntent[] {
@@ -40,8 +48,10 @@ export function decideTowerIntents(room: RoomSnapshot): TowerIntent[] {
     const damagedCreeps = room.creepsPresent.filter(c => c.hits < c.hitsMax);
     const repairTargets = room.structures.filter(s => needsRepair(s, rcl));
     const structures = repairTargets.filter(s => !isWall(s) && s.hitsMax - s.hits >= TOWER_REPAIR_MIN_DAMAGE);
-    const weakestWall = repairTargets.filter(isWall)
-        .reduce<StructureSnapshot | null>((weakest, s) => !weakest || s.hits < weakest.hits ? s : weakest, null);
+    const weakest = (list: readonly StructureSnapshot[]) =>
+        list.reduce<StructureSnapshot | null>((w, s) => !w || s.hits < w.hits ? s : w, null);
+    const weakestWall = weakest(repairTargets.filter(isWall));
+    const dyingRampart = weakest(repairTargets.filter(s => s.structureType === STRUCTURE_RAMPART && s.hits < RAMPART_RESCUE_HITS));
 
     for (const tower of getMyStructures(room, STRUCTURE_TOWER)) {
         const energy = tower.store?.energy ?? 0;
@@ -58,6 +68,10 @@ export function decideTowerIntents(room: RoomSnapshot): TowerIntent[] {
         const patient = findClosestByRange(tower.pos, damagedCreeps);
         if (patient) {
             intents.push({ kind: 'towerHeal', towerId, targetId: patient.id });
+            continue;
+        }
+        if (dyingRampart) {
+            intents.push({ kind: 'towerRepair', towerId, targetId: dyingRampart.id });
             continue;
         }
         if (energy < TOWER_REPAIR_MIN_ENERGY) {

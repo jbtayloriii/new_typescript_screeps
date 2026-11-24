@@ -84,8 +84,10 @@ function roadPreferringCosts(homeRoom: RoomName, baseMemory: BaseMemory): (roomN
         if (roomName === homeRoom) {
             for (const coordString of Object.values(baseMemory.baseLayout).flat()) {
                 const { coord, structure } = basePlanCoordToBuildingObj(coordString);
-                costs.set(coord.x, coord.y, structure === STRUCTURE_ROAD ? 1
-                    : structure === STRUCTURE_CONTAINER || structure === STRUCTURE_RAMPART ? 2 : 0xff);
+                // A rampart can be planned over another structure: it never makes that tile cheaper.
+                const cost = structure === STRUCTURE_ROAD ? 1
+                    : structure === STRUCTURE_CONTAINER || structure === STRUCTURE_RAMPART ? 2 : 0xff;
+                costs.set(coord.x, coord.y, Math.max(costs.get(coord.x, coord.y), cost));
             }
         }
         const visible = Game.rooms[roomName];

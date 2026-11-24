@@ -293,6 +293,8 @@ Plan every structure each RCL allows, without moving anything built. Design in
 - [x] Link positions (sources and controller, longest haul first), mineral extractor + container
       + road, 10-lab stamp, observer position. The power spawn takes the nuker's core slot
       (the nuker moves out, unless one is already built there).
+- [x] Protective ramparts over spawns, towers and storage from RCL 3 (layout version 3), built
+      right after storage, and towers rescue new ramparts before they decay.
 
 ### Phase 8: Expansion
 Make `cmd.claim(room)` reliable from a room name alone. Design in [EXPANSION.md](EXPANSION.md).

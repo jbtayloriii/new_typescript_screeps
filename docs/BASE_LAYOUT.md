@@ -46,7 +46,7 @@ is never recomputed.
 | Extractor | RCL 6 | — | 1 |
 | Lab | 0, 0, 0, 0, 0, 3, 6, 10 | — | 10 |
 | Observer, power spawn | RCL 8 | — | 1 each |
-| Ramparts / walls | RCL 2 | core center only | perimeter (later) |
+| Ramparts / walls | RCL 2 | core center only | over spawns, towers, storage (done, v3); perimeter (later) |
 
 What already uses more than one: the spawn queue spreads requests over every idle spawn
 (`planSpawnQueue`), and tower logic loops over every tower. Extra spawns and towers are useful
@@ -74,8 +74,8 @@ as soon as they're built.
 | --- | --- |
 | 1 | spawn |
 | 2 | 5 extensions, source containers, controller container, core ring road |
-| 3 | 5 extensions, tower 1 (core), roads (from RCL 3, as now), controller road |
-| 4 | 10 extensions, storage |
+| 3 | 5 extensions, tower 1 (core), roads (from RCL 3, as now), controller road, ramparts over spawn 1 and tower 1 |
+| 4 | 10 extensions, storage (with a rampart) |
 | 5 | 10 extensions, tower 2 (tower stamp), core link + 1st link target, center rampart |
 | 6 | 10 extensions, terminal, 2nd link target, extractor + mineral container + road, labs 1–3 |
 | 7 | 10 extensions, spawn 2, tower 3, 3rd link target, factory, labs 4–6 |
@@ -255,6 +255,26 @@ Today's search stops after 50 candidates; finding 14 slots may need a higher lim
 Later, each in its own design: hub manager (a stationary creep on the core center moving
 resources between storage, terminal, link, factory and power spawn), rampart perimeter
 (min-cut), link task, mineral mining, lab reactions and boosts, factory.
+
+## Protective ramparts (layout version 3)
+
+Every spawn, tower and storage gets a rampart over it, so attackers have to break the rampart
+before they can hit the structure. This came out of losing W23S31 (shard0, Nov 23 2026): 15
+dismantlers killed its only tower (3,000 hits, no rampart) in about 30 ticks, then the spawn.
+
+- **From RCL 3**, or the structure's own RCL if later (storage 4, tower 2 at 5, spawn 2 at 7, …).
+  RCL 3 is when the first tower lands. A new rampart has 1 hit and loses 300 every 100 ticks, so
+  it needs a tower repairing it from the start.
+- **Hit targets** are the existing wall/rampart table (`WALL_TARGET_HITS_BY_RCL`: 30k at RCL 3,
+  100k at 4, 300k at 5, 1M at 6, …). Towers and repair creeps keep them there.
+- **Building:** ramparts come right after storage in `BUILD_PRIORITY` (they were last, after
+  roads), so road sites never hold them back. They cost 1 energy to build.
+- **Towers rescue new ramparts:** a rampart below `RAMPART_RESCUE_HITS` (600) is repaired whenever
+  a tower has energy for a shot, ahead of other repairs and below the 500-energy reserve.
+- In the layout, a rampart is listed on the same tile as the structure it covers
+  (`BaseLayoutMapObj.addRampart`); the checks allow one rampart over any structure.
+- Not covered yet: the terminal, factory, labs and the rest. They'd join `PROTECTED_STRUCTURES` as
+  they start being built.
 
 ## Decisions
 

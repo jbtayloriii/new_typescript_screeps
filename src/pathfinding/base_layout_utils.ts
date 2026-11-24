@@ -14,8 +14,22 @@ import {
  * controller and mineral), then links, then runs the layout checks.
  */
 
-/** Bump when the planner's output changes, so existing bases replan (see base/base.ts). */
-export const LAYOUT_VERSION = 2;
+/**
+ * Bump when the planner's output changes, so existing bases replan (see base/layout.ts).
+ * 2: v2 layout (tower/spawn/lab stamps, links, mineral, controller road). 3: protective ramparts.
+ */
+export const LAYOUT_VERSION = 3;
+
+/** Structures that get a rampart over them, so attackers can't hit them until it's gone. */
+export const PROTECTED_STRUCTURES: ReadonlySet<BuildableStructureConstant> = new Set([
+    STRUCTURE_SPAWN, STRUCTURE_TOWER, STRUCTURE_STORAGE,
+]);
+
+/**
+ * Protective ramparts start at this RCL (or the structure's own RCL, if later): RCL 3 is when
+ * the first tower lands, and a new rampart (1 hit) needs a tower to repair it before it decays.
+ */
+export const PROTECTIVE_RAMPART_RCL = 3;
 
 const MAP_SIZE = 50;
 
@@ -293,6 +307,7 @@ export function planLayoutFromTerrain(input: LayoutInput): TerrainPlan {
 
     const plan: TerrainPlan = { map, center, storage, slots, assignments, warnings, reserved, builtRoads, builtTiles };
     placeLabs(input, plan);
+    addProtectiveRamparts(map);
     return plan;
 }
 
@@ -374,12 +389,25 @@ export function findStampSlots(center: Coordinate, diamondDistances: number[][],
     return slots;
 }
 
-/** The previous layout's tiles: symbol and level by "x_y". */
+/** Plans a rampart over every protected structure, from PROTECTIVE_RAMPART_RCL or the structure's RCL. */
+function addProtectiveRamparts(map: BaseLayoutMapObj): void {
+    for (const [level, coords] of Object.entries(map.toSerializedMap())) {
+        for (const c of [...coords]) {
+            const { coord, structure } = basePlanCoordToBuildingObj(c);
+            if (PROTECTED_STRUCTURES.has(structure)) {
+                map.addRampart(Math.max(Number(level), PROTECTIVE_RAMPART_RCL), coord);
+            }
+        }
+    }
+}
+
+/** The previous layout's tiles (ignoring ramparts, which share tiles): symbol and level by "x_y". */
 function previousLayoutTiles(layout: BaseLayoutMap | undefined): Map<string, { structure: BuildableStructureConstant, level: number }> {
     const tiles = new Map<string, { structure: BuildableStructureConstant, level: number }>();
     for (const [level, coords] of Object.entries(layout ?? {})) {
         for (const c of coords) {
             const { coord, structure } = basePlanCoordToBuildingObj(c);
+            if (structure === STRUCTURE_RAMPART) continue;
             tiles.set(key(coord), { structure, level: Number(level) });
         }
     }

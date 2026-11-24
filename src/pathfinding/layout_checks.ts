@@ -1,9 +1,6 @@
 import { BaseLayoutMap, Coordinate } from "global_types";
 import { basePlanCoordToBuildingObj } from "utils/string_utils";
 
-/** Structure types that can share a tile with a rampart. */
-const RAMPART_COMPANIONS: ReadonlySet<StructureConstant> = new Set([STRUCTURE_ROAD, STRUCTURE_CONTAINER]);
-
 /** Structures creeps can walk over. */
 const WALKABLE: ReadonlySet<StructureConstant> = new Set([STRUCTURE_ROAD, STRUCTURE_CONTAINER, STRUCTURE_RAMPART]);
 
@@ -36,7 +33,7 @@ export function checkLayout(input: LayoutCheckInput): string[] {
         }
     }
 
-    // One structure per tile, except ramparts over roads and containers.
+    // One structure per tile, plus at most one rampart over it.
     const byTile = new Map<string, BuildableStructureConstant[]>();
     for (const p of planned) {
         const key = `${p.coord.x}_${p.coord.y}`;
@@ -45,7 +42,7 @@ export function checkLayout(input: LayoutCheckInput): string[] {
     for (const [key, types] of byTile) {
         if (types.length < 2) continue;
         const others = types.filter(t => t !== STRUCTURE_RAMPART);
-        const ok = types.length === 2 && others.length === 1 && RAMPART_COMPANIONS.has(others[0]);
+        const ok = types.length === 2 && others.length === 1;
         if (!ok) problems.push(`tile ${key} has ${types.join(' + ')}`);
     }
 

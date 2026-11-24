@@ -12,8 +12,8 @@ const UNBUILT_OPACITY = 0.85;
 /**
  * The layout preview overlay: every planned structure as its layout symbol (x extension,
  * t tower, s spawn, …; roads as dots), colored by the RCL that unlocks it, and faded once built.
- * `built` holds "x_y_structureType" for every structure and construction site in the room.
- * Warnings are listed at the bottom left, above an RCL color legend.
+ * Ramparts are drawn as a box (□) around the structure they cover. `built` holds
+ * "x_y_structureType" for every structure and construction site in the room. Warnings are listed at the bottom left, above an RCL color legend.
  */
 export function layoutOverlay(layout: BaseLayoutMap, built: ReadonlySet<string>, warnings: readonly string[] = []): DrawCommand[] {
     const commands: DrawCommand[] = [];
@@ -23,13 +23,15 @@ export function layoutOverlay(layout: BaseLayoutMap, built: ReadonlySet<string>,
             const { coord, symbol } = basePlanCoordToSymbolObj(coordString);
             const { structure } = basePlanCoordToBuildingObj(coordString);
             const isRoad = structure === STRUCTURE_ROAD;
+            // Ramparts are usually over another structure, so they're a box around its symbol.
+            const isRampart = structure === STRUCTURE_RAMPART;
             commands.push({
                 kind: 'glyph',
-                text: isRoad ? '·' : symbol,
+                text: isRoad ? '·' : isRampart ? '□' : symbol,
                 x: coord.x,
                 y: coord.y,
                 color: LEVEL_COLORS[level] ?? COLORS.text,
-                size: isRoad ? 0.6 : 0.5,
+                size: isRoad ? 0.6 : isRampart ? 1 : 0.5,
                 opacity: built.has(`${coord.x}_${coord.y}_${structure}`) ? BUILT_OPACITY : UNBUILT_OPACITY,
             });
         }

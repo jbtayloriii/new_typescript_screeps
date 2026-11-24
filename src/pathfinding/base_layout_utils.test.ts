@@ -2,6 +2,7 @@ import { describe, expect, test } from '@jest/globals';
 import { BaseLayoutMap, Coordinate } from 'global_types';
 import {
     BuiltStructure, chooseControllerContainerTile, findStampSlots, getInitialBaseCenter, GRID_SLOTS, planBaseLayout, planCore,
+    PROTECTED_STRUCTURES, PROTECTIVE_RAMPART_RCL,
 } from './base_layout_utils';
 import { BaseLayoutMapObj } from './base_layout_map_obj';
 import { checkLayout } from './layout_checks';
@@ -129,6 +130,22 @@ describe('planBaseLayout', () => {
         expect(countUpTo(layout, STRUCTURE_CONTAINER, 6)).toBe(4);
     });
 
+    test.each(ROOMS)('%s puts a rampart over every spawn, tower and storage from RCL 3', room => {
+        const { layout } = planBaseLayout(layoutInputFor(room));
+        const planned = plannedList(layout);
+        const ramparts = new Map(planned.filter(p => p.structure === STRUCTURE_RAMPART).map(p => [`${p.x}_${p.y}`, p.level]));
+        const protectedOnes = planned.filter(p => PROTECTED_STRUCTURES.has(p.structure));
+        expect(protectedOnes.length).toBeGreaterThan(0);
+        for (const p of protectedOnes) {
+            expect(ramparts.get(`${p.x}_${p.y}`)).toBe(Math.max(p.level, PROTECTIVE_RAMPART_RCL));
+        }
+    });
+
+    test('W23S31 gets ramparts as its spawns, towers and storage unlock (plus the core center at RCL 5)', () => {
+        const { layout } = planBaseLayout(layoutInputFor('W23S31'));
+        expect([1, 2, 3, 4, 5, 6, 7, 8].map(rcl => countUpTo(layout, STRUCTURE_RAMPART, rcl))).toEqual([0, 0, 2, 3, 5, 5, 7, 11]);
+    });
+
     test('puts the power spawn in the core ring and the nuker in the spawn stamp', () => {
         const input = layoutInputFor('W11S14');
         const { layout } = planBaseLayout(input);
@@ -248,11 +265,13 @@ describe('checkLayout', () => {
         ]);
     });
 
-    test('allows a rampart over a road, but not two structures on a tile', () => {
-        const ok: BaseLayoutMap = { 1: ['5_5_r'], 5: ['5_5_R'] };
+    test('allows a rampart over a road or a structure, but not two structures on a tile', () => {
+        const ok: BaseLayoutMap = { 1: ['5_5_r'], 3: ['7_7_t', '7_7_R'], 5: ['5_5_R'] };
         expect(checkLayout({ layout: ok, isWall: open, obstacles: [], core })).toEqual([]);
         const bad: BaseLayoutMap = { 2: ['5_5_x'], 3: ['5_5_t'] };
         expect(checkLayout({ layout: bad, isWall: open, obstacles: [], core })).toContain('tile 5_5 has extension + tower');
+        const twoRamparts: BaseLayoutMap = { 3: ['5_5_t', '5_5_R'], 4: ['5_5_R'] };
+        expect(checkLayout({ layout: twoRamparts, isWall: open, obstacles: [], core })).toContain('tile 5_5 has tower + rampart + rampart');
     });
 
     test('reports structures with no reachable neighbor', () => {

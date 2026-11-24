@@ -42,6 +42,8 @@ export const BUILD_PRIORITY: readonly BuildableStructureConstant[] = [
     STRUCTURE_TOWER,
     STRUCTURE_CONTAINER,
     STRUCTURE_STORAGE,
+    // Ramparts protect the spawns, towers and storage, and cost 1 energy to build.
+    STRUCTURE_RAMPART,
     STRUCTURE_LINK,
     STRUCTURE_TERMINAL,
     STRUCTURE_EXTRACTOR,
@@ -52,7 +54,6 @@ export const BUILD_PRIORITY: readonly BuildableStructureConstant[] = [
     STRUCTURE_NUKER,
     STRUCTURE_ROAD,
     STRUCTURE_WALL,
-    STRUCTURE_RAMPART,
 ];
 
 /** A structure type's place in BUILD_PRIORITY (lower is more important). */

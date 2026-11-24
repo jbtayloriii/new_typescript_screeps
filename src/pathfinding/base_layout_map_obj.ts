@@ -6,13 +6,15 @@ const _EMPTY_SPOT_CHAR = '.';
 const _BLOCKED_SPOT_CHAR = '#';
 
 /**
- * A base layout being planned: a plain grid of planned structures (one per tile) plus the RCL
- * each one unlocks at. Pure, so planning can be tested without Screeps mocks; the CostMatrix
+ * A base layout being planned: a plain grid of planned structures (one per tile, plus ramparts
+ * over some of them) and the RCL each one unlocks at. Pure, so planning can be tested without Screeps mocks; the CostMatrix
  * for PathFinder steps is built on demand by `toCostMatrix`.
  */
 export class BaseLayoutMapObj {
     private internalMap: BaseLayoutMap = {};
     private internalArray: string[][];
+    /** Tiles with a rampart over another structure ("x_y"); a rampart alone uses the grid. */
+    private readonly overRamparts = new Set<string>();
     private readonly mapSize: number;
 
     public constructor(mapSize: number) {
@@ -61,6 +63,30 @@ export class BaseLayoutMapObj {
         }
         this.internalMap[level].push(basePlanObjToBasePlanCoordString(coord, buildingType));
         this.internalArray[coord.y][coord.x] = typeSymbol;
+    }
+
+    /**
+     * Plans a rampart over the structure planned on a tile (ramparts can share any structure's
+     * tile). Does nothing if the tile already has a rampart.
+     */
+    public addRampart(level: number, coord: Coordinate): void {
+        const key = `${coord.x}_${coord.y}`;
+        const symbol = this.internalArray[coord.y][coord.x];
+        if (this.overRamparts.has(key) || symbol === buildableStructureToChar(STRUCTURE_RAMPART)) {
+            return;
+        }
+        if (symbol === _EMPTY_SPOT_CHAR || symbol === _BLOCKED_SPOT_CHAR) {
+            throw new Error(`Cannot add a rampart over nothing at ${key}`);
+        }
+        if (level < 1 || level > 8) {
+            throw new Error(`Attempting to add a base plan rampart at level ${level}`);
+        }
+        this.internalMap[level].push(basePlanObjToBasePlanCoordString(coord, STRUCTURE_RAMPART));
+        this.overRamparts.add(key);
+    }
+
+    public hasRampart(coord: Coordinate): boolean {
+        return this.overRamparts.has(`${coord.x}_${coord.y}`) || this.isType(coord, STRUCTURE_RAMPART);
     }
 
     /**

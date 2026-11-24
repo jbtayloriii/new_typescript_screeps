@@ -105,4 +105,22 @@ describe('decideTowerIntents', () => {
             { kind: 'towerRepair', towerId: room.structures[0].id, targetId: room.structures[2].id },
         ]);
     });
+
+    test('repairs a new rampart before it decays away, even with little energy', () => {
+        const room = aRoom().withRcl(3).withTower(25, 25, { energy: 100 })
+            .withStructure(STRUCTURE_RAMPART, 26, 26, { hits: 1, hitsMax: 1e6 })
+            .withStructure(STRUCTURE_ROAD, 27, 27, { hits: 100, hitsMax: 5000, owner: 'none' })
+            .build();
+        expect(decideTowerIntents(room)).toEqual([
+            { kind: 'towerRepair', towerId: room.structures[0].id, targetId: room.structures[1].id },
+        ]);
+    });
+
+    test('attacking still comes before rescuing a rampart', () => {
+        const room = aRoom().withRcl(3).withTower(25, 25)
+            .withStructure(STRUCTURE_RAMPART, 26, 26, { hits: 1, hitsMax: 1e6 })
+            .withHostile(30, 30)
+            .build();
+        expect(decideTowerIntents(room).map(i => i.kind)).toEqual(['towerAttack']);
+    });
 });
