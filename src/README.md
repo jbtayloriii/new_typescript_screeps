@@ -175,8 +175,10 @@ The empire is split into these pieces:
     the base room, sized to the attackers (2–6). Its squad spawns at priority 95, ahead of
     upgraders, builders, repairers, remotes and extra haulers (only the first miner, harvesters
     and the first hauler come first), with the first defender sized to the energy available
-    now. It's melee and ranged alternating plus a healer per 3, and skips the rally: each
-    defender fights as soon as it spawns. It ends 100 ticks after the last attacker leaves, and
+    now. Its make-up counters the attackers, from the most of each combat part seen during the
+    defense: all melee against dismantlers and claimers (they can't hit back), ranged plus a
+    healer per 3 against melee, melee plus a healer per 3 against ranged, and melee and ranged
+    alternating otherwise. It skips the rally: each defender fights as soon as it spawns. It ends 100 ticks after the last attacker leaves, and
     each one is logged to `Memory.log`. Cancelling it from the console holds off a new one for
     1,500 ticks.
 

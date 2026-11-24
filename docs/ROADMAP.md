@@ -265,7 +265,8 @@ base room.
 - [x] Home defense against players (`military/home_defense.ts`): player attackers in a base room
       that its towers can't kill within 50 ticks get an automatic `defend` directive for the base
       itself, sized 2–6. Defenders spawn at priority 95 (ahead of everything but the first miner,
-      harvesters and the first hauler), mix melee and ranged, and fight as soon as they spawn.
+      harvesters and the first hauler), counter what attacks (melee vs dismantlers, ranged vs
+      melee, melee vs ranged, mixed otherwise), and fight as soon as they spawn.
 - [x] Squads (`squadComposition`): attack is a healer per 3, the rest alternating melee/ranged;
       defend/escort is ranged plus a healer. Rally at the home spawn until complete, then move
       out with follow-the-leader movement (followers stay next to the leader, the leader waits for
