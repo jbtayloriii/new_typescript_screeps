@@ -6,3 +6,6 @@
 
 # VSCode
 .vscode/extensions.json
+
+# Room history recordings (large)
+data/recordings/
