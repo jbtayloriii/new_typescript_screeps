@@ -1,6 +1,7 @@
 # Base layout v2 — design
 
-Status: planned. See [ROADMAP.md](ROADMAP.md) phase 7. [EXPANSION.md](EXPANSION.md) (phase 8)
+Status: implemented (layout version 2). See [ROADMAP.md](ROADMAP.md) phase 7, and
+"Implementation notes" at the end for where the code differs from this design. [EXPANSION.md](EXPANSION.md) (phase 8)
 depends on it: its spawn-position check should test that this full layout fits.
 
 ## Goals
@@ -266,3 +267,48 @@ resources between storage, terminal, link, factory and power spawn), rampart per
 - Plan every position now, but don't build types that nothing uses yet.
 - Order link targets by haul distance instead of a fixed order.
 - Labs go after the stamp grid, accepting that in tight rooms they may be further from storage.
+
+## Implementation notes
+
+What landed, and where it differs from the design above.
+
+- **Code:** stamps, the stamp order and slot assignment in
+  [pathfinding/stamps.ts](../src/pathfinding/stamps.ts); the planner in
+  [pathfinding/base_layout_utils.ts](../src/pathfinding/base_layout_utils.ts)
+  (`planLayoutFromTerrain` is pure, `planBaseLayout` adds the PathFinder steps); the checks in
+  [pathfinding/layout_checks.ts](../src/pathfinding/layout_checks.ts); reading the room,
+  replanning and `LAYOUT_VERSION` handling in [base/layout.ts](../src/base/layout.ts);
+  `NOT_YET_BUILT` in [base/construction.ts](../src/base/construction.ts); `cmd.layout` in
+  [directives/commands.ts](../src/directives/commands.ts) and the overlay in
+  [visuals/layout_overlay.ts](../src/visuals/layout_overlay.ts).
+- **v1 bug found and fixed:** the v1 search counted a slot it found twice (pushed by two
+  neighboring stamps) as a new stamp, so it used up an RCL's stamp without placing anything.
+  W23S31's saved layout had 45 extensions instead of 60 (RCL 6, 7 and 8 got 5 each). The slot
+  search now skips slots it has already accepted. It still finds the same distinct slots, in the
+  same order: the test rebuilds the v1 search, checks that it reproduces the layouts the game saved
+  for W23S31 and W11S14, and checks that the v2 slots start with exactly those slots. Replanning
+  W23S31 gives back all 60 extensions.
+- **Slot search** runs on the stamp footprint alone (body vs. road tiles), so what's assigned to a
+  slot can't change which slots are found. The candidate limit is now 300 (was 50).
+- **Existing bases:** a slot with a non-road structure built on its body keeps what the previous
+  layout planned there (extension stamp and its level, tower stamp or spawn stamp). Built
+  containers next to a source or the mineral are kept as those containers, and built labs and
+  links are kept where they are. Built roads that the layout doesn't plan cost the same as
+  planned roads, so new road paths follow them. Any other built structure the layout doesn't plan
+  blocks its tile.
+- **Roads** to the sources, controller and mineral all use plain 2, swamp 10, roads 1 (v1 used
+  plain 1, swamp 5, with no preference for roads), so they share roads where they can.
+- **Source containers:** if a source's road ends on a road another stamp planned, the container
+  goes on a free tile next to both the source and the road's end. v1 would have thrown here.
+- **Link order** uses the length of the planned road from the spawn to each target (the spawn is
+  next to storage), rather than a separate search from storage.
+- **Labs:** the stamp is tried as drawn and mirrored. A spot keeping the most built labs wins,
+  then both road ends joined, then closest to storage. If no spot joins both road ends, a spot
+  joining one is used.
+- **Replanning** runs at most one base per tick. A failed replan keeps the old layout, saves a
+  warning, and isn't retried until the next version bump.
+- **`cmd.layout(room)`** prints what each RCL adds (built/planned when the room is visible) and the
+  warnings, and switches on the `layout` overlay for 200 ticks, alongside any HUD panels that are
+  on. `cmd.layout(room, 'off')` hides it; `cmd.visuals(room, ['layout'])` also works. The overlay
+  draws each structure's layout symbol colored by RCL, faded once built.
+- **Cost:** planning W23S31 takes about 11 ms in Node (7 ms for the pure steps), once per base.

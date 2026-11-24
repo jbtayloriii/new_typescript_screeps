@@ -56,10 +56,16 @@ declare global {
     // Holds the computed base layout, mapped to different controller levels
     baseLayout: BaseLayoutMap;
 
+    // The planner version that made baseLayout (missing means 1). An older version replans (see base/base.ts)
+    layoutVersion?: number;
+
+    // Shortfalls and failed checks from the last plan, e.g. "only 13 grid slots fit". See cmd.layout
+    layoutWarnings?: string[];
+
     // Path length from the initial spawn to each source, filled in by base/survey.ts
     sourceDistances?: { [sourceId: string]: number };
 
-    // Tile for the container upgraders draw from, filled in by base/survey.ts
+    // Tile for the container upgraders draw from, chosen by the layout planner (kept when replanning)
     controllerContainer?: Coordinate;
 
     // Path length from the initial spawn to each remote source, filled in by base/survey.ts

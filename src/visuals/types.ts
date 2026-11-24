@@ -4,6 +4,17 @@ export type PanelName = 'header' | 'tasks' | 'spawn' | 'economy';
 export const ALL_PANELS: readonly PanelName[] = ['header', 'tasks', 'spawn', 'economy'];
 export const DEFAULT_PANELS: readonly PanelName[] = ['header', 'tasks', 'spawn', 'economy'];
 
+/** Overlays drawn in the room itself. Never in 'all' or the defaults, since they're busy. */
+export type OverlayName = 'layout';
+export const ALL_OVERLAYS: readonly OverlayName[] = ['layout'];
+
+/** Anything `cmd.visuals` can switch on: HUD panels and overlays. */
+export type VisualName = PanelName | OverlayName;
+
+export function isPanel(name: VisualName): name is PanelName {
+    return (ALL_PANELS as readonly string[]).includes(name);
+}
+
 /** Text colors, kept few so the HUD reads at a glance. */
 export const COLORS = {
     title: '#ffd166',
@@ -33,10 +44,12 @@ export interface Panel {
 /** Plain drawing instructions, so layout can be tested without `RoomVisual`. */
 export type DrawCommand =
     | { readonly kind: 'rect'; readonly x: number; readonly y: number; readonly width: number; readonly height: number; readonly fill: string; readonly opacity: number }
-    | { readonly kind: 'text'; readonly text: string; readonly x: number; readonly y: number; readonly color: string; readonly size: number };
+    | { readonly kind: 'text'; readonly text: string; readonly x: number; readonly y: number; readonly color: string; readonly size: number }
+    /** A short label centered on a room tile. */
+    | { readonly kind: 'glyph'; readonly text: string; readonly x: number; readonly y: number; readonly color: string; readonly size: number; readonly opacity: number };
 
-/** Saved per room in `Memory.visuals`: which panels to draw, until which tick. */
+/** Saved per room in `Memory.visuals`: which panels and overlays to draw, until which tick. */
 export interface VisualSettings {
-    readonly panels: readonly PanelName[];
+    readonly panels: readonly VisualName[];
     readonly until: number;
 }

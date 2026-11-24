@@ -1,5 +1,5 @@
 import { coordinateToCoordString } from "utils/string_utils";
-import { getBaseLayoutForSpawn } from "pathfinding/base_layout_utils";
+import { LAYOUT_VERSION } from "pathfinding/base_layout_utils";
 import { executeIntents } from "intents/execute_intents";
 import { summarizeFailures } from "intents/failures";
 import { MyCreepSnapshot } from "snapshot/types";
@@ -11,6 +11,9 @@ import { activePanels } from "visuals/settings";
 import { buildPanels } from "visuals/panels";
 import { layoutHud } from "visuals/layout";
 import { renderCommands } from "visuals/render";
+import { builtStructureKeys, planLayoutForRoom, replanIfOutdated } from "./layout";
+import { layoutOverlay } from "visuals/layout_overlay";
+import { isPanel } from "visuals/types";
 
 /**
  * A single owned room.
@@ -32,11 +35,15 @@ export class Base {
     console.log(`Creating base at room ${roomName} on tick ${Game.time}`);
 
     if (!(roomName in Memory.bases_v3)) {
+      const plan = planLayoutForRoom(initialSpawn.room, { x: initialSpawn.pos.x, y: initialSpawn.pos.y });
       Memory.bases_v3[roomName] = {
         currentControllerLevelPlan: 0,
         lastBaseLayoutPlanTick: 0,
         initialSpawn: coordinateToCoordString(initialSpawn.pos),
-        baseLayout: getBaseLayoutForSpawn(initialSpawn),
+        baseLayout: plan.layout,
+        layoutVersion: LAYOUT_VERSION,
+        layoutWarnings: plan.warnings,
+        controllerContainer: plan.controllerContainer,
       };
     }
 
@@ -63,6 +70,7 @@ export class Base {
     if (!home || !baseMemory || !room) {
       return;
     }
+    replanIfOutdated(room, baseMemory, world.tick);
     surveyBase(room, baseMemory, this.remotesToSurvey());
 
     const shared = { world, home, baseMemory, creeps, intel: Memory.intel, directives: Memory.directives };
@@ -73,8 +81,9 @@ export class Base {
     changes.remove.forEach(name => store.removeTask(this.roomName, name));
     changes.create.forEach(spec => store.createTask(this.roomName, spec));
 
-    const panels = activePanels(Memory, this.roomName, world.tick);
-    const plan = decideBaseIntents({ ...shared, tasks: store.getTasks(this.roomName) }, { report: panels !== null });
+    const visuals = activePanels(Memory, this.roomName, world.tick);
+    const panels = visuals?.filter(isPanel) ?? [];
+    const plan = decideBaseIntents({ ...shared, tasks: store.getTasks(this.roomName) }, { report: panels.length > 0 });
     Object.assign(baseMemory, plan.baseMemoryUpdate);
 
     const failures = summarizeFailures(executeIntents(plan.intents));
@@ -82,7 +91,11 @@ export class Base {
       console.log(`[${this.roomName}] intent failures: ${failures}`);
     }
 
-    if (panels && plan.report) {
+    if (visuals?.includes('layout')) {
+      const overlay = layoutOverlay(baseMemory.baseLayout, builtStructureKeys(room), baseMemory.layoutWarnings);
+      renderCommands(overlay, new RoomVisual(this.roomName));
+    }
+    if (panels.length > 0 && plan.report) {
       const hud = buildPanels(plan.report, panels, { used: Game.cpu.getUsed(), bucket: Game.cpu.bucket });
       renderCommands(layoutHud(hud), new RoomVisual(this.roomName));
     }

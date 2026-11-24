@@ -67,7 +67,6 @@ export function buildableStructureToChar(buildableStructure: BuildableStructureC
             return v;
         }
     }
-    console.log(_STRUCTURE_CHAR_BY_STRUCTURE_CONSTANT);
     throw new Error(`Unable to convert ${buildableStructure} to symbol.`);
 
 }

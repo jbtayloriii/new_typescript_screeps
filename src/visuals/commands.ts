@@ -1,7 +1,7 @@
 import { VISUALS_DURATION } from "./settings";
-import { ALL_PANELS, DEFAULT_PANELS, PanelName } from "./types";
+import { ALL_OVERLAYS, ALL_PANELS, DEFAULT_PANELS, VisualName } from "./types";
 
-export type VisualsMode = 'on' | 'off' | 'all' | readonly PanelName[];
+export type VisualsMode = 'on' | 'off' | 'all' | readonly VisualName[];
 
 /**
  * `cmd.visuals(...)`: turns a room's HUD on or off. Each "on" lasts VISUALS_DURATION ticks.
@@ -11,6 +11,7 @@ export type VisualsMode = 'on' | 'off' | 'all' | readonly PanelName[];
  *   cmd.visuals('W1N1', 'off')
  *   cmd.visuals('W1N1', 'all')
  *   cmd.visuals('W1N1', ['tasks', 'spawn'])
+ *   cmd.visuals('W1N1', ['layout'])     overlays (see cmd.layout) are only on when named
  */
 export function createVisualsCommand(getMemory: () => Memory, getTick: () => number) {
     return function visuals(roomName?: RoomName, mode?: VisualsMode): string {
@@ -35,13 +36,14 @@ export function createVisualsCommand(getMemory: () => Memory, getTick: () => num
             return `Visuals off in ${roomName}.`;
         }
 
-        let panels: readonly PanelName[];
+        let panels: readonly VisualName[];
         if (mode === 'all') {
             panels = ALL_PANELS;
         } else if (Array.isArray(mode)) {
-            const unknown = mode.filter(p => !ALL_PANELS.includes(p));
+            const known: readonly string[] = [...ALL_PANELS, ...ALL_OVERLAYS];
+            const unknown = mode.filter(p => !known.includes(p));
             if (unknown.length > 0) {
-                return `Unknown panels: ${unknown.join(', ')}. Panels: ${ALL_PANELS.join(', ')}.`;
+                return `Unknown panels: ${unknown.join(', ')}. Panels: ${ALL_PANELS.join(', ')}. Overlays: ${ALL_OVERLAYS.join(', ')}.`;
             }
             panels = mode;
         } else {

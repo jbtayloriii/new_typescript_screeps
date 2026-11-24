@@ -1,6 +1,6 @@
 import { BaseReport, CreepReport, SpawnQueueReport, TaskReport } from "base/base_report";
 import { WorkerState } from "tasks/behaviors";
-import { COLORS, Panel, PanelName, Row } from "./types";
+import { COLORS, Panel, PanelName, Row, VisualName } from "./types";
 
 /** CPU numbers, read by the caller from `Game.cpu` (not part of the pure report). */
 export interface CpuInfo {
@@ -132,7 +132,7 @@ export function economyPanel(report: BaseReport): Panel {
 }
 
 /** The panels to draw, in HUD order. */
-export function buildPanels(report: BaseReport, panels: readonly PanelName[], cpu?: CpuInfo): Panel[] {
+export function buildPanels(report: BaseReport, panels: readonly VisualName[], cpu?: CpuInfo): Panel[] {
     const builders: Record<PanelName, () => Panel> = {
         header: () => headerPanel(report, cpu),
         tasks: () => tasksPanel(report),

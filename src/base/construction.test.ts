@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { LAYOUT_REPLAN_INTERVAL, MAX_SITES_PER_ROOM, planConstruction, ROAD_MIN_RCL } from './construction';
+import { LAYOUT_REPLAN_INTERVAL, MAX_SITES_PER_ROOM, NOT_YET_BUILT, planConstruction, ROAD_MIN_RCL } from './construction';
 import { aRoom } from 'testing/builders/room_snapshot_builder';
 import { basePlanObjToBasePlanCoordString } from 'utils/string_utils';
 
@@ -90,12 +90,23 @@ describe('planConstruction', () => {
             .toEqual([STRUCTURE_EXTENSION, STRUCTURE_ROAD, STRUCTURE_ROAD]);
     });
 
-    test('adds the controller container from RCL 2', () => {
-        const room = aRoom().withRcl(2).withTick(5000).withSpawn(10, 10).build();
-        const memory = baseMemory({ baseLayout: {}, controllerContainer: { x: 23, y: 23 } });
+    test('places the controller container from the layout like any other structure', () => {
+        const room = aRoom().withRcl(2).withTick(5000).build();
+        const memory = baseMemory({ baseLayout: { 2: [coord(23, 23, STRUCTURE_CONTAINER)] }, controllerContainer: { x: 23, y: 23 } });
         expect(planConstruction(room, memory).intents).toEqual([
             { kind: 'createConstructionSite', pos: { x: 23, y: 23, roomName: 'W1N1' }, structureType: STRUCTURE_CONTAINER },
         ]);
-        expect(planConstruction(aRoom().withRcl(1).withTick(5000).build(), memory).intents).toEqual([]);
+    });
+
+    test('skips structure types nothing uses yet', () => {
+        const layout = {
+            5: [coord(20, 20, STRUCTURE_LINK), coord(21, 21, STRUCTURE_TOWER)],
+            6: [coord(22, 22, STRUCTURE_TERMINAL), coord(23, 23, STRUCTURE_LAB), coord(24, 24, STRUCTURE_EXTRACTOR)],
+            8: [coord(25, 25, STRUCTURE_NUKER), coord(26, 26, STRUCTURE_OBSERVER), coord(27, 27, STRUCTURE_POWER_SPAWN)],
+        };
+        const room = aRoom().withRcl(8).withTick(5000).build();
+        expect(planConstruction(room, baseMemory({ baseLayout: layout })).intents.map(i => i.structureType))
+            .toEqual([STRUCTURE_TOWER]);
+        expect(NOT_YET_BUILT.has(STRUCTURE_LINK)).toBe(true);
     });
 });

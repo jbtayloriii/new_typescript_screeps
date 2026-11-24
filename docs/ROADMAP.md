@@ -279,18 +279,18 @@ base room.
       spawn queue and (estimated) economy panels, `cmd.visuals` with a 200-tick auto-off.
 - [ ] Use `Logger` consistently in place of `console.log`; enable daily `Logger.report()`.
 
-### Phase 7: Base layout v2
+### Phase 7: Base layout v2 ✅
 Plan every structure each RCL allows, without moving anything built. Design in
 [BASE_LAYOUT.md](BASE_LAYOUT.md).
-- [ ] Pure layout map (no `CostMatrix` until PathFinder runs), `layoutVersion` replanning for
+- [x] Pure layout map (no `CostMatrix` until PathFinder runs), `layoutVersion` replanning for
       existing bases, per-RCL count checks against `CONTROLLER_STRUCTURES`, `cmd.layout(room)`.
-- [ ] Tower stamp (towers 2–6) and spawn stamp (spawns 2–3, nuker, observer), with the extension
+- [x] Tower stamp (towers 2–6) and spawn stamp (spawns 2–3, nuker, observer), with the extension
       stamp's footprint so they share its grid. They take slots 5–6 of a fixed stamp order;
       grid slots with built structures keep what they have.
-- [ ] `NOT_YET_BUILT`: plan but don't build links, extractor, labs, terminal, factory, power
+- [x] `NOT_YET_BUILT`: plan but don't build links, extractor, labs, terminal, factory, power
       spawn, nuker and observer until code uses them. Controller container and road move into
       the layout.
-- [ ] Link positions (sources and controller, longest haul first), mineral extractor + container
+- [x] Link positions (sources and controller, longest haul first), mineral extractor + container
       + road, 10-lab stamp, observer position. The power spawn takes the nuker's core slot
       (the nuker moves out, unless one is already built there).
 

@@ -62,3 +62,45 @@ describe('military commands', () => {
     });
 });
 
+
+describe('cmd.layout', () => {
+    test('prints the layout by RCL with warnings, and turns the overlay on', () => {
+        const { memory, cmd } = setup();
+        memory.bases_v3['W1N1'] = {
+            ...memory.bases_v3['W1N1'],
+            layoutVersion: 2,
+            layoutWarnings: ['only 13 grid slots fit; dropped extensions (RCL 8)'],
+            baseLayout: { 1: ['10_10_s'], 2: ['12_12_x', '13_12_x'], 3: ['14_14_t'] },
+        };
+        const out = cmd.layout('W1N1');
+        expect(out).toContain('W1N1 layout v2:');
+        expect(out).toContain('RCL 2: extension 2');
+        expect(out).toContain('RCL 4: -');
+        expect(out).toContain('only 13 grid slots fit');
+        expect(memory.visuals['W1N1']).toEqual({ panels: ['layout'], until: 300 });
+    });
+
+    test('shows built/planned counts when the room is visible', () => {
+        const memory = createTestMemory();
+        memory.bases_v3['W1N1'] = { currentControllerLevelPlan: 0, lastBaseLayoutPlanTick: 0, initialSpawn: '10_10', baseLayout: { 2: ['12_12_x', '13_12_x'] } };
+        const cmd = createCommands(() => memory, () => 100, () => new Set(['12_12_extension']));
+        expect(cmd.layout('W1N1')).toContain('RCL 2: extension 1/2');
+    });
+
+    test('keeps HUD panels that are on, and turns only the overlay off', () => {
+        const { memory, cmd } = setup();
+        memory.visuals = { W1N1: { panels: ['tasks'], until: 150 } };
+        cmd.layout('W1N1');
+        expect(memory.visuals['W1N1'].panels).toEqual(['tasks', 'layout']);
+        expect(cmd.layout('W1N1', 'off')).toBe('Layout overlay off in W1N1.');
+        expect(memory.visuals['W1N1']).toEqual({ panels: ['tasks'], until: 300 });
+        memory.visuals = { W1N1: { panels: ['layout'], until: 150 } };
+        cmd.layout('W1N1', 'off');
+        expect(memory.visuals['W1N1']).toBeUndefined();
+    });
+
+    test('rejects rooms that are not bases', () => {
+        const { cmd } = setup();
+        expect(cmd.layout('W9N9')).toBe('Not a base: W9N9');
+    });
+});

@@ -175,10 +175,17 @@ The empire is split into these pieces:
   ([base/base_report.ts](base/base_report.ts)) only when visuals are on; pure functions turn it
   into panels and draw commands, and `visuals/render.ts` is the only code calling `RoomVisual`.
 
-- **Base layout planning** ([pathfinding/](pathfinding/)): When a base is first created, it
-  computes a full layout for controller levels 1–8 from the initial spawn position, terrain and
-  sources: a 3x3 core, star-shaped extension stamps, and roads/containers to sources. The layout
-  is stored in `Memory.bases_v3[room].baseLayout` as `{ [level]: "x_y_structure"[] }`.
+- **Base layout planning** ([pathfinding/](pathfinding/), design in
+  [docs/BASE_LAYOUT.md](../docs/BASE_LAYOUT.md)): when a base is created, it plans every
+  structure each RCL allows from the initial spawn, terrain, sources, controller and mineral: a
+  3x3 core, a grid of 14 stamps (12 extension stamps, a tower stamp and a spawn stamp), a 10-lab
+  stamp, roads and containers to the sources, controller and mineral, and links. The pure steps
+  are `planLayoutFromTerrain` and the stamps in `pathfinding/stamps.ts`; `planBaseLayout` adds the
+  PathFinder steps and runs the checks in `pathfinding/layout_checks.ts`. The layout is stored in
+  `Memory.bases_v3[room].baseLayout` as `{ [level]: "x_y_structure"[] }`, with `layoutVersion`
+  and `layoutWarnings`. A base with an older `layoutVersion` replans on its next tick
+  ([base/layout.ts](base/layout.ts), one base per tick), keeping everything built.
+  `cmd.layout(room)` prints the plan and shows it in the room.
 
 ## Snapshots and intents
 
@@ -229,7 +236,8 @@ Each tick:
       3. Each task directs its creeps.
       4. Safe mode if the base is overrun; towers attack, heal and repair.
       5. Every 25 ticks, and right after a controller level-up, place construction sites for
-         unbuilt structures from every unlocked layout level (plus the controller container), in
+         unbuilt structures from every unlocked layout level (except `NOT_YET_BUILT` types:
+         links, labs, terminal and others nothing uses yet), in
          build priority order (spawn → extensions → towers → containers → storage → … → roads →
          walls/ramparts), with roads only from RCL 3. At most 5 sites at a time for each
          structure type and everything more important than it, so less important sites never
@@ -245,8 +253,9 @@ in Memory must survive `JSON.stringify` (no `Map`, `Set` or class instances).
 - `memoryVersion`: the last migration applied. To change the schema, append a migration with the
   next version number to `MIGRATIONS` in [memory/migrations.ts](memory/migrations.ts). Migrations
   run once each, in order, on global reset. Never edit one that has been deployed.
-- `bases_v3[roomName]`: base layout and construction planning state, plus survey results
-  (`sourceDistances`, `controllerContainer`, `remoteDistances`, `remoteRoutes`).
+- `bases_v3[roomName]`: base layout (`baseLayout`, `layoutVersion`, `layoutWarnings`,
+  `controllerContainer`) and construction planning state, plus survey results
+  (`sourceDistances`, `remoteDistances`, `remoteRoutes`).
 - `tasks[baseRoomName]`: the saved state of each of the base's tasks.
 - `nextTaskId`: counter for unique task names.
 - `creeps[name]`: `taskName` (its task), `baseRoomName` (its base), and task state: `state`

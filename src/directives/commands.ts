@@ -2,6 +2,8 @@ import { isValidRoomName } from "utils/room_names";
 import { DirectiveStore } from "./store";
 import { Directive, DirectiveType, isEnded, isMilitary } from "./types";
 import { MAX_SQUAD_SIZE } from "military/squads";
+import { summarizeLayout } from "visuals/layout_overlay";
+import { VISUALS_DURATION } from "visuals/settings";
 
 /**
  * Console commands, installed as the global `cmd` (see main.ts). Each returns a message for the
@@ -12,6 +14,7 @@ import { MAX_SQUAD_SIZE } from "military/squads";
  *   cmd.claim('W2N3', { x: 20, y: 25 })   claim a room, with the first spawn at (20, 25)
  *   cmd.list() / cmd.list(true)           active directives / including finished ones
  *   cmd.cancel('d3')                      cancel a directive
+ *   cmd.layout('W1N1')                    print a base's planned layout and show it in the room
  */
 export interface Commands {
     help(): string;
@@ -23,6 +26,7 @@ export interface Commands {
     attack(room: RoomName, opts?: { base?: RoomName, size?: number }): string;
     defend(room: RoomName, opts?: { base?: RoomName, size?: number }): string;
     escort(directiveId: string, opts?: { size?: number }): string;
+    layout(room: RoomName, mode?: 'off'): string;
 }
 
 export const HELP = `Directives (empire-level goals):
@@ -34,6 +38,7 @@ export const HELP = `Directives (empire-level goals):
   cmd.escort(id, { size? })            guard another directive's creeps (e.g. a claim)
   cmd.list(includeEnded?)              list directives
   cmd.cancel(id)                       cancel a directive
+  cmd.layout(room, 'off'?)             print a base's layout and warnings; show it in the room
 Flags: yellow = remote mine, white = scout, purple = claim (spawn on the flag). Remove the flag to cancel.
 
 Visuals (HUD, switches off after 200 ticks):
@@ -51,7 +56,14 @@ export function formatDirective(d: Directive): string {
     return parts.join(' ');
 }
 
-export function createCommands(getMemory: () => Memory, getTick: () => number): Commands {
+/**
+ * `getBuilt` returns "x_y_structureType" for every structure and construction site in a room, or
+ * undefined without vision. It's only used for `cmd.layout`'s built/planned counts.
+ */
+export function createCommands(
+    getMemory: () => Memory,
+    getTick: () => number,
+    getBuilt: (room: RoomName) => ReadonlySet<string> | undefined = () => undefined): Commands {
     const store = () => new DirectiveStore(getMemory());
 
     function addDirective(
@@ -106,6 +118,28 @@ export function createCommands(getMemory: () => Memory, getTick: () => number): 
                 return `Spawn position must be within 1-48: (${opts.x}, ${opts.y})`;
             }
             return addDirective('claim', room, opts.base, hasPos ? { x: opts.x!, y: opts.y! } : undefined);
+        },
+
+        layout(room, mode) {
+            const memory = getMemory();
+            const base = memory.bases_v3[room];
+            if (!base) {
+                return `Not a base: ${room}`;
+            }
+            memory.visuals ??= {};
+            const current = memory.visuals[room];
+            const isOn = current !== undefined && getTick() < current.until;
+            const others = isOn ? current.panels.filter(p => p !== 'layout') : [];
+            if (mode === 'off') {
+                if (others.length > 0) {
+                    memory.visuals[room] = { panels: others, until: current!.until };
+                } else {
+                    delete memory.visuals[room];
+                }
+                return `Layout overlay off in ${room}.`;
+            }
+            memory.visuals[room] = { panels: [...others, 'layout'], until: getTick() + VISUALS_DURATION };
+            return `${summarizeLayout(room, base, getBuilt(room))}\nLayout overlay on in ${room} for ${VISUALS_DURATION} ticks (cmd.layout('${room}', 'off') to hide).`;
         },
 
         attack: (room, opts = {}) => addDirective('attack', room, opts.base, undefined, { size: opts.size }),

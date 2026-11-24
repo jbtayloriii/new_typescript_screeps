@@ -14,6 +14,15 @@ export function renderCommands(commands: readonly DrawCommand[], visual: RoomVis
                     align: 'left',
                 });
                 break;
+            case 'glyph':
+                // Text sits on its baseline, so drop it a little to center it on the tile.
+                visual.text(command.text, command.x, command.y + command.size * 0.35, {
+                    color: command.color,
+                    font: command.size,
+                    align: 'center',
+                    opacity: command.opacity,
+                });
+                break;
         }
     }
 }
