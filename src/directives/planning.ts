@@ -7,7 +7,7 @@ import { WorldSnapshot } from "snapshot/world";
 import { chooseNewRemoteRooms, remoteBlocker } from "tasks/remote_selection";
 import { roomLinearDistance } from "utils/room_names";
 import { parseFlag } from "./flags";
-import { chooseSpawnPosition } from "./spawn_position";
+import { planClaimPhase } from "./claim_phases";
 import { Directive, DirectiveSpec, isEnded, isMilitary, ThreatParts } from "./types";
 
 /** A base's state as directive planning needs it. */
@@ -16,6 +16,10 @@ export interface BaseSummary {
     readonly energyCapacity: number;
     /** True once the base runs mine tasks (static mining). */
     readonly staticMining: boolean;
+    readonly rcl: number;
+    readonly storageEnergy: number;
+    /** Player attackers in the base room right now (see `military/home_defense.ts`). */
+    readonly underAttack: boolean;
 }
 
 export interface DirectivePlanInput {
@@ -38,7 +42,6 @@ export interface DirectiveChanges {
 }
 
 /** Energy capacity a base needs to spawn a claimer ([CLAIM, MOVE]). */
-export const CLAIM_MIN_CAPACITY = BODYPART_COST[CLAIM] + BODYPART_COST[MOVE];
 
 /** Bases only take directives for rooms within this many rooms. */
 export const MAX_DIRECTIVE_DISTANCE = 10;
@@ -68,10 +71,11 @@ export function autoDefendSize(room: { hostileCombatCreeps: number, invaderCores
  * 1. Flags: new directive flags create directives; removed flags cancel theirs.
  * 2. Finish directives whose goal is met or impossible (and remove their flags).
  * 3. Assign pending directives to the closest suitable base.
- * 4. Claims: pick a spawn position once the room's intel exists.
+ * 4. Claims move through their phases (scouting → evaluating → claiming → building; see
+ *    `claim_phases.ts`), which can cancel or hold them.
  * 5. Automatic remote mining: each static base gets remote rooms up to its limit.
- * 6. Automatic defense: a remote room with NPC invaders (creeps or a core) gets a defend directive
- *    from its base. Player hostiles in remotes are left to manual orders (`cmd.defend`), since
+ * 6. Automatic defense: a remote room (or a claim target, once claiming) with NPC invaders
+ *    (creeps or a core) gets a defend directive from its base. Player hostiles in remotes are left to manual orders (`cmd.defend`), since
  *    auto-sending squads at players could start fights the base can't win.
  * 7. Home defense: a base room with player attackers its towers can't kill quickly gets a defend
  *    directive for itself (see `military/home_defense.ts`), whose squad spawns ahead of most of
@@ -139,11 +143,17 @@ export function planDirectives(input: DirectivePlanInput): DirectiveChanges {
                 update.push({ id: d.id, patch: { reason: assignment.waiting } });
             }
         }
-        if (d.type === 'claim' && !d.spawnPos && intel[d.targetRoom]) {
-            const room = intel[d.targetRoom];
-            const spawnPos = chooseSpawnPosition(world.getTerrain(d.targetRoom), room.sources, room.controller);
-            if (spawnPos) {
-                update.push({ id: d.id, patch: { spawnPos } });
+        const claimBase = input.bases.find(b => b.roomName === d.baseRoomName);
+        if (d.type === 'claim' && d.status === 'active' && claimBase) {
+            const result = planClaimPhase(d, claimBase, { world, intel, directives: input.directives });
+            if (result.cancel) {
+                end.push({ id: d.id, status: 'cancelled', reason: result.cancel });
+                ending.add(d.id);
+                if (d.flagName && flagNames.has(d.flagName)) {
+                    intents.push({ kind: 'removeFlag', flagName: d.flagName });
+                }
+            } else if (Object.keys(result.patch).length > 0) {
+                update.push({ id: d.id, patch: result.patch });
             }
         }
     }
@@ -183,7 +193,9 @@ export function planDirectives(input: DirectivePlanInput): DirectiveChanges {
     for (const d of live) {
         const room = intel[d.targetRoom];
         const base = input.bases.find(b => b.roomName === d.baseRoomName);
-        if (d.type !== 'remoteMine' || ending.has(d.id) || !room || !base || base.energyCapacity < MILITARY_MIN_CAPACITY
+        // Remotes, and claim targets once the claimer is on its way.
+        const guarded = d.type === 'remoteMine' || (d.type === 'claim' && (d.phase === 'claiming' || d.phase === 'building'));
+        if (!guarded || ending.has(d.id) || !room || !base || base.energyCapacity < MILITARY_MIN_CAPACITY
             || defended.has(d.targetRoom) || defendCancelled.has(d.targetRoom)) {
             continue;
         }
@@ -297,7 +309,8 @@ function assignBase(d: Directive, input: DirectivePlanInput): { baseRoomName: Ro
             ? { baseRoomName: escorted.baseRoomName }
             : { waiting: `waiting for ${d.escortedId} to be assigned a base` };
     }
-    const minCapacity = d.type === 'claim' ? CLAIM_MIN_CAPACITY : isMilitary(d.type) ? MILITARY_MIN_CAPACITY : 0;
+    // Claims only need a base to scout from; base readiness is checked before the claimer goes.
+    const minCapacity = isMilitary(d.type) ? MILITARY_MIN_CAPACITY : 0;
     const eligible = input.bases
         .filter(b => b.energyCapacity >= minCapacity)
         .filter(b => roomLinearDistance(b.roomName, d.targetRoom) <= MAX_DIRECTIVE_DISTANCE)

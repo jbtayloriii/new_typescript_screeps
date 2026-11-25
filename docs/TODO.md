@@ -42,10 +42,8 @@ two days after the base had spent its safe mode on three harassers.
       RANGED_ATTACK creeps, so WORK-only dismantlers (what took W23S31) don't set
       `hostilesLastSeen` or block a room as a remote, and a remote `defend` can end while they're
       still there. Home defense reads the live room instead, so it isn't affected.
-- [ ] **`myUsername` is lost with the spawn.** It comes from the first spawn's owner
-      ([snapshot/world.ts](../src/snapshot/world.ts)), so a base whose spawn dies thinks its own
-      remote reservations belong to another player and ends them. This happened at W23S31.
-      Use the owner of an owned controller (or a creep) instead.
+- [x] **`myUsername` is lost with the spawn.** It now comes from an owned controller first
+      ([snapshot/world.ts](../src/snapshot/world.ts)), then a spawn.
 - [ ] **A source can be walled in by stamps.** In E22S15, with the spawn at 30,30, the planner
       reports "no road to the source": the stamps fill every tile around it. The slot search
       could skip slots touching a source's open tiles. That would change the slots of existing

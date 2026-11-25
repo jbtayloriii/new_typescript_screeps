@@ -308,11 +308,11 @@ Plan every structure each RCL allows, without moving anything built. Design in
 
 ### Phase 8: Expansion
 Make `cmd.claim(room)` reliable from a room name alone. Design in [EXPANSION.md](EXPANSION.md).
-- [ ] Spawn position v2: walking distance to sources and controller, exit penalty, and the whole
+- [x] Spawn position v2: walking distance to sources and controller, exit penalty, and the whole
       layout (12 extension stamps) must fit, not just the core. `cmd.evaluate(room)` dry run.
-- [ ] Claim phases (scouting → evaluating → claiming → building → incubating), with the room
-      scouted first and checks that cancel or hold with a reason.
-- [ ] Base readiness (RCL 4, 1300 capacity, 10k storage, one claim at a time, `force` to skip),
+- [x] Claim phases (scouting → evaluating → claiming → building; incubating comes with the
+      incubation item), with the room scouted first and checks that cancel or hold with a reason.
+- [x] Base readiness (RCL 4, 1300 capacity, 10k storage, one claim at a time, `force` to skip),
       a faster claimer on a planned route, and up to 3 claim attempts.
 - [ ] Pioneers sized to the room's sources, replaced early, kept away from hostiles; stall
       watchdog (never unclaims automatically).

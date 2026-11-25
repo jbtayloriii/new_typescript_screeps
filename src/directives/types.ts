@@ -1,3 +1,5 @@
+import type { ClaimEvaluation } from "./spawn_position";
+
 /**
  * A directive is a persistent, high-level goal for the empire: "remote-mine W1N2", "scout W5N5",
  * "claim W2N3". Directives come from the automatic planners, console commands (`cmd.*`) or flags,
@@ -54,7 +56,24 @@ export interface Directive {
      * during this defense. The squad's make-up counters it (see `military/home_defense.ts`).
      */
     readonly threat?: ThreatParts;
+
+    // Claims (see docs/EXPANSION.md and directives/claim_phases.ts):
+    /** Where the claim is: scouting → evaluating → claiming → building. Missing means scouting. */
+    readonly phase?: ClaimPhase;
+    /** The spawn position evaluation, made once in `evaluating`. */
+    readonly evaluation?: ClaimEvaluation;
+    /** Rooms from the base to the target (not including the base), avoiding other players' rooms. */
+    readonly route?: readonly RoomName[];
+    /** Claimers sent so far, and the latest one's name (to count new ones). */
+    readonly claimAttempts?: number;
+    readonly lastClaimer?: string;
+    /** Tick the controller was claimed. */
+    readonly claimedAt?: number;
+    /** Skip the base readiness checks (never the room's hard blockers). */
+    readonly force?: boolean;
 }
+
+export type ClaimPhase = 'scouting' | 'evaluating' | 'claiming' | 'building';
 
 /** Combat body parts on a group of hostile creeps. */
 export interface ThreatParts {
@@ -66,7 +85,7 @@ export interface ThreatParts {
 
 /** What's needed to create a directive; the rest is filled in when it is saved. */
 export type DirectiveSpec = Pick<Directive, 'type' | 'targetRoom' | 'source'>
-    & Partial<Pick<Directive, 'baseRoomName' | 'flagName' | 'spawnPos' | 'size' | 'escortedId' | 'lastThreatAt' | 'reason' | 'threat'>>;
+    & Partial<Pick<Directive, 'baseRoomName' | 'flagName' | 'spawnPos' | 'size' | 'escortedId' | 'lastThreatAt' | 'reason' | 'threat' | 'force'>>;
 
 export type DirectiveMap = { readonly [id: string]: Directive };
 

@@ -8,7 +8,11 @@ import { Pos } from "snapshot/types";
  * snapshots and asserted on in tests with plain equality.
  */
 
-export type MoveIntent = { kind: 'move'; creepName: string; target: Pos; range: number };
+/**
+ * `route`: rooms to travel through on the way to another room (not including the start), so the
+ * creep follows a planned route instead of whatever path `moveTo` finds (see execute_intents).
+ */
+export type MoveIntent = { kind: 'move'; creepName: string; target: Pos; range: number; route?: readonly RoomName[] };
 export type HarvestIntent = { kind: 'harvest'; creepName: string; targetId: Id<Source | Mineral> };
 export type TransferIntent = { kind: 'transfer'; creepName: string; targetId: Id<AnyStoreStructure | Creep>; resource: ResourceConstant };
 export type WithdrawIntent = { kind: 'withdraw'; creepName: string; targetId: Id<AnyStoreStructure | Tombstone | Ruin>; resource: ResourceConstant };

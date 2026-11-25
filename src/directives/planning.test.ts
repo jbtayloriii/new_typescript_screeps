@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { autoDefendSize, BaseSummary, CLAIM_MIN_CAPACITY, DEFEND_CLEAR_TICKS, DirectivePlanInput, MAX_DIRECTIVE_DISTANCE, MILITARY_MIN_CAPACITY, planDirectives } from './planning';
+import { autoDefendSize, BaseSummary, DEFEND_CLEAR_TICKS, DirectivePlanInput, MAX_DIRECTIVE_DISTANCE, MILITARY_MIN_CAPACITY, planDirectives } from './planning';
 import { Directive } from './types';
 import { aRoom } from 'testing/builders/room_snapshot_builder';
 import { worldOf, WorldOptions } from 'testing/builders/world';
@@ -7,7 +7,7 @@ import { RoomIntel } from 'intel/types';
 import { HOME_DEFENSE_CANCEL_COOLDOWN } from 'military/home_defense';
 
 const base = (roomName: string, overrides: Partial<BaseSummary> = {}): BaseSummary =>
-    ({ roomName, energyCapacity: 800, staticMining: false, ...overrides });
+    ({ roomName, energyCapacity: 800, staticMining: false, rcl: 3, storageEnergy: 0, underAttack: false, ...overrides });
 const directive = (overrides: Partial<Directive>): Directive =>
     ({ id: 'd0', type: 'scout', targetRoom: 'W5N5', source: 'manual', status: 'pending', createdAt: 10, ...overrides });
 const intel = (overrides: Partial<RoomIntel> = {}): RoomIntel => ({
@@ -94,25 +94,48 @@ describe('planDirectives: assigning bases', () => {
         expect(planDirectives(input({ directives: [far] })).update).toEqual([{ id: 'd0', patch: { reason: `no base within ${MAX_DIRECTIVE_DISTANCE} rooms` } }]);
     });
 
-    test('claims need GCL and a base that can afford a claimer', () => {
+    test('claims need spare GCL; any base can take one (readiness is checked before claiming)', () => {
         const claim = directive({ type: 'claim', targetRoom: 'W2N1' });
         const lowGcl = planDirectives(input({ directives: [claim], worldOpts: { gclLevel: 1, ownedRooms: ['W1N1'] } }));
         expect(lowGcl.update[0].patch.reason).toContain('GCL 1');
 
-        const poor = planDirectives(input({ directives: [claim], bases: [base('W1N1', { energyCapacity: CLAIM_MIN_CAPACITY - 1 })], worldOpts: { gclLevel: 2, ownedRooms: ['W1N1'] } }));
-        expect(poor.update[0].patch.reason).toContain(`${CLAIM_MIN_CAPACITY} energy capacity`);
+        const small = planDirectives(input({ directives: [claim], bases: [base('W1N1', { energyCapacity: 300 })], worldOpts: { gclLevel: 2, ownedRooms: ['W1N1'] } }));
+        expect(small.update).toContainEqual({ id: 'd0', patch: { status: 'active', baseRoomName: 'W1N1', reason: undefined } });
+    });
+});
 
-        const ok = planDirectives(input({ directives: [claim], worldOpts: { gclLevel: 2, ownedRooms: ['W1N1'] } }));
-        expect(ok.update).toContainEqual({ id: 'd0', patch: { status: 'active', baseRoomName: 'W1N1', reason: undefined } });
+describe('planDirectives: claim phases', () => {
+    const claim = (overrides: Partial<Directive> = {}) =>
+        directive({ type: 'claim', targetRoom: 'W2N1', status: 'active', baseRoomName: 'W1N1', ...overrides });
+    const ready = base('W1N1', { rcl: 4, energyCapacity: 1300, storageEnergy: 20000 });
+    const fresh = intel({ lastSeen: 50 });
+
+    test('a new claim scouts its room first', () => {
+        expect(planDirectives(input({ directives: [claim()] })).update)
+            .toEqual([{ id: 'd0', patch: { phase: 'scouting', reason: 'scouting the room' } }]);
     });
 
-    test('claims get a spawn position once their room has intel', () => {
-        const claim = directive({ type: 'claim', targetRoom: 'W2N1', status: 'active', baseRoomName: 'W1N1' });
-        const changes = planDirectives(input({ directives: [claim], intel: { W2N1: intel() } }));
-        expect(changes.update).toContainEqual({ id: 'd0', patch: { spawnPos: expect.objectContaining({ x: expect.any(Number) }) } });
-        // Not recomputed once set
-        const placed = { ...claim, spawnPos: { x: 10, y: 10 } };
-        expect(planDirectives(input({ directives: [placed], intel: { W2N1: intel() } })).update).toEqual([]);
+    test('with fresh intel it is evaluated once, then waits for the base to be ready', () => {
+        const changes = planDirectives(input({ directives: [claim()], intel: { W2N1: fresh } }));
+        const patch = changes.update[0].patch;
+        expect(patch.phase).toBe('evaluating');
+        expect(patch.reason).toBe('waiting: base RCL 3 < 4');
+        expect(patch.route).toEqual(['W2N1']);
+        expect(patch.spawnPos).toEqual(patch.evaluation!.spawnPos);
+        expect(patch.evaluation).toMatchObject({ extensionStamps: 12, routeRooms: 1 });
+    });
+
+    test('a ready base sends the claimer', () => {
+        const changes = planDirectives(input({ directives: [claim()], bases: [ready], intel: { W2N1: fresh } }));
+        expect(changes.update[0].patch).toMatchObject({ phase: 'claiming', spawnPos: expect.any(Object) });
+    });
+
+    test('hard blockers cancel the claim', () => {
+        const owned = intel({ lastSeen: 50, controller: { x: 25, y: 25, level: 3, owner: 'someone' } });
+        expect(planDirectives(input({ directives: [claim({ phase: 'evaluating' })], intel: { W2N1: owned } })).end)
+            .toEqual([{ id: 'd0', status: 'done', reason: 'owned by someone' }]);
+        const noRoute = input({ directives: [claim()], intel: { W2N1: fresh }, worldOpts: { routes: { 'W1N1>W2N1': null } } });
+        expect(planDirectives(noRoute).end).toEqual([{ id: 'd0', status: 'cancelled', reason: 'no route that avoids other players\' rooms' }]);
     });
 });
 

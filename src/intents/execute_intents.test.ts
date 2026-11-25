@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 import { mockGlobal, mockInstanceOf } from 'screeps-jest';
-import { executeIntents } from './execute_intents';
+import { executeIntents, nextRouteRoom } from './execute_intents';
 import { Intent } from './types';
 
 const sourceId = 'source' as Id<Source>;
@@ -146,3 +146,18 @@ describe('executeIntents', () => {
     });
 });
 
+
+describe('nextRouteRoom', () => {
+    const route = ['W2N1', 'W3N1', 'W3N2'];
+
+    test('the room after the current one, or the first when not on the route', () => {
+        expect(nextRouteRoom('W1N1', 'W3N2', route)).toBe('W2N1');
+        expect(nextRouteRoom('W2N1', 'W3N2', route)).toBe('W3N1');
+        expect(nextRouteRoom('W3N1', 'W3N2', route)).toBe('W3N2');
+    });
+
+    test('nothing once in the target room, or without a route', () => {
+        expect(nextRouteRoom('W3N2', 'W3N2', route)).toBeUndefined();
+        expect(nextRouteRoom('W1N1', 'W3N2', [])).toBeUndefined();
+    });
+});

@@ -41,6 +41,13 @@ export interface WorldSnapshot {
     /** Rooms whose controller I own. */
     readonly ownedRooms: readonly RoomName[];
     getTerrain(roomName: RoomName): TerrainView;
+    /** The room's status: 'normal', 'closed', 'novice' or 'respawn' (`Game.map.getRoomStatus`). */
+    getRoomStatus(roomName: RoomName): string;
+    /**
+     * Rooms from `from` to `to` (not including `from`), avoiding rooms `avoid` returns true for
+     * (`Game.map.findRoute`). Null if there's no route.
+     */
+    findRoute(from: RoomName, to: RoomName, avoid: (roomName: RoomName) => boolean): RoomName[] | null;
 }
 
 export function createWorldSnapshot(game: Game = Game): WorldSnapshot {
@@ -48,7 +55,9 @@ export function createWorldSnapshot(game: Game = Game): WorldSnapshot {
     const exitCache = new Map<RoomName, readonly RoomName[]>();
     return {
         tick: game.time,
-        myUsername: Object.values(game.spawns)[0]?.owner.username,
+        // From an owned controller first: a base whose spawn died still knows who it is.
+        myUsername: Object.values(game.rooms).find(r => r.controller?.my)?.controller?.owner?.username
+            ?? Object.values(game.spawns)[0]?.owner.username,
         visibleRooms: Object.keys(game.rooms),
         getRoom(roomName: RoomName) {
             if (!roomCache.has(roomName)) {
@@ -79,6 +88,13 @@ export function createWorldSnapshot(game: Game = Game): WorldSnapshot {
                 isWall: (x, y) => terrain.get(x, y) === TERRAIN_MASK_WALL,
                 isSwamp: (x, y) => terrain.get(x, y) === TERRAIN_MASK_SWAMP,
             };
+        },
+        getRoomStatus(roomName: RoomName) {
+            return game.map.getRoomStatus(roomName)?.status ?? 'normal';
+        },
+        findRoute(from: RoomName, to: RoomName, avoid: (roomName: RoomName) => boolean) {
+            const route = game.map.findRoute(from, to, { routeCallback: room => room !== to && avoid(room) ? Infinity : 1 });
+            return route === ERR_NO_PATH ? null : route.map(step => step.room);
         },
     };
 }

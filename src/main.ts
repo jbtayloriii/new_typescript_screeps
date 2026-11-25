@@ -17,7 +17,11 @@ const globalHq = Headquarters.initialize();
 
 // Console commands, e.g. cmd.claim('W2N3') or cmd.visuals('W1N1'). See cmd.help().
 (global as unknown as { cmd: unknown }).cmd = {
-  ...createCommands(() => Memory, () => Game.time, room => Game.rooms[room] ? builtStructureKeys(Game.rooms[room]) : undefined),
+  ...createCommands(
+    () => Memory,
+    () => Game.time,
+    room => Game.rooms[room] ? builtStructureKeys(Game.rooms[room]) : undefined,
+    () => globalHq.planInput(createWorldSnapshot())),
   visuals: createVisualsCommand(() => Memory, () => Game.time),
 };
 

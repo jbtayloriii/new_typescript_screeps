@@ -510,12 +510,15 @@ function placeLabs(input: LayoutInput, plan: TerrainPlan): void {
         const built = plan.builtTiles.get(key(c)) ?? [];
         return map.isOpen(c) && built.length > 0 && built.every(s => s === STRUCTURE_LAB);
     });
+    // A road end is joined when any neighbor is a planned or built road. (A neighbor inside the
+    // stamp can only be a road if the stamp reuses an existing road, which joins it too.)
+    const nearRoad = grid(c => neighbors(c).some(n => road[n.y][n.x]));
     type Spot = { origin: Coordinate, stamp: readonly StampTile[], keeps: number, joined: number, score: [number, number] };
     let best: Spot | null = null;
 
     for (const stamp of [LAB_STAMP, mirroredLabStamp()]) {
         const roadEnds = stamp.filter(t => t.structure === STRUCTURE_ROAD && (t.dx === 0 || t.dx === 3) && (t.dy === 0 || t.dy === 3));
-        const inStamp = new Set(stamp.map(t => `${t.dx}_${t.dy}`));
+        const labTiles = stamp.filter(t => t.structure === STRUCTURE_LAB);
         for (let oy = 2; oy <= 44; oy++) {
             for (let ox = 2; ox <= 44; ox++) {
                 const fits = stamp.every(t => {
@@ -526,15 +529,17 @@ function placeLabs(input: LayoutInput, plan: TerrainPlan): void {
                     return builtLab[y][x] || (free[y][x] && !road[y][x]);
                 });
                 if (!fits) continue;
-                const keeps = stamp.filter(t => t.structure === STRUCTURE_LAB && builtLab[oy + t.dy][ox + t.dx]).length;
-                const joined = roadEnds.filter(end => neighbors({ x: ox + end.dx, y: oy + end.dy })
-                    .some(n => !inStamp.has(`${n.x - ox}_${n.y - oy}`) && road[n.y][n.x])).length;
+                let joined = 0;
+                for (const end of roadEnds) if (nearRoad[oy + end.dy][ox + end.dx]) joined++;
                 if (joined === 0) continue;
-                const labs = stamp.filter(t => t.structure === STRUCTURE_LAB).map(t => ({ x: ox + t.dx, y: oy + t.dy }));
-                const score: [number, number] = [
-                    Math.min(...labs.map(l => range(l, plan.storage))),
-                    Math.min(...labs.map(l => manhattan(l, plan.storage))),
-                ];
+                let keeps = 0;
+                const score: [number, number] = [Infinity, Infinity];
+                for (const t of labTiles) {
+                    const lab = { x: ox + t.dx, y: oy + t.dy };
+                    if (builtLab[lab.y][lab.x]) keeps++;
+                    score[0] = Math.min(score[0], range(lab, plan.storage));
+                    score[1] = Math.min(score[1], manhattan(lab, plan.storage));
+                }
                 // Most built labs kept, then both road ends joined, then closest to storage.
                 const better = best === null || keeps > best.keeps || (keeps === best.keeps && (joined > best.joined
                     || (joined === best.joined && (score[0] < best.score[0] || (score[0] === best.score[0] && score[1] < best.score[1])))));

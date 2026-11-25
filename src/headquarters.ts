@@ -5,7 +5,9 @@ import { MyCreepSnapshot } from "snapshot/types";
 import { WorldSnapshot } from "snapshot/world";
 import { recordIntel, roomsNeedingIntel } from "intel/record_intel";
 import { DirectiveStore } from "directives/store";
-import { BaseSummary, planDirectives } from "directives/planning";
+import { BaseSummary, DirectivePlanInput, planDirectives } from "directives/planning";
+import { getMyStructures } from "snapshot/queries";
+import { homeThreats } from "military/home_defense";
 import { Intent } from "intents/types";
 import { pruneVisuals } from "visuals/settings";
 
@@ -47,7 +49,7 @@ export class Headquarters {
 
     // Empire-level goals: flags, finishing, base assignment and automatic remote mining.
     const store = new DirectiveStore(Memory);
-    const changes = planDirectives({ world, directives: store.all(), bases: this.summarizeBases(world), intel: Memory.intel });
+    const changes = planDirectives(this.planInput(world));
     store.apply(changes, world.tick);
     for (const spec of changes.create) {
       if (spec.type === 'defend' && spec.targetRoom === spec.baseRoomName) {
@@ -82,12 +84,23 @@ export class Headquarters {
     return world.myCreeps.some(c => mineTasks.has(c.memory.taskName) && (c.activeParts[CARRY] ?? 0) === 0);
   }
 
+  /** What the empire planner (and `cmd.evaluate`) needs this tick. */
+  public planInput(world: WorldSnapshot): DirectivePlanInput {
+    return { world, directives: new DirectiveStore(Memory).all(), bases: this.summarizeBases(world), intel: Memory.intel };
+  }
+
   private summarizeBases(world: WorldSnapshot): BaseSummary[] {
-    return [...this.bases.keys()].map(roomName => ({
-      roomName,
-      energyCapacity: world.getRoom(roomName)?.energyCapacityAvailable ?? 0,
-      staticMining: this.hasMiner(world, roomName),
-    }));
+    return [...this.bases.keys()].map(roomName => {
+      const room = world.getRoom(roomName);
+      return {
+        roomName,
+        energyCapacity: room?.energyCapacityAvailable ?? 0,
+        staticMining: this.hasMiner(world, roomName),
+        rcl: room?.controller?.level ?? 0,
+        storageEnergy: room ? getMyStructures(room, STRUCTURE_STORAGE).reduce((sum, s) => sum + (s.store?.energy ?? 0), 0) : 0,
+        underAttack: room ? homeThreats(room).length > 0 : false,
+      };
+    });
   }
 
   public static initialize(): Headquarters {

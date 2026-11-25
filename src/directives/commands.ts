@@ -1,7 +1,10 @@
-import { isValidRoomName } from "utils/room_names";
+import { isValidRoomName, roomLinearDistance } from "utils/room_names";
 import { DirectiveStore } from "./store";
 import { Directive, DirectiveType, isEnded, isMilitary } from "./types";
 import { MAX_SQUAD_SIZE } from "military/squads";
+import { assessClaim, ClaimAssessment } from "./claim_phases";
+import { DirectivePlanInput } from "./planning";
+import { FULL_EXTENSION_STAMPS } from "./spawn_position";
 import { summarizeLayout } from "visuals/layout_overlay";
 import { VISUALS_DURATION } from "visuals/settings";
 
@@ -22,7 +25,8 @@ export interface Commands {
     cancel(id: string): string;
     remoteMine(room: RoomName, opts?: { base?: RoomName }): string;
     scout(room: RoomName, opts?: { base?: RoomName }): string;
-    claim(room: RoomName, opts?: { base?: RoomName, x?: number, y?: number }): string;
+    claim(room: RoomName, opts?: { base?: RoomName, x?: number, y?: number, force?: boolean }): string;
+    evaluate(room: RoomName, opts?: { base?: RoomName, x?: number, y?: number }): string;
     attack(room: RoomName, opts?: { base?: RoomName, size?: number }): string;
     defend(room: RoomName, opts?: { base?: RoomName, size?: number }): string;
     escort(directiveId: string, opts?: { size?: number }): string;
@@ -32,7 +36,9 @@ export interface Commands {
 export const HELP = `Directives (empire-level goals):
   cmd.remoteMine(room, { base? })      remote mine a room (overrides the automatic choice)
   cmd.scout(room, { base? })           send a scout to a room once
-  cmd.claim(room, { base?, x?, y? })   claim a room; x/y place its first spawn
+  cmd.claim(room, { base?, x?, y?, force? })  claim a room: scout, check, wait for the base to be
+                                       ready (force skips that), claim, build the spawn; x/y place it
+  cmd.evaluate(room, { base?, x?, y? })   dry run of a claim: spawn tile, distances, checks
   cmd.attack(room, { base?, size? })   send a squad to clear a room (default 4 creeps)
   cmd.defend(room, { base?, size? })   send a squad to keep a room clear (default 2)
   cmd.escort(id, { size? })            guard another directive's creeps (e.g. a claim)
@@ -50,20 +56,43 @@ export function formatDirective(d: Directive): string {
     const parts = [`${d.id} ${d.type} ${d.targetRoom}`, `[${d.status}]`];
     if (d.baseRoomName) parts.push(`from ${d.baseRoomName}`);
     parts.push(`(${d.source}${d.flagName ? ` flag ${d.flagName}` : ''})`);
+    if (d.phase && !isEnded(d)) parts.push(d.phase);
+    if (d.type === 'claim' && d.spawnPos) parts.push(`spawn ${d.spawnPos.x},${d.spawnPos.y}`);
+    if (d.force) parts.push('forced');
     if (d.size !== undefined) parts.push(`size ${d.size}`);
     if (d.escortedId) parts.push(`escorting ${d.escortedId}`);
     if (d.reason) parts.push(`- ${d.reason}`);
     return parts.join(' ');
 }
 
+/** A claim evaluation as console lines (see `cmd.evaluate`). */
+export function formatClaimAssessment(room: RoomName, baseRoomName: RoomName, a: ClaimAssessment): string {
+    if (a.noIntel) {
+        return `No intel for ${room}: run cmd.scout('${room}') first (or cmd.claim, which scouts it).`;
+    }
+    const lines = [`${room} from ${baseRoomName}:`];
+    if (a.cancel) {
+        lines.push(`  can't claim: ${a.cancel}`);
+        return lines.join('\n');
+    }
+    const e = a.evaluation!;
+    lines.push(`  spawn ${e.spawnPos.x},${e.spawnPos.y} · sources ${e.sourceDistances.join(', ')} · controller ${e.controllerDistance} (walking)`);
+    lines.push(`  extension stamps ${e.extensionStamps}/${FULL_EXTENSION_STAMPS} · route ${a.route!.length} room${a.route!.length === 1 ? '' : 's'}: ${a.route!.join(' → ')}`);
+    lines.push(`  room: ${a.hold ? `hold (${a.hold})` : 'ok'} · base: ${a.notReady ? `not ready (${a.notReady})` : 'ready'}`);
+    for (const w of e.warnings) lines.push(`  warning: ${w}`);
+    return lines.join('\n');
+}
+
 /**
  * `getBuilt` returns "x_y_structureType" for every structure and construction site in a room, or
  * undefined without vision. It's only used for `cmd.layout`'s built/planned counts.
+ * `getPlanInput` gives what the empire planner sees this tick, for `cmd.evaluate`.
  */
 export function createCommands(
     getMemory: () => Memory,
     getTick: () => number,
-    getBuilt: (room: RoomName) => ReadonlySet<string> | undefined = () => undefined): Commands {
+    getBuilt: (room: RoomName) => ReadonlySet<string> | undefined = () => undefined,
+    getPlanInput?: () => DirectivePlanInput): Commands {
     const store = () => new DirectiveStore(getMemory());
 
     function addDirective(
@@ -71,7 +100,7 @@ export function createCommands(
         room: RoomName,
         base?: RoomName,
         spawnPos?: { x: number, y: number },
-        extra: { size?: number, escortedId?: string } = {}): string {
+        extra: { size?: number, escortedId?: string, force?: boolean } = {}): string {
         if (!isValidRoomName(room)) {
             return `Invalid room name: ${room}`;
         }
@@ -117,7 +146,27 @@ export function createCommands(
             if (hasPos && (opts.x! < 1 || opts.x! > 48 || opts.y! < 1 || opts.y! > 48)) {
                 return `Spawn position must be within 1-48: (${opts.x}, ${opts.y})`;
             }
-            return addDirective('claim', room, opts.base, hasPos ? { x: opts.x!, y: opts.y! } : undefined);
+            return addDirective('claim', room, opts.base, hasPos ? { x: opts.x!, y: opts.y! } : undefined,
+                opts.force ? { force: true } : {});
+        },
+
+        evaluate(room, opts = {}) {
+            if (!isValidRoomName(room)) {
+                return `Invalid room name: ${room}`;
+            }
+            if (!getPlanInput) {
+                return 'cmd.evaluate needs the game world.';
+            }
+            const input = getPlanInput();
+            const base = opts.base !== undefined
+                ? input.bases.find(b => b.roomName === opts.base)
+                : [...input.bases].sort((a, b) => roomLinearDistance(a.roomName, room) - roomLinearDistance(b.roomName, room))[0];
+            if (!base) {
+                return opts.base !== undefined ? `Not a base: ${opts.base}` : 'No bases.';
+            }
+            const spawnPos = opts.x !== undefined && opts.y !== undefined ? { x: opts.x, y: opts.y } : undefined;
+            const assessment = assessClaim(room, base, { world: input.world, intel: input.intel, directives: input.directives }, { spawnPos });
+            return formatClaimAssessment(room, base.roomName, assessment);
         },
 
         layout(room, mode) {

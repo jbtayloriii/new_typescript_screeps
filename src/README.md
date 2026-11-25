@@ -128,7 +128,8 @@ The empire is split into these pieces:
   from three places and all take the same path, directive → a task in the assigned base → intents:
   - **Automatic**: each statically mining base gets remote-mining directives for good adjacent
     rooms (see "Remote rooms" above), and a `defend` directive when NPC invaders show up in one.
-  - **Console**: `cmd.remoteMine(room)`, `cmd.scout(room)`, `cmd.claim(room, { x, y })`,
+  - **Console**: `cmd.remoteMine(room)`, `cmd.scout(room)`, `cmd.claim(room, { x, y, force })`,
+    `cmd.evaluate(room, { x, y })` (a claim dry run),
     `cmd.attack(room, { size })`, `cmd.defend(room, { size })`, `cmd.escort(id, { size })`,
     `cmd.list()`, `cmd.cancel(id)` and `cmd.help()` ([directives/commands.ts](directives/commands.ts)).
     Each room command takes an optional `{ base }`; otherwise the closest suitable base takes it.
@@ -137,16 +138,31 @@ The empire is split into these pieces:
 
   Each tick, `planDirectives` ([directives/planning.ts](directives/planning.ts)) turns flags into
   directives, finishes directives whose goal is met or impossible, assigns pending ones to the
-  closest base within 10 rooms (claims also need spare GCL and 650 energy capacity, military
-  directives 550), picks claims' spawn positions from terrain, and creates the automatic
+  closest base within 10 rooms (claims also need spare GCL, military directives 550 energy
+  capacity), moves claims through their phases, and creates the automatic
   remote-mining and defend directives. A directive you cancel isn't recreated automatically.
   Bases run one task per active directive assigned to them (`remoteMine`, a `scout` with a
   target room, `claim`, or a `squad`) and drop the task when the directive ends. Routine base work (mining, hauling, upgrading, building, repairing and the
   adjacent-room scout) stays automatic per base, without directives.
 
-  **Claiming**: a claimer (`[CLAIM, MOVE]`) claims the controller; two pioneers then place and
-  build the first spawn. When the spawn exists, `Headquarters` creates the new base, the directive
-  is done, and the claim's creeps in that room are handed over to the new base.
+  **Claiming** (design in [docs/EXPANSION.md](../docs/EXPANSION.md)): a claim goes through phases
+  ([directives/claim_phases.ts](directives/claim_phases.ts)), shown in `cmd.list`:
+  - **scouting**: a `[MOVE]` scout goes to the room, unless its intel is newer than the claim.
+    The scout then stays there for vision.
+  - **evaluating**: room checks ([directives/claim_evaluation.ts](directives/claim_evaluation.ts)):
+    no controller, owned by another player, a different room status, no route avoiding other
+    players' rooms, or no spawn tile cancel; player hostiles hold. Then the spawn position
+    ([directives/spawn_position.ts](directives/spawn_position.ts)): walking distance to sources
+    and controller plus an exit penalty, with the best candidates checked to fit the whole
+    layout. The route and evaluation are saved on the directive. Last, base readiness (RCL 4,
+    1,300 capacity, 10k storage, not under attack, one claim at a time, route under 500 ticks)
+    holds the claim with a reason, unless `force`.
+  - **claiming**: a claimer (`[CLAIM, MOVE×5]` at full size) follows the planned route room by
+    room and claims the controller (clearing a reservation first). After 3 claimers die, the
+    claim is cancelled.
+  - **building**: two pioneers place and build the first spawn. When it exists, `Headquarters`
+    creates the new base, the directive is done, and the claim's creeps in that room are handed
+    over to the new base.
 
 - **Military** ([military/](military/)): attack, defend and escort directives each run a `squad`
   task ([military/squad_task.ts](military/squad_task.ts)).

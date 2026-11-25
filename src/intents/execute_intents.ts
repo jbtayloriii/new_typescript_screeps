@@ -18,6 +18,15 @@ export function executeIntent(intent: Intent): IntentReturnCode {
             const creep = Game.creeps[intent.creepName];
             if (!creep) return ERR_NOT_FOUND;
             const target = new RoomPosition(intent.target.x, intent.target.y, intent.target.roomName);
+            const next = intent.route && nextRouteRoom(creep.room.name, intent.target.roomName, intent.route);
+            if (next) {
+                // Head for the exit to the next room on the route.
+                const exitDirection = Game.map.findExit(creep.room.name, next);
+                const exit = exitDirection > 0 ? creep.pos.findClosestByPath(exitDirection as ExitConstant) : null;
+                if (exit) {
+                    return creep.moveTo(exit);
+                }
+            }
             return creep.moveTo(target, { range: intent.range });
         }
         case 'say': {
@@ -134,4 +143,16 @@ function withTowerAndTarget<T extends _HasId>(
     const target = Game.getObjectById(targetId);
     if (!target) return ERR_INVALID_TARGET;
     return action(tower, target);
+}
+
+/**
+ * The next room to head for along a route: the room after the current one, or the route's first
+ * room when the creep isn't on it (e.g. still in its base). Undefined in the target room.
+ */
+export function nextRouteRoom(current: RoomName, target: RoomName, route: readonly RoomName[]): RoomName | undefined {
+    if (current === target || route.length === 0) {
+        return undefined;
+    }
+    const index = route.indexOf(current);
+    return index >= 0 ? route[index + 1] : route[0];
 }

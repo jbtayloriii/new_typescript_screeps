@@ -92,7 +92,7 @@ declare global {
     targetId?: Id<_HasId>;
 
     /** The creep's job within a task with several kinds of creeps (e.g. remote mining). */
-    role?: 'miner' | 'hauler' | 'claimer' | 'pioneer' | 'reserver' | 'melee' | 'ranged' | 'healer';
+    role?: 'miner' | 'hauler' | 'claimer' | 'pioneer' | 'reserver' | 'scout' | 'melee' | 'ranged' | 'healer';
 
     /** The room the creep is heading to, for tasks that move between rooms. */
     targetRoom?: RoomName;

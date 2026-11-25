@@ -1,6 +1,7 @@
 # Expanding to a new room — design
 
-Status: planned. Builds on the phase 4 `claim` directive (see [ROADMAP.md](ROADMAP.md) phase 8),
+Status: steps 1–3 of "Suggested order" implemented; 4 (building) and 5 (incubation) to do. See
+"Implementation notes" at the end. Builds on the phase 4 `claim` directive (see [ROADMAP.md](ROADMAP.md) phase 8),
 and on the pure layout planner from [BASE_LAYOUT.md](BASE_LAYOUT.md) (phase 7).
 
 ## Goals
@@ -217,3 +218,38 @@ economy (extensions, upgrading). Done at RCL 3 with a tower built, or cancelled 
 - Base readiness thresholds as above (RCL 4, 1300 capacity, 10k storage) to start; tune later.
 - Claims stay manual (`cmd.claim` or a purple flag) for this phase. Automatic expansion comes
   later, built on `cmd.evaluate`.
+
+## Implementation notes
+
+Steps 1–3 landed. Where the code differs from the design above:
+
+- **Code:** spawn position v2 in [spawn_position.ts](../src/directives/spawn_position.ts)
+  (`evaluateSpawnPosition`, with `chooseSpawnPosition` kept as a wrapper); room checks and base
+  readiness in [claim_evaluation.ts](../src/directives/claim_evaluation.ts); phases and
+  `assessClaim` (shared by the planner and `cmd.evaluate`) in
+  [claim_phases.ts](../src/directives/claim_phases.ts); `getRoomStatus` and `findRoute` on the
+  world snapshot; an optional `route` on move intents.
+- **No memory migration.** A claim without a phase is treated as `scouting`, and phases that
+  are already satisfied fall through in one tick. A claim already in flight (fresh intel,
+  controller mine) lands in `building` on its first tick.
+- **Claims are assigned without a capacity minimum**, since scouting only needs a `[MOVE]`
+  creep. Base readiness is checked in `evaluating`, so a claim made early scouts and evaluates
+  the room, then waits with a reason like "waiting: base RCL 2 < 4".
+- **The scout stays in the room** after scouting, for vision. It isn't replaced.
+- **Route:** `Game.map.findRoute` avoiding rooms whose intel says another player owns them.
+  Creeps with a route head for the exit to the next room on it, then use plain `moveTo` inside
+  the target room. Pioneers use the route too.
+- **Route length** is estimated at 50 ticks per room for the 500-tick check.
+- **Claimer attempts** are counted by the planner from claimers with `targetRoom` set to the claim's
+  room (`claimAttempts`, `lastClaimer` on the directive).
+- **Claim targets get automatic defense** against NPC invaders (and Invader cores) once
+  `claiming`, like remotes.
+- **Cost:** one spawn evaluation takes about 26 ms (W23S31) to 40 ms (open terrain) in Node, once
+  per claim and per `cmd.evaluate`. W23S31's evaluation picks 24,9; Cyborger built its spawn
+  at 22,9.
+- **Also fixed:** `myUsername` now comes from an owned controller, so claim and remote checks
+  still work in a base whose spawn has died.
+
+Still to do: step 4 (pioneer count per source, early replacement, staying away from hostiles,
+upgrading when the controller is close to downgrade, the stall watchdog) and step 5
+(incubation).

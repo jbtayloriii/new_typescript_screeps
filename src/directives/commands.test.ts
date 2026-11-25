@@ -1,6 +1,8 @@
 import { describe, expect, test } from '@jest/globals';
 import { createCommands } from './commands';
 import { createTestMemory } from 'testing/memory';
+import { worldOf } from 'testing/builders/world';
+import { aRoom } from 'testing/builders/room_snapshot_builder';
 
 function setup() {
     const memory = createTestMemory();
@@ -102,5 +104,31 @@ describe('cmd.layout', () => {
     test('rejects rooms that are not bases', () => {
         const { cmd } = setup();
         expect(cmd.layout('W9N9')).toBe('Not a base: W9N9');
+    });
+});
+
+describe('cmd.claim and cmd.evaluate', () => {
+    test('force is saved on the claim', () => {
+        const { memory, cmd } = setup();
+        cmd.claim('W2N3', { force: true });
+        expect(memory.directives.d0.force).toBe(true);
+    });
+
+    test('evaluate needs intel, then prints the spawn tile, checks and readiness', () => {
+        const memory = createTestMemory();
+        memory.bases_v3['W1N1'] = { currentControllerLevelPlan: 0, lastBaseLayoutPlanTick: 0, initialSpawn: '10_10', baseLayout: {} };
+        const bases = [{ roomName: 'W1N1', energyCapacity: 550, staticMining: true, rcl: 2, storageEnergy: 0, underAttack: false }];
+        const planInput = () => ({ world: worldOf([aRoom('W1N1').withTick(100).build()]), directives: [], bases, intel: memory.intel });
+        const cmd = createCommands(() => memory, () => 100, undefined, planInput);
+        expect(cmd.evaluate('W2N3')).toBe("No intel for W2N3: run cmd.scout('W2N3') first (or cmd.claim, which scouts it).");
+
+        memory.intel['W2N3'] = {
+            lastSeen: 90, sources: [{ id: 's' as Id<Source>, x: 10, y: 10 }, { id: 't' as Id<Source>, x: 40, y: 40 }],
+            controller: { x: 25, y: 25, level: 0 }, keeperLairs: 0, hostileCombatCreeps: 0,
+        };
+        const out = cmd.evaluate('W2N3');
+        expect(out).toMatch(/^W2N3 from W1N1:\n  spawn \d+,\d+ · sources \d+, \d+ · controller \d+ \(walking\)/);
+        expect(out).toContain('extension stamps 12/12 · route 1 room: W2N3');
+        expect(out).toContain('room: ok · base: not ready (base RCL 2 < 4)');
     });
 });

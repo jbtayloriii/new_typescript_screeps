@@ -1,5 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
 import { claimTask, CLAIMER_BODY, isClaimed, PIONEERS } from './claim_task';
+import { SCOUT_BODY } from './scout_task';
 import { aRoom, energy } from 'testing/builders/room_snapshot_builder';
 import { aTaskContext } from 'testing/builders/context';
 import { worldOf } from 'testing/builders/world';
@@ -14,7 +15,7 @@ const directive: Directive = {
     id: 'd1', type: 'claim', targetRoom: 'W2N1', source: 'manual', status: 'active', createdAt: 1,
     baseRoomName: 'W1N1', spawnPos: { x: 20, y: 20 },
 };
-const member = (role: 'claimer' | 'pioneer', extra: Partial<CreepMemory> = {}) =>
+const member = (role: 'claimer' | 'pioneer' | 'scout', extra: Partial<CreepMemory> = {}) =>
     ({ memory: { taskName: 'c', baseRoomName: 'W1N1', role, ...extra } });
 const intel: RoomIntel = { lastSeen: 1, sources: [], controller: { x: 25, y: 25, level: 0 }, keeperLairs: 0, hostileCombatCreeps: 0 };
 
@@ -30,7 +31,7 @@ function ctx(opts: { target?: RoomSnapshot, creeps?: readonly MyCreepSnapshot[],
 describe('claimTask.getSpawnRequests', () => {
     test('one claimer until the controller is mine, then pioneers', () => {
         expect(claimTask.getSpawnRequests(task, ctx())).toEqual([
-            { taskName: 'c', priority: expect.any(Number), body: CLAIMER_BODY, memory: { role: 'claimer' } },
+            { taskName: 'c', priority: expect.any(Number), body: CLAIMER_BODY, memory: { role: 'claimer', targetRoom: 'W2N1' } },
         ]);
         const claimed = aRoom('W2N1').withRcl(1).build();
         const pioneers = claimTask.getSpawnRequests(task, ctx({ target: claimed }));
@@ -94,6 +95,30 @@ describe('claiming a reserved room', () => {
         expect(claimTask.decide(task, ctx({ target, creeps: target.creepsPresent }))).toEqual([
             { kind: 'attackController', creepName: 'claimer', targetId: target.controller!.id },
         ]);
+    });
+
+    test('follows the directive\'s phase: a scout first, nothing while evaluating, then the claimer', () => {
+        const at = (phase: Directive['phase']) => claimTask.getSpawnRequests(task, ctx({ directive: { ...directive, phase } }));
+        expect(at('scouting')).toEqual([
+            { taskName: 'c', priority: expect.any(Number), body: SCOUT_BODY, memory: { role: 'scout', targetRoom: 'W2N1' } },
+        ]);
+        expect(at('evaluating')).toEqual([]);
+        expect(at('claiming').map(r => r.memory?.role)).toEqual(['claimer']);
+        const scouting = ctx({ directive: { ...directive, phase: 'scouting' }, creeps: aRoom('W1N1').withMyCreep('s', 1, 1, member('scout')).build().creepsPresent });
+        expect(claimTask.getSpawnRequests(task, scouting)).toEqual([]);
+    });
+
+    test('creeps follow the planned route', () => {
+        const routed = { ...directive, phase: 'claiming' as const, route: ['W1N2', 'W2N2', 'W2N1'] };
+        const creeps = aRoom('W1N1').withMyCreep('cl', 10, 10, member('claimer')).build().creepsPresent;
+        expect(claimTask.decide(task, ctx({ directive: routed, creeps }))).toContainEqual(
+            { kind: 'move', creepName: 'cl', target: { x: 25, y: 25, roomName: 'W2N1' }, range: 1, route: ['W1N2', 'W2N2', 'W2N1'] });
+    });
+
+    test('the claimer scales its MOVE parts to the base (full size: CLAIM + 5 MOVE)', () => {
+        expect(CLAIMER_BODY.base).toEqual([CLAIM, MOVE]);
+        expect(CLAIMER_BODY.pattern).toEqual([MOVE]);
+        expect(CLAIMER_BODY.maxRepeats).toBe(4);
     });
 });
 

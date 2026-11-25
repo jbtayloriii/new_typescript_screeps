@@ -55,12 +55,14 @@ describe('createWorldSnapshot', () => {
 
     test('exposes flags, GCL, owned rooms and terrain', () => {
         const flag = { name: 'f1', color: COLOR_YELLOW, secondaryColor: COLOR_WHITE, pos: { x: 3, y: 4, roomName: 'W1N2' } };
-        const owned = mockInstanceOf<Room>({ name: 'W1N1', controller: { my: true } });
+        const owned = mockInstanceOf<Room>({ name: 'W1N1', controller: { my: true, owner: { username: 'me' } } });
         const world = createWorldSnapshot(mockGame({ time: 1, rooms: { W1N1: owned }, flags: { f1: flag }, gcl: { level: 2 } }));
 
         expect(world.flags).toEqual([{ name: 'f1', color: COLOR_YELLOW, secondaryColor: COLOR_WHITE, pos: { x: 3, y: 4, roomName: 'W1N2' } }]);
         expect(world.gclLevel).toBe(2);
         expect(world.ownedRooms).toEqual(['W1N1']);
+        // From the owned controller, so it survives losing every spawn.
+        expect(world.myUsername).toBe('me');
         expect(world.getTerrain('W5N5').isWall(0, 10)).toBe(true);
         expect(world.getTerrain('W5N5').isWall(1, 10)).toBe(false);
     });
