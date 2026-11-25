@@ -65,14 +65,31 @@ describe('planDirectives: finishing', () => {
             .toEqual([{ id: 'd0', status: 'done', reason: "can't remote mine: source keepers" }]);
     });
 
-    test('claims finish when the room becomes a base, handing its creeps over', () => {
-        const d = directive({ type: 'claim', targetRoom: 'W2N1', status: 'active', baseRoomName: 'W1N1' });
-        const newBase = aRoom('W2N1').withMyCreep('pioneer1', 10, 10, { memory: { taskName: 'c', baseRoomName: 'W1N1', role: 'pioneer' } })
+    test('a claim whose room becomes a base hands its creeps over and incubates it', () => {
+        const d = directive({ type: 'claim', targetRoom: 'W2N1', status: 'active', baseRoomName: 'W1N1', phase: 'building' });
+        const newBase = aRoom('W2N1').withRcl(1).withSpawn(20, 20)
+            .withMyCreep('pioneer1', 10, 10, { memory: { taskName: 'c', baseRoomName: 'W1N1', role: 'pioneer' } })
             .withMyCreep('other', 11, 11, { memory: { taskName: 'x', baseRoomName: 'W1N1' } }).build();
         const changes = planDirectives({ ...input({ directives: [d] }), bases: [base('W1N1'), base('W2N1')], world: worldOf([newBase]) });
 
-        expect(changes.end).toEqual([{ id: 'd0', status: 'done', reason: 'claimed: base created' }]);
+        expect(changes.end).toEqual([]);
+        expect(changes.update).toEqual([{ id: 'd0', patch: { phase: 'incubating', reason: 'incubating: RCL 1 of 3, then a tower' } }]);
         expect(changes.handoffs).toEqual([{ creepName: 'pioneer1', baseRoomName: 'W2N1' }]);
+    });
+
+    test('incubation is done once the new base has RCL 3 and a tower', () => {
+        const d = directive({ type: 'claim', targetRoom: 'W2N1', status: 'active', baseRoomName: 'W1N1', phase: 'incubating' });
+        const run = (room: ReturnType<ReturnType<typeof aRoom>['build']>) =>
+            planDirectives({ ...input({ directives: [d] }), bases: [base('W1N1'), base('W2N1')], world: worldOf([room]) }).end;
+        expect(run(aRoom('W2N1').withRcl(3).withSpawn(20, 20).build())).toEqual([]);
+        expect(run(aRoom('W2N1').withRcl(2).withSpawn(20, 20).withTower(22, 22).build())).toEqual([]);
+        expect(run(aRoom('W2N1').withRcl(3).withSpawn(20, 20).withTower(22, 22).build()))
+            .toEqual([{ id: 'd0', status: 'done', reason: 'incubated: RCL 3 with a tower' }]);
+    });
+
+    test('an incubating claim whose new base is gone ends', () => {
+        const d = directive({ type: 'claim', targetRoom: 'W2N1', status: 'active', baseRoomName: 'W1N1', phase: 'incubating' });
+        expect(planDirectives(input({ directives: [d] })).end).toEqual([{ id: 'd0', status: 'done', reason: 'new base lost' }]);
     });
 
     test('claims fail when someone else owns the room', () => {

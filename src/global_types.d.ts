@@ -96,6 +96,12 @@ declare global {
 
     /** The room the creep is heading to, for tasks that move between rooms. */
     targetRoom?: RoomName;
+
+    /**
+     * Claim pioneers: the claim directive they help. Kept when the creep is handed over to the new
+     * base (unlike the fields above), so the parent base can count its helpers there.
+     */
+    helperFor?: string;
   }
 
   /** A road route, compactly: per room, tile indexes (y * 50 + x). */

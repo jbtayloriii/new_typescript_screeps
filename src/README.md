@@ -160,9 +160,17 @@ The empire is split into these pieces:
   - **claiming**: a claimer (`[CLAIM, MOVE×5]` at full size) follows the planned route room by
     room and claims the controller (clearing a reservation first). After 3 claimers die, the
     claim is cancelled.
-  - **building**: two pioneers place and build the first spawn. When it exists, `Headquarters`
-    creates the new base, the directive is done, and the claim's creeps in that room are handed
-    over to the new base.
+  - **building**: pioneers (one per open tile at each source, at most 2 per source) place and
+    build the first spawn, upgrading first if the controller is close to downgrading.
+    Replacements spawn early enough to arrive as the old ones die. A watchdog alerts once (in
+    `Memory.log`) if the spawn site stops progressing for 1,500 ticks or isn't built 6,000 ticks
+    after the claim; it never unclaims. When the spawn exists, `Headquarters` creates the new
+    base and the claim's creeps in that room are handed over to it.
+  - **incubating**: the parent keeps 2 helper pioneers working in the new base (counted by
+    `helperFor`, which survives the handover), each handed over as it arrives. Done once the new
+    base has RCL 3 and a tower.
+  - While the claim room has hostile combat creeps (or an Invader core), nothing new is
+    spawned for it and its creeps wait in the home room.
 
 - **Military** ([military/](military/)): attack, defend and escort directives each run a `squad`
   task ([military/squad_task.ts](military/squad_task.ts)).

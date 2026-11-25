@@ -57,7 +57,10 @@ export function formatDirective(d: Directive): string {
     if (d.baseRoomName) parts.push(`from ${d.baseRoomName}`);
     parts.push(`(${d.source}${d.flagName ? ` flag ${d.flagName}` : ''})`);
     if (d.phase && !isEnded(d)) parts.push(d.phase);
-    if (d.type === 'claim' && d.spawnPos) parts.push(`spawn ${d.spawnPos.x},${d.spawnPos.y}`);
+    if (d.type === 'claim' && d.spawnPos) {
+        const built = d.spawnProgress !== undefined ? ` ${Math.floor(100 * d.spawnProgress / CONSTRUCTION_COST[STRUCTURE_SPAWN])}%` : '';
+        parts.push(`spawn ${d.spawnPos.x},${d.spawnPos.y}${built}`);
+    }
     if (d.force) parts.push('forced');
     if (d.size !== undefined) parts.push(`size ${d.size}`);
     if (d.escortedId) parts.push(`escorting ${d.escortedId}`);

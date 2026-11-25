@@ -25,7 +25,9 @@ two days after the base had spent its safe mode on three harassers.
 - [ ] **Defend remotes against players.** Remote auto defense is still NPC-only
       ([directives/planning.ts](../src/directives/planning.ts)); players there need `cmd.defend`.
 - [ ] **NPC invaders in a base with no tower.** Home defense ignores invaders (towers handle
-      them), so an RCL 1–2 base has nothing against them.
+      them), so an RCL 1–2 base has nothing against them. This includes a newly claimed base
+      while it incubates: the parent could send a defend squad, but `defend` directives for a
+      base room use home-defense rules (players only), so that needs its own handling.
 - [ ] **Defenders don't use ramparts.** They chase attackers in the open. Standing on ramparts
       near the attackers (once there's a perimeter) would keep them alive much longer.
 - [ ] **Higher hit targets for protective ramparts.** They use the shared wall table: 100k at

@@ -306,7 +306,7 @@ Plan every structure each RCL allows, without moving anything built. Design in
 - [x] Protective ramparts over spawns, towers and storage from RCL 3 (layout version 3), built
       right after storage, and towers rescue new ramparts before they decay.
 
-### Phase 8: Expansion
+### Phase 8: Expansion ✅
 Make `cmd.claim(room)` reliable from a room name alone. Design in [EXPANSION.md](EXPANSION.md).
 - [x] Spawn position v2: walking distance to sources and controller, exit penalty, and the whole
       layout (12 extension stamps) must fit, not just the core. `cmd.evaluate(room)` dry run.
@@ -314,9 +314,9 @@ Make `cmd.claim(room)` reliable from a room name alone. Design in [EXPANSION.md]
       incubation item), with the room scouted first and checks that cancel or hold with a reason.
 - [x] Base readiness (RCL 4, 1300 capacity, 10k storage, one claim at a time, `force` to skip),
       a faster claimer on a planned route, and up to 3 claim attempts.
-- [ ] Pioneers sized to the room's sources, replaced early, kept away from hostiles; stall
+- [x] Pioneers sized to the room's sources, replaced early, kept away from hostiles; stall
       watchdog (never unclaims automatically).
-- [ ] Incubation: the parent base keeps sending helpers until the new base has RCL 3 and a tower.
+- [x] Incubation: the parent base keeps sending helpers until the new base has RCL 3 and a tower.
 
 ### Later / optional
 - [ ] Simulation tests over multiple ticks with `screeps-server-mockup`, if unit tests miss bugs

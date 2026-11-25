@@ -1,6 +1,6 @@
 # Expanding to a new room — design
 
-Status: steps 1–3 of "Suggested order" implemented; 4 (building) and 5 (incubation) to do. See
+Status: implemented (steps 1–5 of "Suggested order"; step 6 is for later). See
 "Implementation notes" at the end. Builds on the phase 4 `claim` directive (see [ROADMAP.md](ROADMAP.md) phase 8),
 and on the pure layout planner from [BASE_LAYOUT.md](BASE_LAYOUT.md) (phase 7).
 
@@ -250,6 +250,42 @@ Steps 1–3 landed. Where the code differs from the design above:
 - **Also fixed:** `myUsername` now comes from an owned controller, so claim and remote checks
   still work in a base whose spawn has died.
 
-Still to do: step 4 (pioneer count per source, early replacement, staying away from hostiles,
-upgrading when the controller is close to downgrade, the stall watchdog) and step 5
-(incubation).
+Step 4 (building) landed too:
+
+- **Pioneers**: `pioneersWanted` counts open tiles next to each source from terrain (so it works
+  without vision), at most 2 per source, at least 2 in all.
+- **Early replacement**: a pioneer is replaced once its `ticksToLive` is below its spawn time
+  plus the travel time. The planner measures travel time as the age of the first pioneer seen in
+  the room (`pioneerTravelTicks` on the directive); until then it's estimated at 50 ticks per
+  room of the route.
+- **Hostiles**: `claimRoomThreats` (combat creeps or an Invader core in view, or seen in the
+  last 300 ticks). While the room is threatened, nothing new spawns for the claim, and the
+  claimer and pioneers wait in the middle of the home room (as remote miners do) rather than
+  dodging tile by tile. The reason shows in `cmd.list` ("use cmd.escort" for players). NPC
+  invaders get the automatic defend directive.
+- **Downgrade**: pioneers upgrade instead of building while `ticksToDowngrade` < 5,000.
+- **Watchdog**: the planner tracks the spawn site's progress (`spawnProgress`,
+  `spawnProgressAt`). With no progress for 1,500 ticks, or no spawn 6,000 ticks after the claim,
+  it sets a "stalled" reason and logs one alert to `Memory.log` (`stalledAt` keeps it to one).
+  Progress clears it. It never unclaims.
+- **Spawn priority**: claimers 58 and pioneers 55 (were 30 and 25), above extra upgraders and
+  remote mining, which a healthy RCL 4 base can keep requesting indefinitely.
+- `cmd.list` shows the spawn's progress, e.g. `building spawn 24,9 42%`.
+
+Step 5 (incubation) landed:
+
+- When the spawn is built and the room becomes a base, the claim moves to `incubating` instead
+  of ending. The parent's pioneers and claimer in the room are handed over then, and each helper
+  after that as it arrives.
+- **"Keeps 2 helpers going" means 2 alive, not 2 in transit**: a steady stream of 2 at a time
+  would pile up about 20 pioneers over an incubation. Every claim pioneer is spawned with
+  `helperFor: <directive id>`, which survives the handover (unlike `role` and `targetRoom`), so
+  the parent counts the helpers already working in the new base. Replaced early like pioneers.
+- Done at RCL 3 with a tower ("incubated: RCL 3 with a tower"). If the room stops being a base
+  while incubating, the claim ends with "new base lost". An incubating claim doesn't block the
+  parent from starting another claim (only `claiming` and `building` do).
+- `cmd.list` shows "incubating: RCL 2 of 3, then a tower".
+
+Not done: the parent doesn't defend the incubating base. Its own home defense covers players
+(with a 300-capacity spawn), and nothing covers NPC invaders before its first tower (see
+[TODO.md](TODO.md)).

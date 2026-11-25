@@ -58,7 +58,7 @@ export interface Directive {
     readonly threat?: ThreatParts;
 
     // Claims (see docs/EXPANSION.md and directives/claim_phases.ts):
-    /** Where the claim is: scouting → evaluating → claiming → building. Missing means scouting. */
+    /** Where the claim is: scouting → evaluating → claiming → building → incubating. Missing means scouting. */
     readonly phase?: ClaimPhase;
     /** The spawn position evaluation, made once in `evaluating`. */
     readonly evaluation?: ClaimEvaluation;
@@ -71,9 +71,16 @@ export interface Directive {
     readonly claimedAt?: number;
     /** Skip the base readiness checks (never the room's hard blockers). */
     readonly force?: boolean;
+    /** Ticks a pioneer took to reach the room, measured from the first one to arrive. */
+    readonly pioneerTravelTicks?: number;
+    /** The spawn site's progress (of 15,000), and the tick it last went up. */
+    readonly spawnProgress?: number;
+    readonly spawnProgressAt?: number;
+    /** Tick the claim was reported stalled (cleared when progress resumes). */
+    readonly stalledAt?: number;
 }
 
-export type ClaimPhase = 'scouting' | 'evaluating' | 'claiming' | 'building';
+export type ClaimPhase = 'scouting' | 'evaluating' | 'claiming' | 'building' | 'incubating';
 
 /** Combat body parts on a group of hostile creeps. */
 export interface ThreatParts {

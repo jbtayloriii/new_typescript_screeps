@@ -1,4 +1,5 @@
-import { RoomIntel } from "intel/types";
+import { IntelMap, RoomIntel } from "intel/types";
+import { WorldSnapshot } from "snapshot/world";
 
 /**
  * Checks before claiming a room (docs/EXPANSION.md, "Checks before committing"). Pure.
@@ -97,4 +98,28 @@ export function claimBaseNotReady(base: ClaimBaseState): string | null {
         return `route is ~${routeTicks} ticks, too long for a claimer (${CLAIM_MAX_ROUTE_TICKS})`;
     }
     return null;
+}
+
+/** A claim room counts as threatened for this long after hostile combat creeps were last seen. */
+export const CLAIM_THREAT_COOLDOWN = 300;
+
+/**
+ * Who threatens a claim room: hostile combat creeps (any owner but Source Keepers) there now, or
+ * seen within CLAIM_THREAT_COOLDOWN, or an Invader core. Returns their owners ('Invader' for
+ * NPCs), or an empty list if the room is safe. While threatened, the claim's creeps stay home.
+ */
+export function claimRoomThreats(world: WorldSnapshot, intel: IntelMap, room: RoomName): string[] {
+    const live = world.getRoom(room);
+    if (live) {
+        const combat = live.hostileCreeps.filter(h => h.owner !== 'Source Keeper'
+            && (h.activeParts[ATTACK] ?? 0) + (h.activeParts[RANGED_ATTACK] ?? 0) > 0);
+        const owners = new Set(combat.map(h => h.owner));
+        if (live.structures.some(s => s.structureType === STRUCTURE_INVADER_CORE)) owners.add(INVADER);
+        if (owners.size > 0) return [...owners];
+    }
+    const known = intel[room];
+    if (!known) return [];
+    if (!live && (known.invaderCores ?? 0) > 0) return [INVADER];
+    const recent = known.hostilesLastSeen !== undefined && world.tick - known.hostilesLastSeen < CLAIM_THREAT_COOLDOWN;
+    return recent ? [...(known.hostileOwners ?? [])] : [];
 }

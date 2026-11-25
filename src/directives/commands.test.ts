@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { createCommands } from './commands';
+import { createCommands, formatDirective } from './commands';
 import { createTestMemory } from 'testing/memory';
 import { worldOf } from 'testing/builders/world';
 import { aRoom } from 'testing/builders/room_snapshot_builder';
@@ -130,5 +130,15 @@ describe('cmd.claim and cmd.evaluate', () => {
         expect(out).toMatch(/^W2N3 from W1N1:\n  spawn \d+,\d+ · sources \d+, \d+ · controller \d+ \(walking\)/);
         expect(out).toContain('extension stamps 12/12 · route 1 room: W2N3');
         expect(out).toContain('room: ok · base: not ready (base RCL 2 < 4)');
+    });
+});
+
+describe('formatDirective for claims', () => {
+    test('shows the phase, spawn tile and how far the spawn is built', () => {
+        const d = {
+            id: 'd7', type: 'claim' as const, targetRoom: 'W2N3', source: 'manual' as const, status: 'active' as const, createdAt: 1,
+            baseRoomName: 'W1N1', phase: 'building' as const, spawnPos: { x: 24, y: 9 }, spawnProgress: 6300,
+        };
+        expect(formatDirective(d)).toBe('d7 claim W2N3 [active] from W1N1 (manual) building spawn 24,9 42%');
     });
 });

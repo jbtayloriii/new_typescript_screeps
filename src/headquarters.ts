@@ -51,6 +51,9 @@ export class Headquarters {
     const store = new DirectiveStore(Memory);
     const changes = planDirectives(this.planInput(world));
     store.apply(changes, world.tick);
+    for (const alert of changes.alerts ?? []) {
+      Logger.warning(alert);
+    }
     for (const spec of changes.create) {
       if (spec.type === 'defend' && spec.targetRoom === spec.baseRoomName) {
         // Saved in Memory.log (and the daily email), so attacks leave a record.

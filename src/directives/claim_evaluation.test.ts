@@ -1,5 +1,7 @@
 import { describe, expect, test } from '@jest/globals';
-import { checkClaimRoom, claimBaseNotReady, ClaimBaseState, PLAYER_HOSTILE_RECENT_TICKS, RoomCheckInput } from './claim_evaluation';
+import { CLAIM_THREAT_COOLDOWN, checkClaimRoom, claimBaseNotReady, ClaimBaseState, claimRoomThreats, PLAYER_HOSTILE_RECENT_TICKS, RoomCheckInput } from './claim_evaluation';
+import { aRoom } from 'testing/builders/room_snapshot_builder';
+import { worldOf } from 'testing/builders/world';
 import { RoomIntel } from 'intel/types';
 
 const intel = (overrides: Partial<RoomIntel> = {}): RoomIntel => ({
@@ -46,5 +48,21 @@ describe('claimBaseNotReady', () => {
         expect(claimBaseNotReady({ ...ready, underAttack: true })).toBe('base is under attack');
         expect(claimBaseNotReady({ ...ready, otherClaim: 'd4' })).toBe('base is already running claim d4');
         expect(claimBaseNotReady({ ...ready, routeRooms: 10 })).toBe('route is ~500 ticks, too long for a claimer (500)');
+    });
+});
+
+describe('claimRoomThreats', () => {
+    test('combat creeps or an Invader core in view, else what intel saw recently', () => {
+        const live = (build: (b: ReturnType<typeof aRoom>) => ReturnType<typeof aRoom>) => worldOf([build(aRoom('W2N1').withTick(1000)).build()]);
+        expect(claimRoomThreats(live(b => b.withHostile(1, 1, { owner: 'them' })), {}, 'W2N1')).toEqual(['them']);
+        expect(claimRoomThreats(live(b => b.withHostile(1, 1, { owner: 'them', activeParts: { [WORK]: 5 } })), {}, 'W2N1')).toEqual([]);
+        expect(claimRoomThreats(live(b => b.withHostile(1, 1, { owner: 'Source Keeper' })), {}, 'W2N1')).toEqual([]);
+        expect(claimRoomThreats(live(b => b.withStructure(STRUCTURE_INVADER_CORE, 5, 5, { owner: 'other' })), {}, 'W2N1')).toEqual(['Invader']);
+
+        const blind = worldOf([aRoom('W1N1').withTick(1000).build()]);
+        const seen = intel({ hostileOwners: ['them'], hostileCombatCreeps: 1, hostilesLastSeen: 900 });
+        expect(claimRoomThreats(blind, { W2N1: seen }, 'W2N1')).toEqual(['them']);
+        expect(claimRoomThreats(worldOf([aRoom('W1N1').withTick(900 + CLAIM_THREAT_COOLDOWN).build()]), { W2N1: seen }, 'W2N1')).toEqual([]);
+        expect(claimRoomThreats(blind, { W2N1: intel({ invaderCores: 1 }) }, 'W2N1')).toEqual(['Invader']);
     });
 });

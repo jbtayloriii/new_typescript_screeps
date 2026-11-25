@@ -7,7 +7,8 @@ import { WorldSnapshot } from "snapshot/world";
 import { chooseNewRemoteRooms, remoteBlocker } from "tasks/remote_selection";
 import { roomLinearDistance } from "utils/room_names";
 import { parseFlag } from "./flags";
-import { planClaimPhase } from "./claim_phases";
+import { INCUBATION_DONE_RCL, planClaimPhase } from "./claim_phases";
+import { getMyStructures } from "snapshot/queries";
 import { Directive, DirectiveSpec, isEnded, isMilitary, ThreatParts } from "./types";
 
 /** A base's state as directive planning needs it. */
@@ -34,6 +35,8 @@ export interface DirectiveChanges {
     readonly update: readonly { readonly id: string; readonly patch: Partial<Directive> }[];
     readonly end: readonly { readonly id: string; readonly status: 'done' | 'cancelled'; readonly reason: string }[];
     readonly intents: readonly Intent[];
+    /** Messages for the player, e.g. a stalled claim (`Headquarters` logs them). */
+    readonly alerts?: readonly string[];
     /**
      * Creeps moving to another base (a finished claim's creeps join the new base). Applied before
      * creeps are grouped by base, so no base sees them as its own orphans this tick.
@@ -89,6 +92,7 @@ export function planDirectives(input: DirectivePlanInput): DirectiveChanges {
     const end: { id: string, status: 'done' | 'cancelled', reason: string }[] = [];
     const intents: Intent[] = [];
     const handoffs: { creepName: string, baseRoomName: RoomName }[] = [];
+    const alerts: string[] = [];
     const live = input.directives.filter(d => !isEnded(d));
 
     // 1. Flags.
@@ -118,14 +122,20 @@ export function planDirectives(input: DirectivePlanInput): DirectiveChanges {
             if (d.flagName && flagNames.has(d.flagName)) {
                 intents.push({ kind: 'removeFlag', flagName: d.flagName });
             }
-            if (d.type === 'claim' && input.bases.some(b => b.roomName === d.targetRoom)) {
-                for (const creep of world.myCreeps) {
-                    const role = creep.memory.role;
-                    if (creep.pos.roomName === d.targetRoom && creep.memory.baseRoomName === d.baseRoomName
-                        && (role === 'pioneer' || role === 'claimer')) {
-                        handoffs.push({ creepName: creep.name, baseRoomName: d.targetRoom });
-                    }
-                }
+        }
+    }
+
+    // Claims whose room is now a base: the parent's pioneers and claimer there join the new base
+    // (on creation, then each incubation helper as it arrives).
+    for (const d of live) {
+        if (d.type !== 'claim' || !input.bases.some(b => b.roomName === d.targetRoom)) {
+            continue;
+        }
+        for (const creep of world.myCreeps) {
+            const role = creep.memory.role;
+            if (creep.pos.roomName === d.targetRoom && creep.memory.baseRoomName === d.baseRoomName
+                && (role === 'pioneer' || role === 'claimer')) {
+                handoffs.push({ creepName: creep.name, baseRoomName: d.targetRoom });
             }
         }
     }
@@ -145,7 +155,7 @@ export function planDirectives(input: DirectivePlanInput): DirectiveChanges {
         }
         const claimBase = input.bases.find(b => b.roomName === d.baseRoomName);
         if (d.type === 'claim' && d.status === 'active' && claimBase) {
-            const result = planClaimPhase(d, claimBase, { world, intel, directives: input.directives });
+            const result = planClaimPhase(d, claimBase, { world, intel, directives: input.directives, baseRooms: input.bases.map(b => b.roomName) });
             if (result.cancel) {
                 end.push({ id: d.id, status: 'cancelled', reason: result.cancel });
                 ending.add(d.id);
@@ -155,6 +165,7 @@ export function planDirectives(input: DirectivePlanInput): DirectiveChanges {
             } else if (Object.keys(result.patch).length > 0) {
                 update.push({ id: d.id, patch: result.patch });
             }
+            alerts.push(...(result.alerts ?? []));
         }
     }
 
@@ -241,7 +252,7 @@ export function planDirectives(input: DirectivePlanInput): DirectiveChanges {
         }
     }
 
-    return { create, update, end, intents, handoffs };
+    return { create, update, end, intents, handoffs, alerts };
 }
 
 /** Why a directive is finished (met or impossible), or null if it should keep going. */
@@ -260,7 +271,14 @@ function finishedReason(d: Directive, input: DirectivePlanInput): string | null 
         }
         case 'claim': {
             if (input.bases.some(b => b.roomName === d.targetRoom)) {
-                return 'claimed: base created';
+                // Incubating: done once the new base can look after itself.
+                const room = world.getRoom(d.targetRoom);
+                const rcl = room?.controller?.level ?? 0;
+                const towers = room ? getMyStructures(room, STRUCTURE_TOWER).length : 0;
+                return rcl >= INCUBATION_DONE_RCL && towers > 0 ? `incubated: RCL ${rcl} with a tower` : null;
+            }
+            if (d.phase === 'incubating') {
+                return 'new base lost';
             }
             const owner = room?.controller?.owner;
             if (owner && owner !== world.myUsername) {

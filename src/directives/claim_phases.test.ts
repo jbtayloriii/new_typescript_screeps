@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { assessClaim, ClaimBase, MAX_CLAIM_ATTEMPTS, planClaimPhase } from './claim_phases';
+import { assessClaim, CLAIM_SPAWN_DEADLINE_TICKS, CLAIM_STALL_TICKS, ClaimBase, MAX_CLAIM_ATTEMPTS, planClaimPhase } from './claim_phases';
 import { Directive } from './types';
 import { IntelMap, RoomIntel } from 'intel/types';
 import { aRoom } from 'testing/builders/room_snapshot_builder';
@@ -82,5 +82,55 @@ describe('assessClaim', () => {
         expect(assessClaim('W2N1', base, c)).toMatchObject({ route: ['W1N2', 'W2N1'] });
         const blocked = { ...c, intel: { ...c.intel, W1N2: theirs } };
         expect(assessClaim('W2N1', base, blocked)).toEqual({ cancel: 'no route that avoids other players\' rooms' });
+    });
+});
+
+describe('planClaimPhase: building', () => {
+    const mine = intel({ controller: { x: 25, y: 25, level: 1, owner: 'me' } });
+    const building = (overrides: Partial<Directive> = {}) => claim({ phase: 'building', claimedAt: 50, ...overrides });
+    const target = (tick: number, progress?: number, build = (b: ReturnType<typeof aRoom>) => b) => {
+        let room = aRoom('W2N1').withTick(tick).withRcl(1);
+        if (progress !== undefined) room = room.withConstructionSite(STRUCTURE_SPAWN, 20, 20, { progress, progressTotal: 15000 });
+        return build(room).build();
+    };
+    const at = (tick: number, rooms: ReturnType<ReturnType<typeof aRoom>['build']>[]) =>
+        ctx({ intel: mine, rooms: [aRoom('W1N1').withTick(tick).build(), ...rooms] });
+
+    test('measures the first pioneer\'s travel time', () => {
+        const room = target(300, 0, b => b.withMyCreep('p', 5, 5, { memory: { taskName: 't', baseRoomName: 'W1N1', role: 'pioneer', targetRoom: 'W2N1' }, ticksToLive: 1380 }));
+        expect(planClaimPhase(building(), base, at(300, [room])).patch.pioneerTravelTicks).toBe(120);
+        expect(planClaimPhase(building({ pioneerTravelTicks: 90 }), base, at(300, [room])).patch.pioneerTravelTicks).toBeUndefined();
+    });
+
+    test('tracks the spawn site\'s progress', () => {
+        expect(planClaimPhase(building({ spawnProgress: 100, spawnProgressAt: 200 }), base, at(300, [target(300, 500)])).patch)
+            .toEqual({ spawnProgress: 500, spawnProgressAt: 300 });
+        expect(planClaimPhase(building({ spawnProgress: 500, spawnProgressAt: 300 }), base, at(301, [target(301, 500)])).patch).toEqual({});
+    });
+
+    test('reports a stall once, with a reason, and clears it when progress resumes', () => {
+        const stalled = planClaimPhase(building({ spawnProgress: 500, spawnProgressAt: 300 }), base, at(300 + CLAIM_STALL_TICKS, [target(300 + CLAIM_STALL_TICKS, 500)]));
+        expect(stalled.patch).toEqual({ stalledAt: 300 + CLAIM_STALL_TICKS, reason: `stalled: no spawn progress for ${CLAIM_STALL_TICKS} ticks` });
+        expect(stalled.alerts).toEqual([`claim d1 W2N1 stalled: no spawn progress for ${CLAIM_STALL_TICKS} ticks (it won't unclaim; cmd.cancel('d1') to give up)`]);
+
+        const already = building({ spawnProgress: 500, spawnProgressAt: 300, stalledAt: 1800, reason: 'stalled: no spawn progress for 1500 ticks' });
+        expect(planClaimPhase(already, base, at(1900, [target(1900, 500)])).alerts).toEqual([]);
+        expect(planClaimPhase(already, base, at(1901, [target(1901, 900)])).patch)
+            .toEqual({ spawnProgress: 900, spawnProgressAt: 1901, stalledAt: undefined, reason: undefined });
+    });
+
+    test('reports a spawn not built long after the claim, even with some progress', () => {
+        const tick = 50 + CLAIM_SPAWN_DEADLINE_TICKS;
+        const late = planClaimPhase(building({ spawnProgress: 900, spawnProgressAt: tick - 10 }), base, at(tick, [target(tick, 900)]));
+        expect(late.patch.reason).toBe(`stalled: spawn not built ${CLAIM_SPAWN_DEADLINE_TICKS} ticks after the claim`);
+    });
+
+    test('shows why the creeps are waiting while the room is threatened', () => {
+        const room = target(300, 0, b => b.withHostile(10, 10, { owner: 'someone' }));
+        expect(planClaimPhase(building({ spawnProgressAt: 300 }), base, at(300, [room])).patch.reason)
+            .toBe('hostiles in the room (someone): creeps wait at home, use cmd.escort');
+        const invaders = target(300, 0, b => b.withHostile(10, 10));
+        expect(planClaimPhase(building({ spawnProgressAt: 300 }), base, at(300, [invaders])).patch.reason)
+            .toBe('hostiles in the room (Invader): creeps wait at home');
     });
 });
