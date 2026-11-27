@@ -1,6 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
-import { chooseLeader, currentSquadState, nextSquadState, rallyPoint, squadHealth, squadTask } from './squad_task';
-import { SquadState, SQUAD_BODIES, MISSION_PRIORITY } from './squads';
+import { chooseLeader, currentSquadState, nextSquadState, RALLY_TIMEOUT, rallyPoint, squadHealth, squadTask } from './squad_task';
+import { FORMING_SQUAD_PRIORITY, SquadState, SQUAD_BODIES, MISSION_PRIORITY } from './squads';
 import { HOME_DEFENSE_PRIORITY } from './home_defense';
 import { aRoom, RoomSnapshotBuilder } from 'testing/builders/room_snapshot_builder';
 import { aTaskContext } from 'testing/builders/context';
@@ -57,7 +57,38 @@ describe('squad helpers', () => {
     });
 });
 
+describe('rally timeout', () => {
+    const waited = (ticks: number) => ({ ticksToLive: CREEP_LIFE_TIME - ticks });
+    const gathered = (...ticks: number[]) =>
+        homeWith(b => ticks.reduce((r, t, i) => r.withMyCreep(`m${i}`, 11, 11 + i, { ...member('melee'), ...waited(t) }), b));
+
+    test('an incomplete squad moves out after RALLY_TIMEOUT with at least half its members', () => {
+        const two = gathered(RALLY_TIMEOUT + 1, 10);
+        expect(nextSquadState(SquadState.RALLY, two.creepsPresent, 4, rallyPoint(two))).toBe(SquadState.ENGAGE);
+        expect(nextSquadState(SquadState.RALLY, gathered(RALLY_TIMEOUT - 1, 10).creepsPresent, 4, rallyPoint(two))).toBe(SquadState.RALLY);
+    });
+
+    test('keeps waiting with fewer than half, or while members are still walking to the rally point', () => {
+        const one = gathered(RALLY_TIMEOUT + 1);
+        expect(nextSquadState(SquadState.RALLY, one.creepsPresent, 4, rallyPoint(one))).toBe(SquadState.RALLY);
+        const straggling = homeWith(b => b.withMyCreep('a', 11, 11, { ...member('melee'), ...waited(RALLY_TIMEOUT + 1) })
+            .withMyCreep('b', 40, 40, { ...member('melee'), ...waited(10) }));
+        expect(nextSquadState(SquadState.RALLY, straggling.creepsPresent, 4, rallyPoint(straggling))).toBe(SquadState.RALLY);
+    });
+});
+
 describe('squadTask.getSpawnRequests', () => {
+    test('once the first member exists, the rest of a forming squad spawns at FORMING_SQUAD_PRIORITY', () => {
+        const spawningMelee = homeWith(b => b.withMyCreep('a', 10, 10, { ...member('melee'), spawning: true }));
+        expect(squadTask.getSpawnRequests(task, ctx(spawningMelee))).toEqual([
+            { taskName: 'sq', priority: FORMING_SQUAD_PRIORITY, body: SQUAD_BODIES.healer, memory: { role: 'healer' } },
+        ]);
+        // Replacements for a squad that already moved out stay at the mission priority.
+        const engaged = homeWith(b => b.withMyCreep('a', 1, 1, member('melee', SquadState.ENGAGE)));
+        expect(squadTask.getSpawnRequests(task, ctx(engaged))[0].priority).toBe(MISSION_PRIORITY.attack);
+    });
+
+
     test('requests the missing roles at the mission priority', () => {
         expect(squadTask.getSpawnRequests(task, ctx(homeWith()))).toEqual([
             { taskName: 'sq', priority: MISSION_PRIORITY.attack, body: SQUAD_BODIES.melee, memory: { role: 'melee' } },

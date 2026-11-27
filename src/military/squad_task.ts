@@ -5,7 +5,7 @@ import { SpawnRequest, SquadTaskMemory, TaskContext, TaskDefinition } from "task
 import { chooseTarget, CombatRole, CombatTarget, decideCombat, StructureTargets } from "./combat";
 import { enemyProfile, HOME_DEFENSE_PRIORITY } from "./home_defense";
 import {
-    DEFAULT_SQUAD_SIZE, homeDefenseComposition, Mission, MISSION_PRIORITY, RETREAT_BELOW, RETREAT_RECOVER, SQUAD_BODIES,
+    DEFAULT_SQUAD_SIZE, FORMING_SQUAD_PRIORITY, homeDefenseComposition, Mission, MISSION_PRIORITY, RETREAT_BELOW, RETREAT_RECOVER, SQUAD_BODIES,
     squadComposition, SquadState,
 } from "./squads";
 
@@ -13,6 +13,12 @@ import {
 export const COHESION_RANGE = 3;
 /** Members count as gathered at the rally point within this range. */
 export const RALLY_RANGE = 4;
+/**
+ * A squad still incomplete once a member has waited this many ticks at the rally point (counted
+ * from its spawn) moves out with the members it has, if that's at least half the squad, rather
+ * than waiting while their lives run out. Missing members then join it wherever it is.
+ */
+export const RALLY_TIMEOUT = 500;
 /** Escorts engage hostiles within this range of the creeps they guard. */
 export const ESCORT_GUARD_RANGE = 6;
 /** Any squad member fights back against hostiles this close, wherever it is. */
@@ -80,7 +86,9 @@ export function squadHealth(members: readonly MyCreepSnapshot[]): number {
 /**
  * The next squad state:
  * - RALLY → ENGAGE once every role is filled, nobody is spawning, and all are at the rally point
- *   (or straight away when `rallies` is false: home defenders fight as soon as they spawn);
+ *   (or straight away when `rallies` is false: home defenders fight as soon as they spawn). Also
+ *   once a member has waited RALLY_TIMEOUT, if at least half the squad has spawned and gathered:
+ *   those members move out, and the rest follow as they spawn;
  * - ENGAGE → RETREAT below RETREAT_BELOW total health;
  * - RETREAT → ENGAGE once back above RETREAT_RECOVER.
  */
@@ -92,9 +100,15 @@ export function nextSquadState(
     rallies = true): SquadState {
     switch (state) {
         case SquadState.RALLY: {
-            const ready = !rallies || members.length >= wanted
-                && members.every(m => !m.spawning && getRange(m.pos, rally) <= RALLY_RANGE);
-            return ready ? SquadState.ENGAGE : SquadState.RALLY;
+            if (!rallies) {
+                return SquadState.ENGAGE;
+            }
+            const present = members.filter(m => !m.spawning);
+            const gathered = present.every(m => getRange(m.pos, rally) <= RALLY_RANGE);
+            const complete = members.length >= wanted && present.length === members.length;
+            const waitedTooLong = present.some(m => m.ticksToLive !== undefined && m.ticksToLive < CREEP_LIFE_TIME - RALLY_TIMEOUT);
+            const enough = present.length >= Math.ceil(wanted / 2);
+            return gathered && (complete || (waitedTooLong && enough)) ? SquadState.ENGAGE : SquadState.RALLY;
         }
         case SquadState.ENGAGE:
             return squadHealth(members) < RETREAT_BELOW ? SquadState.RETREAT : SquadState.ENGAGE;
@@ -157,6 +171,10 @@ function targetFor(member: MyCreepSnapshot, task: SquadTaskMemory, ctx: TaskCont
  * `decideCombat`). Below 40% total health the squad retreats to the rally point and re-engages
  * at 90%. A replacement for a lost member joins the squad wherever it is.
  *
+ * Members spawn at the mission's priority until the first one exists, then the rest of the
+ * forming squad at FORMING_SQUAD_PRIORITY. If the squad is still incomplete after RALLY_TIMEOUT,
+ * it moves out with what it has (see `nextSquadState`).
+ *
  * Home defense (a defend directive for the base's own room) differs: it spawns at
  * HOME_DEFENSE_PRIORITY (the first defender with the energy available now), counters the
  * attackers seen (`homeDefenseComposition`), and skips the rally, so each defender fights as it
@@ -170,6 +188,10 @@ export const squadTask: TaskDefinition<SquadTaskMemory> = {
         }
         const home = isHomeDefense(task, ctx);
         const roles = rolesFor(task, ctx);
+        // Once the first member exists (even still spawning), the rest of a forming squad spawns
+        // ahead of most of the economy, so members don't age at the rally point.
+        const forming = ctx.creeps.length > 0 && currentSquadState(ctx.creeps.filter(c => !c.spawning)) === SquadState.RALLY;
+        const basePriority = home ? HOME_DEFENSE_PRIORITY : forming ? FORMING_SQUAD_PRIORITY : MISSION_PRIORITY[task.mission];
         const requests: SpawnRequest[] = [];
         for (const role of ROLE_ORDER) {
             const have = ctx.creeps.filter(c => c.memory.role === role).length;
@@ -177,7 +199,7 @@ export const squadTask: TaskDefinition<SquadTaskMemory> = {
             for (let i = have; i < want; i++) {
                 requests.push({
                     taskName: task.name,
-                    priority: (home ? HOME_DEFENSE_PRIORITY : MISSION_PRIORITY[task.mission]) - requests.length,
+                    priority: basePriority - requests.length,
                     body: SQUAD_BODIES[role],
                     memory: { role },
                     // The base is under attack: the first defender spawns with the energy there is now.

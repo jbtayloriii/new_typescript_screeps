@@ -278,7 +278,9 @@ base room.
       defend/escort is ranged plus a healer. Rally at the home spawn until complete, then move
       out with follow-the-leader movement (followers stay next to the leader, the leader waits for
       stragglers but never on a room edge). Retreat below 40% total health, re-engage at 90%.
-      Reinforcements join wherever the squad is. **Simpler than planned:** no fixed formations
+      Reinforcements join wherever the squad is. Once the first member exists, the rest spawn at
+      88 (above most of the economy, below miners and haulers); after 500 ticks at the rally an
+      incomplete squad (at least half) moves out anyway (2026-11-27). **Simpler than planned:** no fixed formations
       (e.g. 2×2 quads); follow-the-leader with cohesion waits instead.
 - [x] Pure engagement logic (`military/combat.ts`): target tiers (healers → ranged → melee →
       others; then cores/towers → spawns → extensions → other structures), per-mission structure

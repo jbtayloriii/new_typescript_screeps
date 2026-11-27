@@ -17,6 +17,14 @@ export const MISSION_PRIORITY: Record<Mission, number> = {
     attack: 20,
 };
 
+/**
+ * Spawn priority for the rest of a squad once its first member exists and it's still at the
+ * rally point: above builders, repairers, upgraders and remotes, below miners and haulers (and
+ * home defense). At MISSION_PRIORITY the members waiting at the rally point used up their lives
+ * while each economy request spawned ahead of the next member.
+ */
+export const FORMING_SQUAD_PRIORITY = 88;
+
 export const DEFAULT_SQUAD_SIZE: Record<Mission, number> = {
     defend: 2,
     escort: 2,

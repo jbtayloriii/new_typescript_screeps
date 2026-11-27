@@ -178,8 +178,12 @@ The empire is split into these pieces:
   - **Composition** (`squadComposition`): attack squads are one healer per 3 members, the rest
     alternating melee and ranged (default size 4). Defend and escort squads are ranged plus a
     healer (default size 2; automatic defense sizes to the threat, 2–4).
+  - **Spawning**: members spawn at the mission's priority (attack 20, escort 45, defend 70) until
+    the first one exists; the rest of a forming squad then spawns at 88, above builders,
+    repairers, upgraders and remotes but below miners and haulers.
   - **Movement**: members gather at the rally point next to the home spawn until the squad is
-    complete, then move out together. The leader (fighters before healers) heads for the
+    complete, then move out together. If it's still incomplete 500 ticks after a member spawned,
+    it moves out with what it has (at least half the squad) and the rest follow. The leader (fighters before healers) heads for the
     target; followers stay next to it; the leader waits for members more than 3 tiles behind,
     except on room-edge tiles. Below 40% total health the squad retreats to the rally point and
     re-engages at 90%. Replacements for lost members go straight to the squad.
