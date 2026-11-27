@@ -51,10 +51,10 @@ The empire is split into these pieces:
   | Task | Creeps | What they do |
   |---|---|---|
   | `mine` (one per source) | harvesters (at most 2, never more than the source's open tiles), then 1 miner (`5×WORK + MOVE`) once affordable, replaced early | see "Mining" below |
-  | `haul` (once a source has a container or a miner) | sized to those sources × path distance | collect from source containers and dropped energy; deliver |
-  | `upgrade` | WORK parts sized to spare income (+ storage bonus), at least 1 | gather energy, upgrade the controller |
+  | `haul` (once a source has a container or a miner) | CARRY sized to those sources × path distance, plus a hauler while a mine has 1500+ energy waiting; retiring haulers replaced early | collect from source containers and dropped energy; deliver |
+  | `upgrade` | WORK parts sized to spare income (only part of it while storage is below 20k; + storage bonus above), at least 1 | gather energy (controller container before storage), upgrade the controller |
   | `build` (while there are sites) | 1–3, by remaining work | gather energy, build the most important site (build priority order), closest among equals; done when none are left |
-  | `repair` | 1 | repair critical structures, then damaged ones, then the weakest wall/rampart below its RCL target; else upgrade |
+  | `repair` | 1 | repair critical structures, then damaged ones, then the weakest wall/rampart below its RCL target (only walls in the base layout); else upgrade |
   | `scout` (routine, from RCL 2) | one `[MOVE]`, only while a nearby room's intel is stale | visit rooms within 2 exits whose intel is missing or old, closest first |
   | `scout` (per scout directive) | one `[MOVE]` | go to the directive's room until it's been seen |
   | `remoteMine` (one per remote mine directive) | a miner per source, haulers, and (from 1300 capacity) a reserver | mine the remote room's sources and haul the energy home; see "Remote mining" below |
@@ -111,7 +111,8 @@ The empire is split into these pieces:
 
 - **Defense** ([defense/](defense/)): towers attack healers first, then attackers; heal my damaged
   creeps; and, keeping 500 energy in reserve, repair damaged structures and then the weakest
-  wall/rampart below its RCL target, but first any rampart about to decay away. Safe mode
+  wall/rampart below its RCL target (only walls in the base layout, not ones a previous owner
+  left), but first any rampart about to decay away. Safe mode
   ([defense/safe_mode.ts](defense/safe_mode.ts)) is kept for when the base is about to fall:
   hostiles within 3 of a spawn or tower can destroy it (and the rampart over it) within 50 ticks
   and the towers can't kill them first, or a claimer reaches the controller (which would block

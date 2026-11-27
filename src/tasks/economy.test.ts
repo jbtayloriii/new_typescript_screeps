@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import { computeEconomy, desiredBuilderCount, MAX_BUILDERS, upgradeWorkBudget } from './economy';
+import { computeEconomy, desiredBuilderCount, MAX_BUILDERS, STORAGE_ENERGY_PER_EXTRA_WORK, STORAGE_UPGRADE_RESERVE, upgradeWorkBudget } from './economy';
 import { aRoom, energy } from 'testing/builders/room_snapshot_builder';
 import { TaskMemory } from './types';
 import { MyCreepSnapshot } from 'snapshot/types';
@@ -46,9 +46,20 @@ describe('upgradeWorkBudget', () => {
         expect(upgradeWorkBudget(economy(0), aRoom().withRcl(1).build())).toBe(1);
     });
 
+    test('with a storage below the reserve, leaves part of the spare income to fill it', () => {
+        const withStorage = (stored: number) =>
+            aRoom().withRcl(5).withStructure(STRUCTURE_STORAGE, 1, 1, { store: energy(stored, 1e6) }).build();
+        // 17 spare / (1 + 200/1500) per WORK = 15 WORK at full share.
+        expect(upgradeWorkBudget(economy(20, 3), withStorage(0))).toBe(3);                              // 25% share
+        expect(upgradeWorkBudget(economy(20, 3), withStorage(STORAGE_UPGRADE_RESERVE / 2))).toBe(7);    // 50% share
+        expect(upgradeWorkBudget(economy(20, 3), withStorage(STORAGE_UPGRADE_RESERVE))).toBe(15);       // full share
+        expect(upgradeWorkBudget(economy(0), withStorage(0))).toBe(1);
+    });
+
     test('adds WORK for storage above the reserve, capped at 15 on RCL 8', () => {
         const stored = aRoom().withRcl(5).withStructure(STRUCTURE_STORAGE, 1, 1, { store: energy(150000, 1e6) }).build();
-        expect(upgradeWorkBudget(economy(0), stored)).toBe(4);
+        expect(upgradeWorkBudget(economy(0), stored))
+            .toBe(Math.floor((150000 - STORAGE_UPGRADE_RESERVE) / STORAGE_ENERGY_PER_EXTRA_WORK));
         expect(upgradeWorkBudget(economy(100), aRoom().withRcl(8).build())).toBe(15);
     });
 });

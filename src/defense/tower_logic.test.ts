@@ -2,10 +2,12 @@ import { describe, expect, test } from '@jest/globals';
 import { decideTowerIntents } from './tower_logic';
 import { aRoom } from 'testing/builders/room_snapshot_builder';
 
+const noWalls: ReadonlySet<string> = new Set();
+
 describe('decideTowerIntents', () => {
     test('does nothing in a quiet, undamaged room', () => {
         const room = aRoom().withTower(25, 25).withStructure(STRUCTURE_ROAD, 26, 26, { owner: 'none' }).build();
-        expect(decideTowerIntents(room)).toEqual([]);
+        expect(decideTowerIntents(room, noWalls)).toEqual([]);
     });
 
     test('attacks the closest hostile', () => {
@@ -13,7 +15,7 @@ describe('decideTowerIntents', () => {
         const [tower] = room.structures;
         const closeHostile = room.hostileCreeps[1];
 
-        expect(decideTowerIntents(room)).toEqual([
+        expect(decideTowerIntents(room, noWalls)).toEqual([
             { kind: 'towerAttack', towerId: tower.id, targetId: closeHostile.id },
         ]);
     });
@@ -24,7 +26,7 @@ describe('decideTowerIntents', () => {
             .withStructure(STRUCTURE_ROAD, 26, 26, { hits: 100, hitsMax: 5000, owner: 'none' })
             .withHostile(40, 40)
             .build();
-        expect(decideTowerIntents(room).map(i => i.kind)).toEqual(['towerAttack']);
+        expect(decideTowerIntents(room, noWalls).map(i => i.kind)).toEqual(['towerAttack']);
     });
 
     test('repairs the closest sufficiently damaged structure', () => {
@@ -35,7 +37,7 @@ describe('decideTowerIntents', () => {
             .build();
         const container = room.structures[2];
 
-        expect(decideTowerIntents(room)).toEqual([
+        expect(decideTowerIntents(room, noWalls)).toEqual([
             { kind: 'towerRepair', towerId: room.structures[0].id, targetId: container.id },
         ]);
     });
@@ -50,17 +52,17 @@ describe('decideTowerIntents', () => {
             // Owned by someone else
             .withStructure(STRUCTURE_EXTENSION, 28, 28, { hits: 100, hitsMax: 1000, owner: 'other' })
             .build();
-        expect(decideTowerIntents(room)).toEqual([]);
+        expect(decideTowerIntents(room, noWalls)).toEqual([]);
     });
 
     test('skips towers without enough energy to act', () => {
         const room = aRoom().withTower(25, 25, { energy: TOWER_ENERGY_COST - 1 }).withHostile(30, 30).build();
-        expect(decideTowerIntents(room)).toEqual([]);
+        expect(decideTowerIntents(room, noWalls)).toEqual([]);
     });
 
     test('ignores towers owned by others', () => {
         const room = aRoom().withTower(25, 25, { owner: 'other' }).withHostile(30, 30).build();
-        expect(decideTowerIntents(room)).toEqual([]);
+        expect(decideTowerIntents(room, noWalls)).toEqual([]);
     });
 
     test('decides for each tower independently', () => {
@@ -68,7 +70,7 @@ describe('decideTowerIntents', () => {
         const [t1, t2] = room.structures;
         const [h1, h2] = room.hostileCreeps;
 
-        expect(decideTowerIntents(room)).toEqual([
+        expect(decideTowerIntents(room, noWalls)).toEqual([
             { kind: 'towerAttack', towerId: t1.id, targetId: h1.id },
             { kind: 'towerAttack', towerId: t2.id, targetId: h2.id },
         ]);
@@ -80,12 +82,12 @@ describe('decideTowerIntents', () => {
             .withHostile(30, 30, { activeParts: { [ATTACK]: 1 } })
             .withHostile(40, 40, { activeParts: { [HEAL]: 1 } })
             .build();
-        expect(decideTowerIntents(room)[0]).toMatchObject({ targetId: room.hostileCreeps[2].id });
+        expect(decideTowerIntents(room, noWalls)[0]).toMatchObject({ targetId: room.hostileCreeps[2].id });
     });
 
     test('heals damaged creeps of mine when there are no hostiles', () => {
         const room = aRoom().withTower(25, 25).withMyCreep('hurt', 30, 30, { hits: 100, hitsMax: 300 }).build();
-        expect(decideTowerIntents(room)).toEqual([
+        expect(decideTowerIntents(room, noWalls)).toEqual([
             { kind: 'towerHeal', towerId: room.structures[0].id, targetId: room.creepsPresent[0].id },
         ]);
     });
@@ -93,7 +95,7 @@ describe('decideTowerIntents', () => {
     test('keeps a defense reserve: no repairs with little energy', () => {
         const room = aRoom().withTower(25, 25, { energy: 400 })
             .withStructure(STRUCTURE_ROAD, 26, 26, { hits: 100, hitsMax: 5000, owner: 'none' }).build();
-        expect(decideTowerIntents(room)).toEqual([]);
+        expect(decideTowerIntents(room, noWalls)).toEqual([]);
     });
 
     test('repairs the weakest wall below its RCL target once other structures are fine', () => {
@@ -101,8 +103,18 @@ describe('decideTowerIntents', () => {
             .withStructure(STRUCTURE_WALL, 26, 26, { owner: 'none', hits: 50000, hitsMax: 3e8 })
             .withStructure(STRUCTURE_RAMPART, 40, 40, { hits: 20000, hitsMax: 3e8 })
             .build();
-        expect(decideTowerIntents(room)).toEqual([
+        expect(decideTowerIntents(room, noWalls)).toEqual([
             { kind: 'towerRepair', towerId: room.structures[0].id, targetId: room.structures[2].id },
+        ]);
+    });
+
+    test('repairs only walls the base layout plans', () => {
+        const room = aRoom().withRcl(4).withTower(25, 25)
+            .withStructure(STRUCTURE_WALL, 26, 26, { owner: 'none', hits: 50000, hitsMax: 3e8 })
+            .build();
+        expect(decideTowerIntents(room, noWalls)).toEqual([]);
+        expect(decideTowerIntents(room, new Set(['26_26']))).toEqual([
+            { kind: 'towerRepair', towerId: room.structures[0].id, targetId: room.structures[1].id },
         ]);
     });
 
@@ -111,7 +123,7 @@ describe('decideTowerIntents', () => {
             .withStructure(STRUCTURE_RAMPART, 26, 26, { hits: 1, hitsMax: 1e6 })
             .withStructure(STRUCTURE_ROAD, 27, 27, { hits: 100, hitsMax: 5000, owner: 'none' })
             .build();
-        expect(decideTowerIntents(room)).toEqual([
+        expect(decideTowerIntents(room, noWalls)).toEqual([
             { kind: 'towerRepair', towerId: room.structures[0].id, targetId: room.structures[1].id },
         ]);
     });
@@ -121,6 +133,6 @@ describe('decideTowerIntents', () => {
             .withStructure(STRUCTURE_RAMPART, 26, 26, { hits: 1, hitsMax: 1e6 })
             .withHostile(30, 30)
             .build();
-        expect(decideTowerIntents(room).map(i => i.kind)).toEqual(['towerAttack']);
+        expect(decideTowerIntents(room, noWalls).map(i => i.kind)).toEqual(['towerAttack']);
     });
 });

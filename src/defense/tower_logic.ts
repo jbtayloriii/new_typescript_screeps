@@ -40,13 +40,14 @@ export function chooseTowerTarget(tower: StructureSnapshot, hostiles: readonly H
  * 2. Heal the closest damaged creep of mine.
  * 3. Repair the weakest rampart about to decay away (below RAMPART_RESCUE_HITS).
  * 4. If it has energy to spare: repair the closest damaged non-wall structure, then the weakest
- *    wall or rampart below its RCL target.
+ *    wall or rampart below its RCL target. Only walls in `plannedWalls` (the base layout's, see
+ *    `plannedWallTiles`) are repaired.
  */
-export function decideTowerIntents(room: RoomSnapshot): TowerIntent[] {
+export function decideTowerIntents(room: RoomSnapshot, plannedWalls: ReadonlySet<string>): TowerIntent[] {
     const intents: TowerIntent[] = [];
     const rcl = room.controller?.level ?? 0;
     const damagedCreeps = room.creepsPresent.filter(c => c.hits < c.hitsMax);
-    const repairTargets = room.structures.filter(s => needsRepair(s, rcl));
+    const repairTargets = room.structures.filter(s => needsRepair(s, rcl, plannedWalls));
     const structures = repairTargets.filter(s => !isWall(s) && s.hitsMax - s.hits >= TOWER_REPAIR_MIN_DAMAGE);
     const weakest = (list: readonly StructureSnapshot[]) =>
         list.reduce<StructureSnapshot | null>((w, s) => !w || s.hits < w.hits ? s : w, null);

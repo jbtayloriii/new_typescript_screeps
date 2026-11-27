@@ -232,14 +232,21 @@ describe('repairNearest', () => {
             .withStructure(STRUCTURE_ROAD, 11, 11, { owner: 'none', hits: 2000, hitsMax: 5000 })
             .withStructure(STRUCTURE_WALL, 40, 40, { owner: 'none', hits: CRITICAL_REPAIR_HITS, hitsMax: 3e8 })
             .withMyCreep('c', 10, 10, { memory: mem() }).build();
-        expect(repairNearest(room.creepsPresent[0], room).memory).toEqual({ targetId: room.structures[1].id });
+        expect(repairNearest(new Set(['40_40']))(room.creepsPresent[0], room).memory).toEqual({ targetId: room.structures[1].id });
 
         const noCritical = aRoom()
             .withStructure(STRUCTURE_ROAD, 30, 30, { owner: 'none', hits: 2000, hitsMax: 5000 })
             .withStructure(STRUCTURE_ROAD, 11, 11, { owner: 'none', hits: 2000, hitsMax: 5000 })
             .withMyCreep('c', 10, 10, { memory: mem() }).build();
-        expect(repairNearest(noCritical.creepsPresent[0], noCritical).action)
+        expect(repairNearest(new Set())(noCritical.creepsPresent[0], noCritical).action)
             .toEqual({ kind: 'repair', creepName: 'c', targetId: noCritical.structures[1].id });
+    });
+
+    test('skips walls the base layout does not plan', () => {
+        const room = aRoom().withRcl(3)
+            .withStructure(STRUCTURE_WALL, 23, 24, { owner: 'none', hits: 1, hitsMax: 3e8 })
+            .withMyCreep('c', 24, 24, { memory: mem() }).build();
+        expect(repairNearest(new Set())(room.creepsPresent[0], room).action?.kind).toBe('upgrade');
     });
 
     test('skips healthy, high-hit and enemy structures, falling back to upgrading', () => {
@@ -248,7 +255,7 @@ describe('repairNearest', () => {
             .withStructure(STRUCTURE_WALL, 12, 12, { owner: 'none', hits: 10001, hitsMax: 3e8 })
             .withStructure(STRUCTURE_EXTENSION, 13, 13, { owner: 'other', hits: 10, hitsMax: 1000 })
             .withMyCreep('c', 24, 24, { memory: mem() }).build();
-        expect(repairNearest(room.creepsPresent[0], room).action?.kind).toBe('upgrade');
+        expect(repairNearest(new Set())(room.creepsPresent[0], room).action?.kind).toBe('upgrade');
     });
 });
 
@@ -270,6 +277,19 @@ describe('controller container', () => {
             .build();
         expect(gatherEnergy({ fromStores: true })(room.creepsPresent[0], room).action)
             .toEqual({ kind: 'move', creepName: 'c', target: room.structures[1].pos, range: 1 });
+    });
+
+    test('with controllerContainerFirst, it comes before storage', () => {
+        const room = aRoom().withRcl(4)
+            .withStructure(STRUCTURE_STORAGE, 15, 15, { store: energy(5000, 1e6) })
+            .withStructure(STRUCTURE_CONTAINER, 23, 23, { owner: 'none', store: energy(500, 2000) })
+            .withMyCreep('c', 10, 10, { memory: mem() })
+            .build();
+        const [storage, controllerContainer] = room.structures;
+        expect(gatherEnergy({ fromStores: true, controllerContainerFirst: true })(room.creepsPresent[0], room).action)
+            .toEqual({ kind: 'move', creepName: 'c', target: controllerContainer.pos, range: 1 });
+        expect(gatherEnergy({ fromStores: true })(room.creepsPresent[0], room).action)
+            .toEqual({ kind: 'move', creepName: 'c', target: storage.pos, range: 1 });
     });
 
     test('creeps without WORK wait instead of upgrading when nothing needs energy', () => {

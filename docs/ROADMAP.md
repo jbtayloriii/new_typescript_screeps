@@ -147,8 +147,11 @@ base room.
 **2. Hauling**
 - [x] `haul` task: collects from mine containers and dropped energy (claim-aware, so haulers
       spread out), delivers to spawns/extensions → towers → controller container → storage.
-- [x] Hauler count from measured spawn → source path lengths (`base/survey.ts`, saved in
-      `BaseMemory.sourceDistances`), capped at 2 per mine + 1.
+- [x] Hauler CARRY from measured spawn → source path lengths (`base/survey.ts`, saved in
+      `BaseMemory.sourceDistances`), capped at 2 haulers per mine + 1. Counted in CARRY parts, not
+      creeps, so an undersized (urgent) hauler gets help; one more hauler's worth while a mine has
+      1500+ energy waiting; retiring haulers are replaced early with a full-size body. Before this,
+      both shard1 bases ran one undersized hauler and their far sources overflowed (2026-11-27).
 - [x] The haul task starts once any source has a container or a miner, and only counts those
       sources. Released harvesters fill haul requests. Adoption checks the request's minimal
       body, so a small harvester can't be adopted as a miner.
@@ -156,10 +159,13 @@ base room.
 **3. Size everything else to income**
 - [x] `computeEconomy`: income from miners/harvesters/remote miners, upkeep of non-upgraders.
 - [x] Upgraders: WORK budget from spare income (halved during construction), plus 1 WORK per 25k
-      storage energy above 50k; at least 1, at most 15 at RCL 8. Bodies are capped to the WORK
+      storage energy above 20k; at least 1, at most 15 at RCL 8. Bodies are capped to the WORK
       still missing.
+- [x] Storage reserve: with a storage below 20k, upgraders get only the stored share of spare
+      income (at least 25%), so the rest fills storage. Before this, upgraders used up all the
+      estimated income and both shard1 bases sat at 0 storage (2026-11-27).
 - [x] Controller container: the survey picks a tile 2 from the controller; construction places
-      it from RCL 2. Upgraders gather from it first; haulers fill it.
+      it from RCL 2. Upgraders gather from it first, before storage; haulers fill it.
 - [x] Builders: 1–3 from the remaining construction progress (1 per 5000).
 
 **4. Construction order and limits**
@@ -175,6 +181,7 @@ base room.
       above 500 energy (defense reserve).
 - [x] Wall/rampart repair targets by RCL (`defense/repair_targets.ts`: 10k at RCL 2 up to 10M at
       RCL 8), used by towers and the repair task. Repairers finish normal structures first.
+      Only walls in the base layout are repaired, not ones a previous owner left.
 - [x] Safe mode when dangerous hostiles reach a spawn (range 5) or the controller (range 3) and
       towers can't cope (no energy, out-healed, or a spawn already damaged).
 - [x] Safe mode v2 (after losing W23S31, which spent its charge on 3 harassers at RCL 3): only

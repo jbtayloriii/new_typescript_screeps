@@ -1,9 +1,9 @@
-import { findClosestByRange } from "snapshot/queries";
-import { MyCreepSnapshot, Pos } from "snapshot/types";
+import { findClosestByRange, getRange } from "snapshot/queries";
+import { MyCreepSnapshot, Pos, RoomSnapshot } from "snapshot/types";
 import { buildBody } from "spawning/body";
 import { actOrApproach } from "intents/helpers";
 import { Behavior, deliverEnergy, isControllerContainer, runWorker, WorkerState } from "./behaviors";
-import { DEFAULT_SOURCE_DISTANCE, needsHauling } from "./mine_task";
+import { DEFAULT_SOURCE_DISTANCE, isRetiring, needsHauling } from "./mine_task";
 import { OWNED_SOURCE_ENERGY_PER_TICK } from "./economy";
 import { BodyPattern, HaulTaskMemory, MineTaskMemory, SpawnRequest, TaskContext, TaskDefinition } from "./types";
 
@@ -20,24 +20,59 @@ export const MIN_PICKUP = 50;
 const TRIP_OVERHEAD_TICKS = 4;
 
 /**
- * Haulers needed to carry every mine task's output: for each source, the energy produced during
- * one round trip, divided by one hauler's capacity (sized to the room's energy capacity).
+ * A mine whose container and drops hold at least this much energy is falling behind, so the base
+ * asks for one more hauler's worth of CARRY (see `haulCarryNeeded`).
  */
-export function desiredHaulerCount(ctx: TaskContext): number {
-    // Only sources whose energy waits to be collected: harvesters still walking theirs home don't count.
-    const mines = ctx.baseTasks.filter((t): t is MineTaskMemory => t.type === 'mine' && needsHauling(t, ctx.home));
-    if (mines.length === 0) {
+export const HAUL_BACKLOG = 1500;
+
+/** Mine tasks whose energy waits to be collected: harvesters still walking theirs home don't count. */
+function haulingMines(ctx: TaskContext): MineTaskMemory[] {
+    return ctx.baseTasks.filter((t): t is MineTaskMemory => t.type === 'mine' && needsHauling(t, ctx.home));
+}
+
+/** CARRY parts in one full-size hauler (sized to the room's energy capacity). */
+function carryPerHauler(ctx: TaskContext): number {
+    return (buildBody(HAULER_BODY, ctx.home.energyCapacityAvailable) ?? [CARRY]).filter(p => p === CARRY).length;
+}
+
+/** Energy waiting at a mine: its container plus energy dropped next to the source. */
+export function mineBacklog(mine: MineTaskMemory, home: RoomSnapshot): number {
+    const source = home.sources.find(s => s.id === mine.sourceId);
+    if (!source) {
         return 0;
     }
+    const tile = mine.containerTile;
+    const container = tile && home.structures.find(s =>
+        s.structureType === STRUCTURE_CONTAINER && s.pos.x === tile.x && s.pos.y === tile.y);
+    const dropped = home.droppedResources
+        .filter(d => d.resourceType === RESOURCE_ENERGY && getRange(d.pos, source.pos) <= 1)
+        .reduce((sum, d) => sum + d.amount, 0);
+    return (container?.store?.energy ?? 0) + dropped;
+}
+
+/**
+ * CARRY parts needed to carry every mine task's output: for each source, the energy produced
+ * during one round trip from the spawn. Haulers also stop at many extensions, towers and the
+ * controller container, which this doesn't count, so while any mine has HAUL_BACKLOG energy
+ * waiting, one more hauler's worth is added. The backlog check corrects the estimate.
+ */
+export function haulCarryNeeded(ctx: TaskContext): number {
+    const mines = haulingMines(ctx);
     let carryNeeded = 0;
     for (const mine of mines) {
         const distance = ctx.baseMemory.sourceDistances?.[mine.sourceId] ?? DEFAULT_SOURCE_DISTANCE;
         const roundTrip = 2 * distance + TRIP_OVERHEAD_TICKS;
         carryNeeded += Math.ceil(roundTrip * OWNED_SOURCE_ENERGY_PER_TICK / CARRY_CAPACITY);
     }
-    const carryPerHauler = (buildBody(HAULER_BODY, ctx.home.energyCapacityAvailable) ?? [CARRY])
-        .filter(p => p === CARRY).length;
-    return Math.max(1, Math.min(2 * mines.length + 1, Math.ceil(carryNeeded / carryPerHauler)));
+    if (mines.some(m => mineBacklog(m, ctx.home) >= HAUL_BACKLOG)) {
+        carryNeeded += carryPerHauler(ctx);
+    }
+    return carryNeeded;
+}
+
+/** At most 2 haulers per source that needs hauling, plus 1. */
+export function maxHaulers(ctx: TaskContext): number {
+    return 2 * haulingMines(ctx).length + 1;
 }
 
 /** A pile of energy a hauler can collect from: a dropped resource or a (non-controller) container. */
@@ -113,19 +148,26 @@ export function collectEnergy(haulers: readonly MyCreepSnapshot[]): Behavior {
 
 /**
  * Carries energy from source containers and dropped energy to spawns and extensions, then
- * towers, then the controller container, then storage. Sized to the base's mine tasks.
+ * towers, then the controller container, then storage. Sized in CARRY parts to the base's mine
+ * tasks (see `haulCarryNeeded`), so an undersized hauler gets help.
  */
 export const haulTask: TaskDefinition<HaulTaskMemory> = {
     getSpawnRequests(task, ctx) {
+        const needed = haulCarryNeeded(ctx);
+        // A retiring hauler is replaced before it dies, so the replacement isn't an urgent,
+        // undersized one spawned from whatever energy is left once nobody refills the spawn.
+        const working = ctx.creeps.filter(c => !isRetiring(c, 0));
+        let carry = working.reduce((sum, c) => sum + (c.activeParts[CARRY] ?? 0), 0);
         const requests: SpawnRequest[] = [];
-        for (let i = ctx.creeps.length; i < desiredHaulerCount(ctx); i++) {
+        for (let i = working.length; i < maxHaulers(ctx) && carry < needed; i++) {
             requests.push({
                 taskName: task.name,
                 priority: i === 0 ? FIRST_HAULER_PRIORITY : EXTRA_HAULER_PRIORITY - i,
                 body: HAULER_BODY,
-                // Without a hauler nothing refills the spawn, so take what's affordable now.
-                urgent: i === 0,
+                // Without any hauler nothing refills the spawn, so take what's affordable now.
+                urgent: i === 0 && ctx.creeps.length === 0,
             });
+            carry += carryPerHauler(ctx);
         }
         return requests;
     },

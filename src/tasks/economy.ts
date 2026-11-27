@@ -16,8 +16,13 @@ export const HARVESTER_DUTY_CYCLE = 0.5;
 /** Spawn energy per tick to keep one upgrader WORK part alive ([WORK, CARRY, MOVE] per WORK). */
 const UPGRADER_UPKEEP_PER_WORK = (BODYPART_COST[WORK] + BODYPART_COST[CARRY] + BODYPART_COST[MOVE]) / CREEP_LIFE_TIME;
 
-/** Storage energy kept in reserve before extra energy goes to upgrading. */
-export const STORAGE_UPGRADE_RESERVE = 50000;
+/**
+ * Storage energy to build up before upgraders get all the spare income. Below it, part of the
+ * spare income is left to fill storage (see `upgradeWorkBudget`).
+ */
+export const STORAGE_UPGRADE_RESERVE = 20000;
+/** The smallest share of spare income upgraders get while storage is below the reserve. */
+export const MIN_UPGRADE_SHARE = 0.25;
 /** Each this much storage energy above the reserve adds one upgrader WORK part. */
 export const STORAGE_ENERGY_PER_EXTRA_WORK = 25000;
 
@@ -75,16 +80,26 @@ export function computeEconomy(
  * How many upgrader WORK parts the base can afford: spare income (halved while there's
  * construction, which also needs energy), plus a bonus from storage above the reserve. Always at
  * least 1 so the controller never downgrades, and at most 15 at RCL 8 (the game's upgrade cap).
+ *
+ * Once the base has a storage, upgraders get only a share of the spare income until storage
+ * reaches STORAGE_UPGRADE_RESERVE: the stored fraction of the reserve, but at least
+ * MIN_UPGRADE_SHARE. The rest is left to fill storage. The share rises as storage fills, so
+ * storage settles where upgrading uses up the real income, even though the income estimate runs
+ * high (it ignores tower, repair and squad spending, and energy lost on the way home from remotes).
  */
 export function upgradeWorkBudget(economy: EconomySummary, home: RoomSnapshot): number {
     let spare = economy.incomePerTick - economy.upkeepPerTick;
     if (home.constructionSites.length > 0) {
         spare /= 2;
     }
-    let budget = Math.floor(spare / (UPGRADE_CONTROLLER_POWER + UPGRADER_UPKEEP_PER_WORK));
 
     const storage = home.structures.find(s => s.structureType === STRUCTURE_STORAGE && s.owner === 'me');
     const stored = storage?.store?.energy ?? 0;
+    if (storage) {
+        spare *= Math.max(MIN_UPGRADE_SHARE, Math.min(1, stored / STORAGE_UPGRADE_RESERVE));
+    }
+    let budget = Math.floor(spare / (UPGRADE_CONTROLLER_POWER + UPGRADER_UPKEEP_PER_WORK));
+
     if (stored > STORAGE_UPGRADE_RESERVE) {
         budget += Math.floor((stored - STORAGE_UPGRADE_RESERVE) / STORAGE_ENERGY_PER_EXTRA_WORK);
     }

@@ -34,7 +34,7 @@ export const upgradeTask: TaskDefinition<UpgradeTaskMemory> = {
     },
 
     decide(task, ctx) {
-        const gather = gatherEnergy({ fromStores: true });
+        const gather = gatherEnergy({ fromStores: true, controllerContainerFirst: true });
         return ctx.creeps.flatMap(creep => runWorker(creep, ctx.home, gather, upgradeController));
     },
 

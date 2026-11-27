@@ -1,15 +1,16 @@
 import { describe, expect, test } from '@jest/globals';
-import { collectEnergy, desiredHaulerCount, FIRST_HAULER_PRIORITY, haulTask } from './haul_task';
+import { collectEnergy, FIRST_HAULER_PRIORITY, HAUL_BACKLOG, haulCarryNeeded, haulTask, mineBacklog } from './haul_task';
 import { aRoom, energy } from 'testing/builders/room_snapshot_builder';
 import { aBaseMemory, aTaskContext } from 'testing/builders/context';
-import { TaskMemory } from './types';
+import { MineTaskMemory, TaskMemory } from './types';
+import { MyCreepSnapshot } from 'snapshot/types';
 import { WorkerState } from './behaviors';
 
 const hauler = (extra: Partial<CreepMemory> = {}) =>
     ({ memory: { taskName: 'haul', baseRoomName: 'W1N1', ...extra }, activeParts: { [CARRY]: 2, [MOVE]: 2 } });
 const task = { name: 'haul', roomName: 'W1N1', type: 'haul' as const };
 
-describe('desiredHaulerCount', () => {
+describe('haulCarryNeeded', () => {
     // Two sources whose containers exist, so both need hauling.
     const home = aRoom().withEnergy(800, 800)
         .withSource(10, 10, { id: 'a' as Id<Source> }).withSource(40, 40, { id: 'b' as Id<Source> })
@@ -19,34 +20,66 @@ describe('desiredHaulerCount', () => {
     const mine = (id: string, x: number): TaskMemory =>
         ({ name: id, roomName: 'W1N1', type: 'mine', sourceId: id as Id<Source>, containerTile: { x, y: x } });
 
-    test('scales with the sources that need hauling, their distance, and hauler size', () => {
-        const ctx = (distance: number, capacity = 800) => aTaskContext({ ...home, energyCapacityAvailable: capacity }, {
+    test('scales with the sources that need hauling and their distance', () => {
+        const ctx = (distance: number) => aTaskContext(home, {
             baseTasks: [mine('a', 11), mine('b', 41)],
             baseMemory: aBaseMemory({ sourceDistances: { a: distance, b: distance } }),
         });
-        // 800 capacity → 8 CARRY per hauler. Distance 20: (2×20+4)×10/50 = 9 CARRY per source → 18 → 3 haulers.
-        expect(desiredHaulerCount(ctx(20))).toBe(3);
-        expect(desiredHaulerCount(ctx(5))).toBe(1);
-        // Capped at 2 per source + 1
-        expect(desiredHaulerCount(ctx(20, 200))).toBe(5);
+        // Distance 20: (2×20+4)×10/50 = 9 CARRY per source.
+        expect(haulCarryNeeded(ctx(20))).toBe(18);
+        expect(haulCarryNeeded(ctx(5))).toBe(6);
+    });
+
+    test('adds a full hauler of CARRY while a mine has a backlog', () => {
+        const backedUp = aRoom().withEnergy(800, 800)
+            .withSource(10, 10, { id: 'a' as Id<Source> })
+            .withStructure(STRUCTURE_CONTAINER, 11, 11, { owner: 'none', store: energy(1000, 2000) })
+            .withDrop(9, 9, HAUL_BACKLOG - 1000)
+            .build();
+        const ctx = aTaskContext(backedUp, { baseTasks: [mine('a', 11)], baseMemory: aBaseMemory({ sourceDistances: { a: 20 } }) });
+        expect(mineBacklog(ctx.baseTasks[0] as MineTaskMemory, backedUp)).toBe(HAUL_BACKLOG);
+        // 9 for the trip, plus 8 (800 capacity → 8 CARRY per hauler).
+        expect(haulCarryNeeded(ctx)).toBe(17);
     });
 
     test('ignores sources whose harvesters still walk their energy home', () => {
         const noContainers = aRoom().withEnergy(800, 800).withSource(10, 10, { id: 'a' as Id<Source> }).build();
-        expect(desiredHaulerCount(aTaskContext(noContainers, { baseTasks: [mine('a', 11)] }))).toBe(0);
-        expect(desiredHaulerCount(aTaskContext(aRoom().build()))).toBe(0);
+        expect(haulCarryNeeded(aTaskContext(noContainers, { baseTasks: [mine('a', 11)] }))).toBe(0);
+        expect(haulCarryNeeded(aTaskContext(aRoom().build()))).toBe(0);
     });
 });
 
 describe('haulTask.getSpawnRequests', () => {
-    test('the first hauler is urgent and high priority', () => {
-        const ctx = aTaskContext(home(), { baseTasks: [{ name: 'm', roomName: 'W1N1', type: 'mine', sourceId: 'a' as Id<Source>, containerTile: { x: 11, y: 11 } }] });
-        expect(haulTask.getSpawnRequests(task, ctx)[0]).toMatchObject({ priority: FIRST_HAULER_PRIORITY, urgent: true });
+    const mineTask: TaskMemory = { name: 'm', roomName: 'W1N1', type: 'mine', sourceId: 'a' as Id<Source>, containerTile: { x: 11, y: 11 } };
+    // Distance 25 (the default): (2×25+4)×10/50 = 11 CARRY needed; 800 capacity → 8 CARRY per hauler.
+    const room = () => aRoom().withEnergy(800, 800).withSource(10, 10, { id: 'a' as Id<Source> })
+        .withStructure(STRUCTURE_CONTAINER, 11, 11, { owner: 'none' });
+    const requests = (creeps: Partial<MyCreepSnapshot>[]) => {
+        const builder = room();
+        creeps.forEach((c, i) => builder.withMyCreep(`h${i}`, 20, 20, { memory: { taskName: 'haul', baseRoomName: 'W1N1' }, ...c }));
+        const home = builder.build();
+        return haulTask.getSpawnRequests(task, aTaskContext(home, { baseTasks: [mineTask], creeps: home.creepsPresent }));
+    };
 
-        function home() {
-            return aRoom().withEnergy(800, 800).withSource(10, 10, { id: 'a' as Id<Source> })
-                .withStructure(STRUCTURE_CONTAINER, 11, 11, { owner: 'none' }).build();
-        }
+    test('the first hauler is urgent and high priority', () => {
+        expect(requests([])).toEqual([
+            expect.objectContaining({ priority: FIRST_HAULER_PRIORITY, urgent: true }),
+            expect.objectContaining({ urgent: false }),
+        ]);
+    });
+
+    test('counts CARRY parts, so an undersized hauler gets help', () => {
+        expect(requests([{ activeParts: { [CARRY]: 3, [MOVE]: 3 } }])).toEqual([expect.objectContaining({ urgent: false })]);
+        expect(requests([{ activeParts: { [CARRY]: 11, [MOVE]: 11 } }])).toEqual([]);
+    });
+
+    test('replaces a retiring hauler early, without the urgent (undersized) body', () => {
+        const big = { activeParts: { [CARRY]: 11, [MOVE]: 11 } };
+        expect(requests([{ ...big, ticksToLive: 500 }])).toEqual([]);
+        expect(requests([{ ...big, ticksToLive: 20 }])).toEqual([
+            expect.objectContaining({ priority: FIRST_HAULER_PRIORITY, urgent: false }),
+            expect.anything(),
+        ]);
     });
 });
 

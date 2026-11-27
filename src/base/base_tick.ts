@@ -1,4 +1,5 @@
 import { decideSafeMode } from "defense/safe_mode";
+import { plannedWallTiles } from "defense/repair_targets";
 import { decideTowerIntents } from "defense/tower_logic";
 import { IntelMap } from "intel/types";
 import { DirectiveMap } from "directives/types";
@@ -125,7 +126,7 @@ export function decideBaseIntents(input: BaseTickInput, opts: { report?: boolean
 
     // 4. Defense.
     intents.push(...decideSafeMode(home));
-    intents.push(...decideTowerIntents(home));
+    intents.push(...decideTowerIntents(home, plannedWallTiles(input.baseMemory.baseLayout)));
 
     // 5. Construction.
     const construction = planConstruction(home, input.baseMemory);

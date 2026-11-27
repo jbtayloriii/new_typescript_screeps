@@ -1,3 +1,4 @@
+import { plannedWallTiles } from "defense/repair_targets";
 import { gatherEnergy, repairNearest, runWorker } from "./behaviors";
 import { BodyPattern, RepairTaskMemory, TaskDefinition } from "./types";
 
@@ -12,7 +13,8 @@ export const repairTask: TaskDefinition<RepairTaskMemory> = {
 
     decide(task, ctx) {
         const gather = gatherEnergy({ fromStores: true });
-        return ctx.creeps.flatMap(creep => runWorker(creep, ctx.home, gather, repairNearest));
+        const repair = repairNearest(plannedWallTiles(ctx.baseMemory.baseLayout));
+        return ctx.creeps.flatMap(creep => runWorker(creep, ctx.home, gather, repair));
     },
 
     isDone() {

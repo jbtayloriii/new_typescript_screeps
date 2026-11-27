@@ -95,15 +95,17 @@ function rememberTarget(creep: MyCreepSnapshot, targetId: Id<_HasId>): Partial<C
 
 /**
  * Gets energy.
- * - With `fromStores`, first withdraws from ruins, then storage, then containers.
+ * - With `fromStores`, first withdraws from ruins, then storage, then the controller container,
+ *   then other containers. With `controllerContainerFirst` too (upgraders), the controller
+ *   container comes before storage, since haulers fill it first and storage is the base's reserve.
  * - Otherwise harvests: from `sourceId` if given, else the remembered source, else the source
  *   with the most free tiles (ties broken by range). Sources whose tiles are all taken are
  *   skipped, so creeps wait instead of crowding a source (see `freeSpots`).
  */
-export function gatherEnergy(opts: { fromStores: boolean, sourceId?: Id<Source> }): Behavior {
+export function gatherEnergy(opts: { fromStores: boolean, controllerContainerFirst?: boolean, sourceId?: Id<Source> }): Behavior {
     return (creep, room) => {
         if (opts.fromStores) {
-            const withdraw = withdrawFromStores(creep, room);
+            const withdraw = withdrawFromStores(creep, room, opts.controllerContainerFirst ?? false);
             if (withdraw) {
                 return withdraw;
             }
@@ -127,14 +129,15 @@ export function gatherEnergy(opts: { fromStores: boolean, sourceId?: Id<Source> 
     };
 }
 
-function withdrawFromStores(creep: MyCreepSnapshot, room: RoomSnapshot): CreepStep | null {
+function withdrawFromStores(creep: MyCreepSnapshot, room: RoomSnapshot, controllerContainerFirst: boolean): CreepStep | null {
     const ruin = findClosestByRange(creep.pos, room.ruins.filter(r => r.energy > 0));
     const hasEnergy = (s: StructureSnapshot) => (s.store?.energy ?? 0) >= MIN_STORE_WITHDRAW_ENERGY;
     const storage = room.structures.find(s => s.structureType === STRUCTURE_STORAGE && s.owner === 'me' && hasEnergy(s));
     const containers = room.structures.filter(s => s.structureType === STRUCTURE_CONTAINER && hasEnergy(s));
-    const container = containers.find(s => isControllerContainer(s, room)) ?? findClosestByRange(creep.pos, containers);
+    const controllerContainer = containers.find(s => isControllerContainer(s, room));
+    const container = controllerContainer ?? findClosestByRange(creep.pos, containers);
 
-    const target = ruin ?? storage ?? container;
+    const target = ruin ?? (controllerContainerFirst ? controllerContainer : undefined) ?? storage ?? container;
     if (!target) {
         return null;
     }
@@ -256,11 +259,12 @@ function isWall(structure: StructureSnapshot): boolean {
  * Repairs the remembered structure while it still needs it (the memory is cleared each time the
  * creep refills, so it never sticks to one wall for long). Otherwise, in order: the closest
  * critically damaged structure, the closest damaged non-wall structure, then the weakest wall or
- * rampart below its RCL target (see `defense/repair_targets.ts`). Upgrades if nothing needs repair.
+ * rampart below its RCL target (see `defense/repair_targets.ts`). Only walls in `plannedWalls`
+ * (the base layout's) are repaired. Upgrades if nothing needs repair.
  */
-export const repairNearest: Behavior = (creep, room) => {
+export const repairNearest = (plannedWalls: ReadonlySet<string>): Behavior => (creep, room) => {
     const rcl = room.controller?.level ?? 0;
-    const damaged = room.structures.filter(s => needsRepair(s, rcl));
+    const damaged = room.structures.filter(s => needsRepair(s, rcl, plannedWalls));
     const walls = damaged.filter(isWall);
     const weakestWall = walls.reduce<StructureSnapshot | null>((weakest, s) => !weakest || s.hits < weakest.hits ? s : weakest, null);
     const target = damaged.find(s => s.id === creep.memory.targetId)
